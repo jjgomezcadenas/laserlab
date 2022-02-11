@@ -14,6 +14,8 @@ function hnu_eV(lambda_nm)
     return 1240.0 * (1.0/lambda_nm)
 end
 
+dspot(λ::Real, NA::Real) = 1.83*λ/(2*NA)
+
 include("dffunctions_test.jl")
 include("setup_test.jl")
 

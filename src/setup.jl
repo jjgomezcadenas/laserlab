@@ -49,14 +49,14 @@ Simple representation of a continous laser
 - `P::typeof(1.0mW)`  : Power
 
 """
-mutable struct CLaser <: Laser
+struct CLaser <: Laser
 	λ::Unitful.Length
 	P::Unitful.Power
 end
 
 
 """
-	struct PulasedLaser
+	struct PulsedLaser
 
 Simple representation of a pulsed laser
 
@@ -86,6 +86,22 @@ struct PulsedLaser  <: Laser
 		P = uconvert(mW, Pk * w * f)
 		new(λ, Pk, f, P,  w)
 	end
+end
+
+
+"""
+GaussianLaser
+
+Representation of a Gaussian laser defined by a laser and a waist  
+
+# Fields
+- `laser::Laser`       : A Laser 
+- `w0::Unitful.Length` : Waist of laser 
+
+"""
+struct GaussianLaser 
+	laser::Laser
+	w0::Unitful.Length
 end
 
 
@@ -121,34 +137,34 @@ struct Objective
 end
 
 
-"""
-	GaussianLaser
 
-Representation of a Gaussian laser that fills the objective lens 
-assuming zR >> f, where f is the focal 
+#CCD is defined in terms of a function which returns the CCD response
+#(e.g, function ccd returns a response function, which gives efficiency
+# as a function of wavelength)
+"""
+	ccd(lmin::Float64=350.0, lmax::Float64=1000.0)
+
+Return the efficiency of a generic CCD as a function of wavelength.
 
 # Fields
-- `laser::Laser`       : A laser type
-- `obj::Objective`     : An objective type
-- `w0::typeof(1.0nm)`  : Waist of laser at focusing point
-- `I0::typeof(1.0mW/cm^2)` : Intensity at r = 0, z= 0
-- `ρ0::typeof(1.0Hz/cm^2)` : Photon density at r = 0, z= 0
 
+- `lmin::Float64=350.0` : Minimum wavelength for which efficiency is defined
+- `lmax::Float64=350.0` : Maximum wavelength for which efficiency is defined
 
 """
-struct GaussianLaser
-	laser::Laser
-	obj::Objective
-	w0::Unitful.Length
-	I0::typeof(1.0mW/cm^2)
-	ρ0::typeof(1.0Hz/cm^2)
-
-	function GaussianLaser(laser,obj)
-		w0 = laser.λ/(π * obj.NA)
-		I0 = uconvert(mW/cm^2, 2.0 * laser.P/(π*w0^2))
-		ρ0 = uconvert(Hz/cm^2, n_photons(laser)/(π*w0^2))
-		new(laser,obj, w0, I0, ρ0)
+function ccd(lmin::Float64=350.0, lmax::Float64=1000.0)
+	function eff(l::Float64)
+		if l < lmin || l > lmax
+			return 0.
+		else
+			wl = 350.:50.:1000.
+			ϵ = [0.3, 0.4,0.65,0.78,0.82,0.82,0.8,0.72,0.62,0.5,0.37,
+			  0.24,0.12,0.07]
+			e = CubicSplineInterpolation(wl, ϵ)
+			return e(l)
+		end
 	end
+	return eff
 end
 
 
@@ -181,7 +197,6 @@ Delivered energy of a laser in a given time.
 function delivered_energy(laser::Laser, t::Unitful.Time)
 	laser.P * t
 end
-
 
 """
 	n_photons(laser::Laser)
@@ -264,65 +279,6 @@ function photon_density(laser::Laser, fov::Fov)
 end
 
 
-function cw(gl::GaussianLaser, z::Unitful.Length)
-	return 1.0 + (z / gl.zr)^2
-end
-
-
-function w0wz2(gl::GaussianLaser, z::Unitful.Length)
-	return 1.0 / cw(gl,z)
-end
-
-
-"""
-	w(gl::GaussianLaser, z::Unitful.Length)
-
-Waist of a laser at length z
-
-# Fields
-
-- `gl::GaussianLaser`  : A gaussian laser
-- `z::Unitful.Length`  : z distance from focusing point
-"""
-function w(gl::GaussianLaser, z::Unitful.Length)
-	return gl.w0 * sqrt(cw(gl, z))
-end
-
-
-"""
-	gf(gl::GaussianLaser, z::Unitful.Length, r::Unitful.Length)
-
-Gaussian distribution of a gaussian beam
-
-# Fields
-
-- `gl::GaussianLaser`  : A gaussian laser
-- `z::Unitful.Length`  : z distance from focusing point
-- `r::Unitful.Length`  : r distance from focusing point
-"""
-function gf(gl::GaussianLaser, z::Unitful.Length, r::Unitful.Length)
-	wz = w(gl, z)
-	return w0wz2(gl, z) * exp(-2.0 * (r/wz)^2)
-end
-
-
-"""
-	gI(gl::GaussianLaser, z::Unitful.Length, r::Unitful.Length)
-
-Intensity of a gaussian beam
-
-# Fields
-
-- `gl::GaussianLaser`  : A gaussian laser
-- `z::Unitful.Length`  : z distance from focusing point
-- `r::Unitful.Length`  : r distance from focusing point
-"""
-function gI(gl::GaussianLaser, z::Unitful.Length, r::Unitful.Length)
-	wz = w(gl, z)
-	return (gl.w0/wz)^2 * gf(gl,z,r)
-end
-
-
 """
 	diffraction_limit(l::Laser, obj:: Objective)
 
@@ -336,20 +292,6 @@ focused with an objective obj
 """
 function diffraction_limit(l::Laser, obj:: Objective)
     return 1.83 * l.λ/(2 * obj.NA)
-end
-
-
-"""
-	diffraction_limit(gl::GaussianLaser)
-
-Return the diameter of diffractive spot for a gaussian laser
-
-# Fields
-
-- `gl::GaussianLaser`  : A gaussian laser
-"""
-function diffraction_limit(gl::GaussianLaser)
-    return 1.83 * gl.laser.λ/(2 * gl.obj.NA)
 end
 
 
@@ -400,31 +342,89 @@ function transmission(A::Float64)
 	A <=1 ? (1 - sqrt(1 - A^2)) /2 : 0.5
 end
 
-#CCD is defined in terms of a function which returns the CCD response
-#(e.g, function ccd returns a response function, which gives efficiency
-# as a function of wavelength)
+
+# GaussianLaser functions
 """
-	ccd(lmin::Float64=350.0, lmax::Float64=1000.0)
+	w0_large_zr(laser::Laser, obj::Objective)
 
-Return the efficiency of a CCD as a function of wavelength.
-
+returns w0 in the limit of large zr. 
+This applies to a (gaussian) laser filling the back lens of a microscope objective.  
+ 
 # Fields
 
-- `lmin::Float64=350.0` : Minimum wavelength for which efficiency is defined
-- `lmax::Float64=350.0` : Maximum wavelength for which efficiency is defined
+- `laser::Laser` : A laser, filling the back lens of a microscope objective
+- `obj::Objective` : The microscope objective  
 
 """
-function ccd(lmin::Float64=350.0, lmax::Float64=1000.0)
-	function eff(l::Float64)
-		if l < lmin || l > lmax
-			return 0.
-		else
-			wl = 350.:50.:1000.
-			ϵ = [0.3, 0.4,0.65,0.78,0.82,0.82,0.8,0.72,0.62,0.5,0.37,
-			  0.24,0.12,0.07]
-			e = CubicSplineInterpolation(wl, ϵ)
-			return e(l)
-		end
+w0_large_zr(laser::Laser, obj::Objective) = laser.λ/(π * obj.NA)
+
+
+"""
+	gzr(gl::GaussianLaser)
+
+returns zr =  π * w0^2/λ, this is the zr that corresponds to the beam waist w0.
+This applies only to a free Gaussian Laser, not to a Gaussian Laser focused on an 
+objective (in this case zr is assumed to be very large) 
+
+"""
+gzr(gl::GaussianLaser)  = π * gl.w0^2/gl.laser.λ
+
+"""
+	gI0(gl::GaussianLaser)
+
+returns I0 =  2.0*P/(π*w0^2)
+
+"""
+gI0(gl::GaussianLaser)  = 2.0 * gl.laser.P/(π * gl.w0^2)
+
+"""
+    gρ0(gl::GaussianLaser)
+
+returns number of photons corresponding to I0
+
+"""
+gρ0(gl::GaussianLaser)  = n_photons(gl.laser.λ, 2.0 * gl.laser.P)/(π * gl.w0^2)
+
+
+"""
+	gwz(gl::GaussianLaser)
+
+returns w(z) = w0 * Sqrt(1 +(z/zr)^2)
+# Fields
+
+"""
+function gwz(gl::GaussianLaser)
+	function wxz(z::Unitful.Length)
+		return gl.w0 * sqrt(1 + (z/gzr(gl)^2))
 	end
-	return eff
+	return wxz
 end
+
+
+"""
+	gI(gl::GaussianLaser)
+
+returns I(r,z) = ρ0 [w0/w(z)]^2 * exp(-2(r/w(z)^2))) (Hz/mm^2)
+
+"""
+function gI(gl::GaussianLaser)
+	function Ix(r::Unitful.Length, z::Unitful.Length)
+		wzz = gwz(gl)
+		return gρ0(gl) * (gl.w0/wzz(z))^2 * exp(-2*(r/wzz(z))^2)
+	end
+	return Ix
+end
+
+
+"""
+	focus_lens_at_beam_waist(gl::GaussianLaser)
+
+Returns a new GaussianLaser beam after focusing with a lens located at beam waist.
+The new beam waist becomes: w' = (f * λ) / (π * w0), where f is the focal.
+
+"""
+function focus_lens_at_beam_waist(gl::GaussianLaser, f::Unitful.Length)
+	w0 = f * gl.laser.λ/(π * gl.w0)
+	return GaussianLaser(gl.laser, w0)
+end
+
