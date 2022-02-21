@@ -9,7 +9,10 @@ import Unitful:
     ps, ns, μs, ms, s, minute, hr, d, yr, Hz, kHz, MHz, GHz,
     eV,
     μJ, mJ, J,
-	μW, mW, W
+	μW, mW, W,
+	A, N, mol, mmol, V, L, M
+
+	import PhysicalConstants.CODATA2018: N_A
 
 
 """
@@ -36,6 +39,52 @@ struct Fov
 		new(d,z,a,v)
 	end
 end
+
+"""
+	struct Fluorophore
+
+Represent a fluorescent molecule
+
+# Fields
+- `expeak::Units (nm)`           : peak excitation
+- `empeak::Units (nm)`           : peak emission
+- `ϵ::Units(``cm^{-1} M^{-1}``)` : molar extinction coefficient
+- `Q::Float64`                   : Quantum efficiency
+- `σ::Units(``cm^2``)`           : attenuation cross section
+"""
+struct Fluorophore
+    expeak::typeof(1.0nm)
+    empeak::typeof(1.0nm)
+    ϵ::typeof(1.0/(cm*M))
+    Q::Float64
+	σ::typeof(1.0cm^2)
+	function Fluorophore(ex, en, ϵ, Q)
+		σ = log(10) * uconvert(cm^2/mol, ϵ) / N_A
+		new(ex, en, ϵ, Q, σ)
+	end
+end
+
+
+"""
+	struct Monolayer
+
+Represents a monolayer
+
+# Fields
+- `p::Unitful.Length`  : pitch between molecules
+- `σ::Units (``molecules/μm^2``)`  : number of molecules per area
+"""
+struct Monolayer
+	p::Unitful.Length 
+    σ::typeof(1.0*μm^-2)
+
+	function Monolayer(p)
+		σ = uconvert(μm^-2, 1.0/p^2)
+		new(p, σ)
+
+	end
+end
+
 
 abstract type Laser end
 
@@ -65,7 +114,6 @@ Simple representation of a pulsed laser
 - `Pk::Unitful.Power`  : peak Power
 - `P::Unitful.Power`  : average power
 - `f::Unitful.Frequency`  : laser frequency
-- `r::Unitful.Time`   : laser period 
 - `w::Unitful.Time` : pulse width 
 
 """
@@ -89,19 +137,55 @@ struct PulsedLaser  <: Laser
 end
 
 
-"""
-GaussianLaser
+# """
+# GaussianLaser
 
-Representation of a Gaussian laser defined by a laser and a waist  
+# Representation of a Gaussian laser defined by a laser and a waist  
+
+# # Fields
+# - `laser::Laser`       : A Laser 
+# - `w0::Unitful.Length` : Waist of laser 
+
+# """
+# struct GaussianLaser 
+# 	laser::Laser
+# 	w0::Unitful.Length
+# end
+
+
+"""
+	struct TLens
+
+Represents a thin lens
 
 # Fields
-- `laser::Laser`       : A Laser 
-- `w0::Unitful.Length` : Waist of laser 
+- `M::Real`         : Magnification
+- `f::Unitful.Length`   : focal distance of the lens
+- `d::Unitful.Length`   : diameter of the lens
 
 """
-struct GaussianLaser 
-	laser::Laser
-	w0::Unitful.Length
+struct TLens
+    M::Real 
+	f::Unitful.Length
+	d::Unitful.Length
+	
+end
+
+"""
+	propagate(tl::TLens, y1::Real, z1::Real)
+
+Propagate ray from (z1, y1) to (z2, y2) through thin lens tl 
+
+# Fields
+- `tl::TLens`         : A thin lens 
+- `z1::Unitful.Length`   : point z1 
+- `y1::Unitful.Length`   : point y1 
+
+"""
+function propagate(tl::TLens, y1::Unitful.Length, z1::Unitful.Length)
+	y2 = tl.M * y1
+	iz2 = (1.0/tl.f) - (1.0/z1)
+	y2, 1.0/iz2
 end
 
 
@@ -114,8 +198,8 @@ Simple representation of a microscope objective
 - `name::String`       : identifies the objective
 - `NA::Float64`        : Numerical aperture
 - `M::Float64`         : Magnification
-- `f::typeof(1.0mm)`   : focal distance of the lens
-- `d::typeof(1.0mm)`   : diameter of the lens
+- `f::typeof(1.0mm)`   : focal length 
+- `d::typeof(1.0mm)`   : entrance pupil diameter
 
 """
 struct Objective
@@ -343,88 +427,18 @@ function transmission(A::Float64)
 end
 
 
-# GaussianLaser functions
-"""
-	w0_large_zr(laser::Laser, obj::Objective)
+# fluorophores
 
-returns w0 in the limit of large zr. 
-This applies to a (gaussian) laser filling the back lens of a microscope objective.  
- 
+"""
+	fluorescence(f::Fluorophore, I::Quantity)
+
+Number of  photons emitted per unit time when fluorosphore F
+is illuminated with a laser of photon density I
+
 # Fields
 
-- `laser::Laser` : A laser, filling the back lens of a microscope objective
-- `obj::Objective` : The microscope objective  
-
+- `f::Fluorophore`    : Define fluorophore
+- `I::(``nγ/cm^2``)`  : Photon density
 """
-w0_large_zr(laser::Laser, obj::Objective) = laser.λ/(π * obj.NA)
-
-
-"""
-	gzr(gl::GaussianLaser)
-
-returns zr =  π * w0^2/λ, this is the zr that corresponds to the beam waist w0.
-This applies only to a free Gaussian Laser, not to a Gaussian Laser focused on an 
-objective (in this case zr is assumed to be very large) 
-
-"""
-gzr(gl::GaussianLaser)  = π * gl.w0^2/gl.laser.λ
-
-"""
-	gI0(gl::GaussianLaser)
-
-returns I0 =  2.0*P/(π*w0^2)
-
-"""
-gI0(gl::GaussianLaser)  = 2.0 * gl.laser.P/(π * gl.w0^2)
-
-"""
-    gρ0(gl::GaussianLaser)
-
-returns number of photons corresponding to I0
-
-"""
-gρ0(gl::GaussianLaser)  = n_photons(gl.laser.λ, 2.0 * gl.laser.P)/(π * gl.w0^2)
-
-
-"""
-	gwz(gl::GaussianLaser)
-
-returns w(z) = w0 * Sqrt(1 +(z/zr)^2)
-# Fields
-
-"""
-function gwz(gl::GaussianLaser)
-	function wxz(z::Unitful.Length)
-		return gl.w0 * sqrt(1 + (z/gzr(gl)^2))
-	end
-	return wxz
-end
-
-
-"""
-	gI(gl::GaussianLaser)
-
-returns I(r,z) = ρ0 [w0/w(z)]^2 * exp(-2(r/w(z)^2))) (Hz/mm^2)
-
-"""
-function gI(gl::GaussianLaser)
-	function Ix(r::Unitful.Length, z::Unitful.Length)
-		wzz = gwz(gl)
-		return gρ0(gl) * (gl.w0/wzz(z))^2 * exp(-2*(r/wzz(z))^2)
-	end
-	return Ix
-end
-
-
-"""
-	focus_lens_at_beam_waist(gl::GaussianLaser)
-
-Returns a new GaussianLaser beam after focusing with a lens located at beam waist.
-The new beam waist becomes: w' = (f * λ) / (π * w0), where f is the focal.
-
-"""
-function focus_lens_at_beam_waist(gl::GaussianLaser, f::Unitful.Length)
-	w0 = f * gl.laser.λ/(π * gl.w0)
-	return GaussianLaser(gl.laser, w0)
-end
-
+fluorescence(f::Fluorophore, I::typeof(1.0Hz/cm^2)) =  f.σ * f.Q * I
+	

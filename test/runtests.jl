@@ -18,4 +18,4 @@ dspot(λ::Real, NA::Real) = 1.83*λ/(2*NA)
 
 include("dffunctions_test.jl")
 include("setup_test.jl")
-
+include("glaser_test.jl")
