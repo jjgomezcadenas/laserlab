@@ -26,6 +26,7 @@ end
 
 spG = CsvG(';',',')  # spanish: decimals represented with ',' delimited with ';'
 enG = CsvG(',','.')  # english
+enG2 = CsvG('\t','.')  # english with tabs
 
 
 """
@@ -55,9 +56,9 @@ Load a dataframe from a csv file.
 - `fname::String`: name of the (csv) file expressing the df.
 - `csvg=spG`: CVS coding (spanish, default) or english.
 """
-function load_df_from_csv(path::String, fname::String, csvg::CsvG)
+function load_df_from_csv(path::String, fname::String, csvg::CsvG, header::Integer=1)
     name   = string(path, "/", fname)
-    csvf   = CSV.File(name; delim=csvg.delim, decimal=csvg.decimal)
+    csvf   = CSV.File(name; header=header, delim=csvg.delim, decimal=csvg.decimal)
     return DataFrame(csvf)
 end
 

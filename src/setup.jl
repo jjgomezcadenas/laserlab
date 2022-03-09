@@ -134,6 +134,16 @@ struct PulsedLaser  <: Laser
 		P = uconvert(mW, Pk * w * f)
 		new(λ, Pk, f, P,  w)
 	end
+
+	function PulsedLaser(λ::Unitful.Length,
+						 Pk::Unitful.Power,
+						 f::Unitful.Frequency,
+						 P::Unitful.Power,
+						 w::Unitful.Time)
+
+
+			new(λ, Pk, f, P,  w)
+	end
 end
 
 
