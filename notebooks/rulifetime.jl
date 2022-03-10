@@ -64,8 +64,11 @@ end
 # ╔═╡ c9e85963-fe90-48c4-8e20-fcc92c31ce99
 lfi = ingredients("../src/LaserLab.jl")
 
+# ╔═╡ f3fea484-8430-47ab-986b-7b170bef4ba6
+PlutoUI.TableOfContents(title="Table of Contents", indent=true)
+
 # ╔═╡ 9e58009d-0244-49db-801e-362bcb895eb0
-md" ## Background
+md" ## Introduction
 Data was taken with the TOPATU setup, with the following elements:
 
 1. EPL480 nm laser operating at 250 kHz (5 μs pulses).
@@ -90,7 +93,7 @@ begin
 end
 
 # ╔═╡ 01355b47-de67-4104-a6bc-3d773b156bae
-md"### Data files
+md"## Data files
 - The data files are stored in directories, which in turn contain csv files, one file per trace (waveform)
 - We can store all the files using glob
 "
@@ -103,8 +106,163 @@ md"## Signal features
 - To ilustrate the signal's features, first we read a waveform. The data comes in seconds and volts, signals are negative. As a first setp we read the data, invert the signals, & transform amplitude to mV and times to μs
 - We use Julia's multiple dispatch feature to define two versions of *read_waveform*, one that takes the explicit adress of the directory and file, and one that takes a vector of strings produced by glob and the file number"
 
-# ╔═╡ afce0cc9-5bb8-46ab-b8ff-d4d59d53be49
-typeof(csvf)
+# ╔═╡ 2a9e671f-33c4-42be-99c4-e02f74b01cab
+md"### Reading waveforms
+- Function read_waveform allows reading waveforms one by one
+"
+
+# ╔═╡ 727c419a-7e04-4c24-9870-549bcc5fed59
+begin
+	nsigma = 3.0
+	nsigma2 = 5.0
+end
+
+# ╔═╡ f88b142f-c42b-46d7-90e1-a657946df80e
+md"### Plotting waveform"
+
+# ╔═╡ 35436842-9dc0-4541-8d45-abf3d174ccd1
+md" ### Filtering signals
+- Waveform, inlcuding oscillatory noise is contained within +- $(nsigma)
+- Filter potential signals signal > $(nsigma)
+- Filter persistent bkgnd signal < -$(nsigma) 
+"
+
+# ╔═╡ 657c7a1a-431d-47d4-ab64-8740e2d29505
+md"### Finding signal
+- Selecting data above $nsigma shows peak candidates that can be single electrons
+"
+
+# ╔═╡ f5815f51-5ce3-43a4-a262-3cf94529022f
+md"### Peak structure
+- The structure of the peaks shows potential signals, together with some background. We can use a peak finding algorithm. 
+"
+
+# ╔═╡ c669b848-0d0d-4a82-bfcc-f13319f5bc4d
+md"## Peak finding algorithm step-by-step
+"
+
+# ╔═╡ 3e54ffba-6521-4236-bafd-0caaa207a518
+md"### Find the maxima in the landscape"
+
+# ╔═╡ 0c3983ed-e586-44b1-a82a-94539c355139
+md"- The algorithm finds a large number of maxima. This is not surprising, given the oscillatory noise.
+"
+
+# ╔═╡ 7ebf77fd-cd26-421a-82d2-7cbb74e3c4e7
+md"### Find peak prominence"
+
+# ╔═╡ 5c37131b-6ef1-410b-9548-41abba13b2d6
+md"- Most maxima have small values of prominence, tipically below $nsigma sigma
+- We can select suitable peak candidates filtering on prominence > $nsigma sigma"
+
+# ╔═╡ fc15250c-faa0-4feb-9034-2c978a6f5e40
+md"### Find peak width"
+
+# ╔═╡ 52379219-9f4e-442b-ab8d-8965955e27b5
+wsel = 4.0
+
+# ╔═╡ 27491d67-b26d-4ec3-8799-86c7cff3c90d
+md"### Plot the peaks"
+
+# ╔═╡ 8634524d-0f37-4e65-9cc6-f7abb5626294
+md"### Peak finding in negative (background) signals
+- To understand the noise, we can now repeat the same analysis over the negative pulses, which are purely due to noise.
+- We can observe that the prom cut is effective to eliminate most of the peak (only one survives the cut), while in this case, the width cut does not add extra suppression. 
+"
+
+# ╔═╡ 9f5f8052-6ee6-402a-ac0a-cfac3ab782bd
+md"## Formalizing analysis
+- Let now formalise the analysis above
+"
+
+# ╔═╡ ed36670d-74fa-4ca7-b815-63022739ec48
+md"### read waveform, compute mean and std, plot
+- We can also read waveforms specifying a file number in csvg vector (obtained by glob)
+"
+
+# ╔═╡ 2673dfd5-b088-4f35-8669-29e8f9806fe4
+md"### Select peaks
+"
+
+# ╔═╡ 188f9e91-2111-4731-9582-cdb8b1d54013
+md"#### Selection result
+- We can see that the two prominent peaks are found by the algo.
+- The width of the peaks is underestimated in this case due to the noise that introduces a positive swing. This is why it is convenient to reduce the width cut. 
+"
+
+# ╔═╡ 3c7a48b4-c8a8-4891-84ed-0ba146eee549
+md"## A few more examples
+- Simply change the file number below to examine examples.
+- Try for example 50. With a cut on width of 3 no peaks are selected. with a cut on 2.5 one peak is selected. The width measured by the algorithm is 2.8 and is again distorted by noise.
+- Event 60 shows four peaks with a cut at 2.5 and 3 peaks with a cut on 3. It is hard to decide if the peak eliminated by the cut at 3 is signal or noise
+- Event 100 shows very clear two peaks with a cut at 3 on width
+- Event 200 shows four peaks, all rather convincing with a cut at 3
+"
+
+# ╔═╡ fa13e453-124b-43c1-84c0-4d0e7ce1ea94
+md"## Statistics
+- The next step is to study the cuts on a statistical basis. 
+"
+
+# ╔═╡ dab28bf1-3c97-4562-be02-17e2486d9ccc
+md"## Separation between positive and negative signals 
+- Prominence does not separate from positive and negative signals (but is already biased because we are selecting 3 sigma signals anyway)
+- Width is a clear indicator, we can see two peaks, probably due to the noise that distorts the wide peak
+- This analysis suggests that cut on prominence at 3 sigma and width at 2.5 wil effectively select the signal
+"
+
+# ╔═╡ ab03fda5-fbf7-4ae2-a743-b57e95211dad
+md"## Selection"
+
+# ╔═╡ b66b58c1-99f7-40c9-824e-74fdf3da4220
+md"## Fits"
+
+# ╔═╡ f6530e2b-ba30-47be-918d-8ac316053dc9
+md"# Analysis"
+
+# ╔═╡ b3a05a67-3844-4ef8-9bdf-e631477e2b15
+md"## Test sample"
+
+# ╔═╡ d5679626-ae35-4532-9949-87a3991f10e4
+md"### Peaks for 650 nm"
+
+# ╔═╡ 4a6b9446-8724-4d03-a2d0-48c3d26057b4
+md"### Peaks for 700 nm"
+
+# ╔═╡ a9f1938c-93c8-4e6f-91ad-8b38d0b2f6ff
+md"### Peaks for 732 nm"
+
+# ╔═╡ 45ca1374-d892-4076-b03f-355cd85068e1
+md"## BOLD-062 A1"
+
+# ╔═╡ d20c6608-85f0-4f73-8f99-a0594768e7d3
+md"### 650 nm"
+
+# ╔═╡ fde49db9-165b-4b55-928b-b0d3f2610a31
+md"## Functions and data structures"
+
+# ╔═╡ 500c0b3b-fc21-45a7-b03d-07c413a947c9
+md"### SPeaks
+	struct SPeaks
+"
+
+# ╔═╡ 79c95b20-7b71-414f-b5d6-41e4cfe373ca
+struct SPeaks
+	peaks::Vector{Int64}
+	proms::Vector{Float64} 
+	widths::Vector{Float64} 
+	leftedge::Vector{Float64} 
+	rightedge::Vector{Float64}
+	xs::Vector{Float64}
+	ys::Vector{Float64}
+	xbase::Vector{Float64}
+	promsel::Float64
+end
+
+# ╔═╡ fe91ac2c-b95a-4d5e-a2fe-f09f43297d4d
+md"### read_waveform
+	read_waveform(wdir::String, wname::String)
+"
 
 # ╔═╡ e673cdda-7032-4600-bbd0-01a291aa3eb5
 begin
@@ -122,33 +280,17 @@ function read_waveform(csvf::Vector{String}, fnumber::Integer)
 end
 end
 
-# ╔═╡ 2a9e671f-33c4-42be-99c4-e02f74b01cab
-
-
 # ╔═╡ f7643ff9-a02d-473b-8492-3dc380f38383
 wvfm1 = read_waveform("/Users/jj/JuliaProjects/LaserLab/data/scope/signal_650nm/rep00", "C1--Trace--00005.csv");
 
-# ╔═╡ e8067ab6-abbb-4ac4-b7a1-2fe833499193
-#begin
-#	wvfm = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/scope/signal_650nm/rep00", "C1--Trace--00005.csv", enG,5)
-	#wvfm[!, :Ampl] = -1000.0 * wvfm[!, :Ampl] 
-	#wvfm[!, :Time] = 1e+6  .* wvfm[!, :Time] 
-	#size(wvfm)
-	
-	#println("")
-#end
+# ╔═╡ 61993e02-4a99-457d-b677-605cf7534e87
+size(wvfm1)
 
 # ╔═╡ b20d8cbc-e4c8-4e51-bb5c-f6315df1ccea
 first(wvfm1,3)
 
 # ╔═╡ 42dc83fb-5da1-401c-8303-5e233577a4e6
 last(wvfm1,3)
-
-# ╔═╡ 727c419a-7e04-4c24-9870-549bcc5fed59
-begin
-	nsigma = 3.0
-	nsigma2 = 5.0
-end
 
 # ╔═╡ 726c769b-763b-43da-b1d3-bd012120602e
 meanAmp = mean(wvfm1.Ampl)
@@ -157,73 +299,16 @@ meanAmp = mean(wvfm1.Ampl)
 stdAmp = std(wvfm1.Ampl)
 
 # ╔═╡ 40523ce0-4cdd-43d4-8c37-3147f3d37a27
-md" ### Compute mean and std of waveform
+md" ### Computing mean and std of waveform
 - mean amplitude = $(round(meanAmp, sigdigits=2))
 - std of mean = $(round(stdAmp, sigdigits=2))
 "
 
-# ╔═╡ f88b142f-c42b-46d7-90e1-a657946df80e
-md"### Plot waveform"
-
-# ╔═╡ a7c95961-cd27-4c96-b587-f89e3f72a5f6
-begin
-	plot(wvfm1.Time, wvfm1.Ampl, lw=2, label=false)
-	hline!([meanAmp - nsigma * stdAmp], label=false)
-	hline!([meanAmp + nsigma * stdAmp], label=false)
-	hline!([meanAmp - nsigma2 * stdAmp], label=false)
-	hline!([meanAmp + nsigma2 * stdAmp], label=false)
-	xlabel!("t (μs)")
-	ylabel!("I (mV)")
-	
-end
-
-# ╔═╡ 35436842-9dc0-4541-8d45-abf3d174ccd1
-md" ### Filter signals
-- Waveform, inlcuding oscillatory noise is contained within +- $(nsigma)
-- Filter potential signals signal > $(nsigma)
-- Filter persistent bkgnd signal < -$(nsigma) 
-"
+# ╔═╡ 01becbfa-d619-41c7-87ed-0ca447625c90
+promsel = meanAmp + nsigma * stdAmp
 
 # ╔═╡ 6a0f7c24-cc8f-4a14-8fdd-70ab6d9a9d06
 wvfmFlt = filter(row -> row[:Ampl] > meanAmp + nsigma * stdAmp, wvfm1);
-
-# ╔═╡ 97f6b530-c549-4ade-b6b0-1c80e0beb0d5
-wvfmFlt2 = filter(row -> row[:Ampl] < meanAmp - nsigma * stdAmp, wvfm1);
-
-# ╔═╡ 657c7a1a-431d-47d4-ab64-8740e2d29505
-md"### Finding signal
-- Selecting data above $nsigma shows peak candidates that can be single electrons
-"
-
-# ╔═╡ d86dd29a-e520-4bf6-8abf-9e41aff62c86
-begin
-	scatter(wvfmFlt.Time, wvfmFlt.Ampl, markersize=2, label=false)
-	hline!([meanAmp + nsigma * stdAmp], label=false)
-	hline!([meanAmp + nsigma2 * stdAmp], label=false)
-	xlabel!("t (μs)")
-	ylabel!("I (mV)")
-	
-end
-
-# ╔═╡ f5815f51-5ce3-43a4-a262-3cf94529022f
-md"#### Peak structure
-- The structure of the peaks shows potential signals, together with some background. We can use a peak finding algorithm. 
-"
-
-# ╔═╡ 73a0efcd-36f3-4b61-83d8-0501ee7fd02f
-begin
-	plot(wvfmFlt.Ampl, lw=2, label=false)
-	hline!([meanAmp + nsigma * stdAmp], label=false)
-	hline!([meanAmp + nsigma2 * stdAmp], label=false)
-	xlabel!("peak index")
-	ylabel!("I (mV)")
-	
-end
-
-# ╔═╡ c669b848-0d0d-4a82-bfcc-f13319f5bc4d
-md"#### Peak finding algorithm step-by-step
-- 1. Find the maxima in the landscape
-"
 
 # ╔═╡ f7bc85d0-c386-4c70-af24-9b2dd44544fb
 pks, vals = findmaxima(wvfmFlt.Ampl);
@@ -238,11 +323,6 @@ begin
 	
 end
 
-# ╔═╡ 0c3983ed-e586-44b1-a82a-94539c355139
-md"- The algorithm finds a large number of maxima. This is not surprising, given the oscillatory noise.
-- Next, we search for the prominence of the peaks
-"
-
 # ╔═╡ c09b06c6-f35b-4350-8012-5f907c53f8f3
 _, proms = peakproms(pks, wvfmFlt.Ampl);
 
@@ -256,20 +336,8 @@ begin
 	
 end
 
-# ╔═╡ 5c37131b-6ef1-410b-9548-41abba13b2d6
-md"- Most maxima have small values of prominence, tipically below $nsigma sigma
-- We can select suitable peak candidates filtering on prominence > $nsigma sigma"
-
-# ╔═╡ 01becbfa-d619-41c7-87ed-0ca447625c90
-promsel = meanAmp + nsigma * stdAmp
-
 # ╔═╡ 95d5e897-162c-4d63-a0c6-d7916af1448b
 peaks2, proms2 = peakproms(pks, wvfmFlt.Ampl; minprom=promsel)
-
-# ╔═╡ fc15250c-faa0-4feb-9034-2c978a6f5e40
-md"- Next we can compute the widths of the peaks.
-- Observe that all but one peak have a width of several bins. 
-"
 
 # ╔═╡ a4802f08-e703-45f9-8f7b-e3cd5c991ab6
 _, widths, leftedge, rightedge = peakwidths(peaks2, wvfmFlt.Ampl, proms2);
@@ -277,26 +345,20 @@ _, widths, leftedge, rightedge = peakwidths(peaks2, wvfmFlt.Ampl, proms2);
 # ╔═╡ 297d7b98-5a48-484d-81b1-f8d0e121ab83
 wr = [round(widths[i], sigdigits=2) for i in 1:length(widths)]
 
-# ╔═╡ 52379219-9f4e-442b-ab8d-8965955e27b5
-wsel = 4.0
-
 # ╔═╡ 1b420392-e906-4fb8-a5ea-04d07c51efa5
 peaks3, widths2, leftedge2, rightedge2 = peakwidths(peaks2, wvfmFlt.Ampl, proms2; minwidth=wsel)
 
-# ╔═╡ 27491d67-b26d-4ec3-8799-86c7cff3c90d
-md"### Plot the peaks"
-
 # ╔═╡ 60bfadce-187b-4a7d-a849-f37fb7f068b1
 npeaks = length(peaks3)
+
+# ╔═╡ 1520fcbe-030f-4a38-b5bf-dcd5b05b8a62
+xbase = ones(npeaks,1)*[promsel]
 
 # ╔═╡ be4b932d-98f8-495b-ae2a-8a293c54738c
 pheigth = [wvfmFlt.Ampl[i] for i in peaks3]
 
 # ╔═╡ c5d56314-1690-4f04-92b0-00a8984b1e5c
 ptime = [wvfmFlt.Time[i] for i in peaks3]
-
-# ╔═╡ 1520fcbe-030f-4a38-b5bf-dcd5b05b8a62
-xbase = ones(npeaks,1)*[promsel]
 
 # ╔═╡ 13792c29-3966-49d2-a452-6fc8e9ef1f48
 begin
@@ -311,11 +373,8 @@ begin
 	
 end
 
-# ╔═╡ 8634524d-0f37-4e65-9cc6-f7abb5626294
-md"### Background signal
-- To understand the noise, we can now repeat the same analysis over the negative pulses, which are purely due to noise.
-- We can observe that the prom cut is effective to eliminate most of the peak (only one survives the cut), while in this case, the width cut does not add extra suppression. 
-"
+# ╔═╡ 97f6b530-c549-4ade-b6b0-1c80e0beb0d5
+wvfmFlt2 = filter(row -> row[:Ampl] < meanAmp - nsigma * stdAmp, wvfm1);
 
 # ╔═╡ a4228bd2-6d87-4efe-b35c-89dcd8854586
 begin
@@ -343,11 +402,11 @@ bpks, bvals = findminima(wvfmFlt2.Ampl)
 # ╔═╡ 66301099-cd5d-4b2d-baf9-26b3bf74f1c3
 bpeaks, bproms2 = peakproms(bpks, wvfmFlt.Ampl; minprom=promsel)
 
-# ╔═╡ cdb514fa-1d30-47fc-b592-3e6eed88f681
-bpmx = [wvfmFlt2.Ampl[i] for i in bpeaks]
-
 # ╔═╡ e362b8dd-b17e-44b2-8cb0-e153db79db13
 _, bwidths2, bleftedge, brightedge = peakwidths(bpeaks, wvfmFlt.Ampl, bproms2)
+
+# ╔═╡ cdb514fa-1d30-47fc-b592-3e6eed88f681
+bpmx = [wvfmFlt2.Ampl[i] for i in bpeaks]
 
 # ╔═╡ 5a63ab7e-e29e-42e8-9108-abf23f50c57c
 begin
@@ -360,148 +419,108 @@ begin
 	
 end
 
-# ╔═╡ 9f5f8052-6ee6-402a-ac0a-cfac3ab782bd
-md"## Formalise analysis
-- Let now formalise the analysis above
-"
-
-# ╔═╡ ed36670d-74fa-4ca7-b815-63022739ec48
-csvf[20]
-
 # ╔═╡ 8fcae1eb-ffd9-4353-953d-7245559bdd19
 wvfm2 = read_waveform(csvf,30);
-
-# ╔═╡ 82924151-50a4-4ec3-a488-ff34bb45605a
-begin
-	plot(wvfm2.Time, wvfm2.Ampl, lw=2, label=false)
-	hline!([meanAmp - nsigma * stdAmp], label=false)
-	hline!([meanAmp + nsigma * stdAmp], label=false)
-	hline!([meanAmp - nsigma2 * stdAmp], label=false)
-	hline!([meanAmp + nsigma2 * stdAmp], label=false)
-	xlabel!("t (μs)")
-	ylabel!("I (mV)")
-	
-end
-
-# ╔═╡ 79c95b20-7b71-414f-b5d6-41e4cfe373ca
-struct SPeaks
-	peaks::Vector{Int64}
-	proms::Vector{Float64} 
-	widths::Vector{Float64} 
-	leftedge::Vector{Float64} 
-	rightedge::Vector{Float64}
-	xs::Vector{Float64}
-	ys::Vector{Float64}
-	xbase::Vector{Float64}
-	promsel::Float64
-end
-
-# ╔═╡ 20bb5ee7-cbb9-44bc-9322-563958e09aa2
-function select_peaks(wvfm, nsigma; wsel=4.0)
-	meanAmp = mean(wvfm.Ampl)
-	stdAmp = std(wvfm.Ampl)
-	promsel = meanAmp + nsigma * stdAmp
-	wvfmFlt = filter(row -> row[:Ampl] > promsel, wvfm)
-	pks, vals = findmaxima(wvfmFlt.Ampl)
-	peaks2, proms = peakproms(pks, wvfmFlt.Ampl; minprom=promsel)
-	if length(peaks2) == 0
-		return Nothing 
-	end
-	peaks2, widths, leftedge, rightedge = peakwidths(peaks2, wvfmFlt.Ampl, proms; minwidth=wsel)
-
-	ys = [wvfmFlt.Ampl[i] for i in peaks2]
-	xs = [wvfmFlt.Time[i] for i in peaks2]
-	npeaks = length(peaks2)
-	xbase = ones(npeaks,1)*[promsel]
-	
-	return wvfmFlt, SPeaks(peaks2, proms, widths, leftedge, rightedge, xs,ys, xbase, promsel)
-end
-
-# ╔═╡ ceed145f-772d-4235-8a91-44042a16d101
-function select_bpeaks(wvfm, nsigma; wsel=4.0)
-	meanAmp = mean(wvfm.Ampl)
-	stdAmp = std(wvfm.Ampl)
-	promsel = meanAmp -nsigma * stdAmp
-	wvfmFlt = filter(row -> row[:Ampl] < promsel, wvfm)
-	pks, vals = findminima(wvfmFlt.Ampl)
-	peaks2, proms = peakproms(pks, wvfmFlt.Ampl; minprom=promsel)
-	if length(peaks2) == 0
-		return Nothing 
-	end
-	peaks2, widths, leftedge, rightedge = peakwidths(peaks2, wvfmFlt.Ampl, proms; minwidth=wsel)
-
-	ys = [wvfmFlt.Ampl[i] for i in peaks2]
-	xs = [wvfmFlt.Time[i] for i in peaks2]
-	npeaks = length(peaks2)
-	xbase = ones(npeaks,1)*[promsel]
-	
-	return wvfmFlt, SPeaks(peaks2, proms, widths, leftedge, rightedge, xs,ys, xbase, promsel)
-end
-
-# ╔═╡ 188f9e91-2111-4731-9582-cdb8b1d54013
-md"#### Selection result
-- We can see that the two prominent peaks are found by the algo.
-- The width of the peaks is underestimated in this case due to the noise that introduces a positive swing. This is why it is convenient to reduce the width cut. 
-"
-
-# ╔═╡ 3c7a48b4-c8a8-4891-84ed-0ba146eee549
-md"## A few more examples
-- Simply change the file number below to examine examples.
-- Try for example 50. With a cut on width of 3 no peaks are selected. with a cut on 2.5 one peak is selected. The width measured by the algorithm is 2.8 and is again distorted by noise.
-- Event 60 shows four peaks with a cut at 2.5 and 3 peaks with a cut on 3. It is hard to decide if the peak eliminated by the cut at 3 is signal or noise
-- Event 100 shows very clear two peaks with a cut at 3 on width
-- Event 200 shows four peaks, all rather convincing with a cut at 3
-"
 
 # ╔═╡ fff73c5f-0fef-48b5-825e-1a677d52d0ca
 wvfm3 = read_waveform(csvf,200);
 
-# ╔═╡ 60867ba0-58d9-4915-81b2-0ebbaf50f4a3
-begin
-	plot(wvfm3.Time, wvfm3.Ampl, lw=2, label=false)
-	hline!([meanAmp - nsigma * stdAmp], label=false)
-	hline!([meanAmp + nsigma * stdAmp], label=false)
-	hline!([meanAmp - nsigma2 * stdAmp], label=false)
-	hline!([meanAmp + nsigma2 * stdAmp], label=false)
+# ╔═╡ 1928ef8d-d7df-4b2b-9b9a-f958cacecaa3
+md"### plot_waveform
+	plot_waveform(wvfm, mean, std, nsigma, nsigma2; sctter=false)
+"
+
+# ╔═╡ 17fffef0-699e-4aa2-8931-41afa2ef4da1
+function plot_waveform(wvfm, mean, std, nsigma, nsigma2; sct=false, trace=false)
+	if sct
+		scatter(wvfm.Time, wvfm.Ampl,  markersize=2,
+				  color = :black,
+	    		  label=false,
+				  fmt = :png)
+	elseif trace
+		plot(wvfm.Ampl, lw=2, label=false, fmt = :png)
+	else
+		plot(wvfm.Time, wvfm.Ampl, lw=2, label=false, fmt = :png)
+	end
+	hline!([mean - nsigma * std], label=false)
+	hline!([mean + nsigma * std], label=false)
+	hline!([mean - nsigma2 * std], label=false)
+	hline!([mean + nsigma2 * std], label=false)
 	xlabel!("t (μs)")
 	ylabel!("I (mV)")
-	
 end
 
-# ╔═╡ 231125a5-f2c8-4ff2-bb36-88c2bbaef8cc
-bresult2 = select_bpeaks(wvfm3, nsigma; wsel=0.0);
+# ╔═╡ c688b96b-002f-4550-844d-505416bce77e
+plot_waveform(wvfm1, meanAmp, stdAmp, nsigma, nsigma2)
 
-# ╔═╡ 153c324a-9861-4ad6-b5fe-0438a54d0275
-bwvflt2, bspeaks2 = bresult2;
+# ╔═╡ e6a30344-8bda-4988-8ccb-5b7b323e46a9
+plot_waveform(wvfmFlt, meanAmp, stdAmp, nsigma, nsigma2, sct=true)
 
-# ╔═╡ 56ff95ea-a7b7-4cc2-b202-4408711cd188
-begin
-	if bresult2 != Nothing
-		#wvflt2, speaks2 = result2
-		plot(bwvflt2.Ampl, lw=2, label=false)
-		scatter!(bspeaks2.peaks, bspeaks2.ys, label="peak")
-		scatter!(bspeaks2.leftedge, bspeaks2.xbase, label="leftedge")
-		scatter!(bspeaks2.rightedge, bspeaks2.xbase, label="rightedge")
-		hline!([bspeaks2.promsel], label=false)
-		xlabel!("index")
-		ylabel!("I (mV)")
+# ╔═╡ 4e3574c4-1857-4101-9e69-f7dbba19ba48
+plot_waveform(wvfmFlt, meanAmp, stdAmp, nsigma, nsigma2, trace=true)
+
+# ╔═╡ 0bb31d5b-6d5c-49cc-9ddc-1675dfe4c98f
+md"### mean_ and_std
+	function mean_and_std(wvfm)
+"
+
+# ╔═╡ 8fe40af8-5374-48ed-831e-69b52a9e3ffc
+function mean_and_std(wvfm)
+	mean(wvfm.Ampl), std(wvfm.Ampl)
+end
+
+# ╔═╡ 0b4ce181-8a10-47ad-bf70-43adc6645fd1
+meanAmp2, stdAmp2 = mean_and_std(wvfm2)
+
+# ╔═╡ 66cb6d51-f8c0-4d6e-8fca-2efeff9ec36c
+plot_waveform(wvfm2, meanAmp2, stdAmp2, nsigma, nsigma2)
+
+# ╔═╡ 2d9f1953-fd36-44d9-9376-f6fd4a7756e4
+meanAmp3, stdAmp3 = mean_and_std(wvfm3)
+
+# ╔═╡ dd0e4114-fd5f-4685-81d6-7900ffe44ad9
+
+plot_waveform(wvfm3, meanAmp3, stdAmp3, nsigma, nsigma2)
+
+# ╔═╡ b6a05ec9-0341-432e-87a7-d3bff76fd0a6
+function display_waveform(csvf, i0, nsigma, nsigma2)
+	wvfm = read_waveform(csvf,i0)
+	meanAmp, stdAmp = mean_and_std(wvfm)
+	plot_waveform(wvfm, meanAmp, stdAmp, nsigma, nsigma2)
+end
+
+# ╔═╡ 1e9d4e87-aa89-4b3e-885f-0f553c0724ec
+md"### select_peaks
+	select_peaks(wvfm, nsigma; wsel=2.5, signal=true)
+"
+
+# ╔═╡ 8458b6e4-4c73-4b8a-b891-c4ca38d63988
+function select_peaks(wvfm, nsigma; wsel=2.5, signal=true)
+	meanAmp = mean(wvfm.Ampl)
+	stdAmp = std(wvfm.Ampl)
+	if signal == true
+		promsel = meanAmp + nsigma * stdAmp
+		wvfmFlt = filter(row -> row[:Ampl] > promsel, wvfm)
+		pks, vals = findmaxima(wvfmFlt.Ampl)
+	else
+		promsel = meanAmp -nsigma * stdAmp
+		wvfmFlt = filter(row -> row[:Ampl] < promsel, wvfm)
+		pks, vals = findminima(wvfmFlt.Ampl)
 	end
+	peaks2, proms = peakproms(pks, wvfmFlt.Ampl; minprom=promsel)
+	if length(peaks2) == 0
+		return Nothing 
+	end
+	peaks2, widths, leftedge, rightedge = peakwidths(peaks2, wvfmFlt.Ampl, proms; minwidth=wsel)
+
+	ys = [wvfmFlt.Ampl[i] for i in peaks2]
+	xs = [wvfmFlt.Time[i] for i in peaks2]
+	npeaks = length(peaks2)
+	xbase = ones(npeaks,1)*[promsel]
+	
+	return wvfmFlt, SPeaks(peaks2, proms, widths, leftedge, rightedge, xs,ys, xbase, promsel)
 end
-
-# ╔═╡ fa13e453-124b-43c1-84c0-4d0e7ce1ea94
-md"## Statistics
-- The next step is to study the cuts on a statistical basis. 
-"
-
-# ╔═╡ dab28bf1-3c97-4562-be02-17e2486d9ccc
-md"### Separation between positive and negative signals 
-- Prominence does not separate from positive and negative signals (but is already biased because we are selecting 3 sigma signals anyway)
-- Width is a clear indicator, we can see two peaks, probably due to the noise that distorts the wide peak
-- This analysis suggests that cut on prominence at 3 sigma and width at 2.5 wil effectively select the signal
-"
-
-# ╔═╡ ab03fda5-fbf7-4ae2-a743-b57e95211dad
-md"## Selection"
+		
 
 # ╔═╡ 78b4fe63-d016-4f52-8086-9e6520cafcd5
 function select_peaks(csvf, i0, il; nsigma=3.0, wmax=2.5)
@@ -541,7 +560,7 @@ if result != Nothing
 end 
 
 # ╔═╡ 8f5253c3-ee2e-4617-af81-9b53782cb08b
-result2 = select_peaks(wvfm3, nsigma; wsel=3.0);
+result2 = select_peaks(wvfm3, nsigma; wsel=3.0)
 
 # ╔═╡ 2535c853-5d38-4f3c-acab-5fe321243023
 wvflt2, speaks2 = result2;
@@ -563,6 +582,74 @@ begin
 	end
 end
 
+# ╔═╡ 231125a5-f2c8-4ff2-bb36-88c2bbaef8cc
+bresult2 = select_peaks(wvfm3, nsigma; wsel=0.0, signal=false);
+
+# ╔═╡ 153c324a-9861-4ad6-b5fe-0438a54d0275
+bwvflt2, bspeaks2 = bresult2;
+
+# ╔═╡ 56ff95ea-a7b7-4cc2-b202-4408711cd188
+begin
+	if bresult2 != Nothing
+		#wvflt2, speaks2 = result2
+		plot(bwvflt2.Ampl, lw=2, label=false)
+		scatter!(bspeaks2.peaks, bspeaks2.ys, label="peak")
+		scatter!(bspeaks2.leftedge, bspeaks2.xbase, label="leftedge")
+		scatter!(bspeaks2.rightedge, bspeaks2.xbase, label="rightedge")
+		hline!([bspeaks2.promsel], label=false)
+		xlabel!("index")
+		ylabel!("I (mV)")
+	end
+end
+
+# ╔═╡ af7add3b-c1ad-4fbb-bac9-41ba3cafa716
+spks = select_peaks(csvf, 9, 999; nsigma=3.0, wmax=2.5)
+
+# ╔═╡ e5e4df13-c2d0-4376-9ecc-36332dfdc61d
+times = reduce(vcat,[spks[i].xs for i in 1:length(spks)])
+
+# ╔═╡ 0bcb141b-b4db-4c31-9919-745a8bb3d91d
+hpkp = lfi.LaserLab.hist1d(times, 20, 0.0, 2.0)
+
+# ╔═╡ f3084ec2-e1eb-4b7b-8e42-d2931d284493
+lfi.LaserLab.hist1d(hpkp, "Peaks (+)")
+
+# ╔═╡ 8065bf42-8d71-4c99-85c6-a2b6fd2e2087
+begin
+	expo(t, N, λ) = N*exp(-t/λ)
+	mexp(t, p) = p[1] * exp.(-t/p[2])
+	pa0 = [100.0, 0.5]
+	tdata = lfi.LaserLab.centers(hpkp)
+	vdata = hpkp.weights
+	fit = curve_fit(mexp, tdata, vdata, pa0)
+	cofe = coef(fit)
+	stder = stderror(fit)
+	tft = expo.(tdata, coef(fit)...)
+	println("")
+end
+
+# ╔═╡ 73878b74-389a-4306-834b-9d9a126ba95d
+cofe
+
+# ╔═╡ d73cae53-b429-4c06-a63b-9bc876387256
+stder
+
+# ╔═╡ baba5028-d85c-415f-95f6-0393ce686249
+begin
+ps1 = scatter(tdata, vdata, yerr=sqrt.(vdata), markersize=2,
+		color = :black,
+	    label="data",
+		fmt = :png)
+pp = plot(ps1, tdata, tft, lw=2, label="μ = $(round(cofe[2]*1000, sigdigits=2)) μs", fmt = :png)
+xlabel!("t (μs)")
+ylabel!("frequency")
+end
+
+# ╔═╡ f24f35a5-9075-430c-adcb-62946b2c189e
+md"### prominence
+	function prominence(csvf, i0, il, nsigma=3.0)
+"
+
 # ╔═╡ 71b9f8dd-688a-4a33-8af9-ac4b6e21e052
 function prominence(csvf, i0, il, nsigma=3.0)
 	PROM = Float64[]
@@ -578,7 +665,7 @@ function prominence(csvf, i0, il, nsigma=3.0)
 			append!(PROM,speaks.proms)
 		end
 
-		bresult = select_bpeaks(wvfm, 0; wsel=0.0)
+		bresult = select_peaks(wvfm, 0; wsel=0.0, signal=false)
 		if bresult != Nothing
 			_, speaks = bresult
 			append!(BPROM,speaks.proms)
@@ -590,7 +677,7 @@ function prominence(csvf, i0, il, nsigma=3.0)
 			append!(WP,speaks.widths)
 		end
 
-		bresult = select_bpeaks(wvfm, nsigma; wsel=0.0)
+		bresult = select_peaks(wvfm, nsigma; wsel=0.0, signal=false)
 		if bresult != Nothing
 			_, speaks = bresult
 			append!(WN,speaks.widths)
@@ -626,54 +713,10 @@ hWN = lfi.LaserLab.hist1d(WN, 20, 0.0, 10.0)
 # ╔═╡ 941be823-7792-490c-b69c-b8493569cc81
 lfi.LaserLab.hist1d(hWN, "Width (-)")
 
-# ╔═╡ af7add3b-c1ad-4fbb-bac9-41ba3cafa716
-spks = select_peaks(csvf, 9, 999; nsigma=3.0, wmax=2.5)
-
-# ╔═╡ e5e4df13-c2d0-4376-9ecc-36332dfdc61d
-times = reduce(vcat,[spks[i].xs for i in 1:length(spks)])
-
-# ╔═╡ 0bcb141b-b4db-4c31-9919-745a8bb3d91d
-hpkp = lfi.LaserLab.hist1d(times, 20, 0.0, 2.0)
-
-# ╔═╡ f3084ec2-e1eb-4b7b-8e42-d2931d284493
-lfi.LaserLab.hist1d(hpkp, "Peaks (+)")
-
-# ╔═╡ b66b58c1-99f7-40c9-824e-74fdf3da4220
-md"## Fits"
-
-# ╔═╡ 8065bf42-8d71-4c99-85c6-a2b6fd2e2087
-begin
-	expo(t, N, λ) = N*exp(-t/λ)
-	mexp(t, p) = p[1] * exp.(-t/p[2])
-	pa0 = [100.0, 0.5]
-	tdata = lfi.LaserLab.centers(hpkp)
-	vdata = hpkp.weights
-	fit = curve_fit(mexp, tdata, vdata, pa0)
-	cofe = coef(fit)
-	stder = stderror(fit)
-	tft = expo.(tdata, coef(fit)...)
-	println("")
-end
-
-# ╔═╡ 73878b74-389a-4306-834b-9d9a126ba95d
-cofe
-
-# ╔═╡ d73cae53-b429-4c06-a63b-9bc876387256
-stder
-
-# ╔═╡ baba5028-d85c-415f-95f6-0393ce686249
-begin
-ps1 = scatter(tdata, vdata, yerr=sqrt.(vdata), markersize=2,
-		color = :black,
-	    label="data",
-		fmt = :png)
-pp = plot(ps1, tdata, tft, lw=2, label="μ = $(round(cofe[2]*1000, sigdigits=2)) μs", fmt = :png)
-xlabel!("t (μs)")
-ylabel!("frequency")
-end
-
-# ╔═╡ 7d0e8247-5341-41a6-8356-4b09dbc5310f
-md"## Reading multiple folder"
+# ╔═╡ c056af02-693b-4837-ab7b-1c4c7b7a9ca5
+md"### glob_files
+	function glob_files(path)
+"
 
 # ╔═╡ 8d02c42c-452e-4ad3-9b27-95ac7ea5e210
 function glob_files(path)
@@ -687,20 +730,6 @@ function glob_files(path)
 	end
 	FLS
 end
-
-# ╔═╡ e45bd546-c5fc-4914-b237-3df5f473363d
-function fit_peaks(htime; pa0=[100.0, 0.5], i0=1)
-	expo(t, N, λ) = N*exp(-t/λ)
-	mexp(t, p) = p[1] * exp.(-t/p[2])
-	tdata = lfi.LaserLab.centers(htime)
-	vdata = htime.weights
-	il = length(tdata)
-	fit = curve_fit(mexp, tdata[i0:il], vdata[i0:il], pa0)
-	coef(fit), stderror(fit), expo.(tdata, coef(fit)...)
-end
-
-# ╔═╡ d5679626-ae35-4532-9949-87a3991f10e4
-md"### Peaks for 650 nm"
 
 # ╔═╡ 3fff2102-a8b4-44ad-870f-7837ae874c2e
 fls = glob_files("../data/scope/signal_650nm/")
@@ -717,8 +746,91 @@ begin
 	ht650nm = lfi.LaserLab.hist1d(t650nm, 20, 0.0, 2.0)
 end
 
+# ╔═╡ 2a21f18e-20e6-41ab-88d1-391a1f71839a
+fls700 = glob_files("../data/scope/signal_700nm/")
+
+# ╔═╡ 6ef46751-1053-4fea-9f89-96e5355d0177
+nfls700 = length(fls700)
+
+# ╔═╡ 07f496b8-6147-43ad-ad64-07938321626d
+fls732 = glob_files("../data/scope/signal_732nm/")
+
+# ╔═╡ 9bff1c70-4d62-4571-b03f-329f6bffb390
+nfls732 = length(fls732)
+
+# ╔═╡ 380a7a82-0924-42b6-8698-7573b389e9ad
+function glob_files2(path; wvl="650nm")
+	sdr = string(path, "/", wvl,"*")
+	drs = glob(sdr) 
+	FLS = String[]
+	for dr in drs
+		fls   = string(dr, "/C1*.csv")
+		csf = glob(fls) 
+		append!(FLS, csf)
+	end
+	FLS
+end
+
+# ╔═╡ c7c7c532-aa8f-484e-b118-8f8656dd53e1
+fa1650 = glob_files2("../data/scope/A1/"; wvl="732nm") 
+
+# ╔═╡ 23b8db87-3d65-4335-b7e9-c5f5910de531
+nfa1650 = length(fa1650)
+
+# ╔═╡ 94a5b96b-14d5-47f6-9fd5-b024b56557ef
+display_waveform(fa1650, 1000, 3.0, 5.0)
+
+# ╔═╡ 5975d71a-a9dd-4576-b388-e11c2ba4e52d
+a1PP, a1WP, a1PN, a1WN = prominence(fa1650, 1, nfa1650, 3)
+
+# ╔═╡ f3aa07d7-7d4b-4aea-9fce-a000c2e7d2da
+begin
+	a1hP = lfi.LaserLab.hist1d(a1PP, 20, 0.0, 10.0)
+	lfi.LaserLab.hist1d(a1hP, "Prominence (+)")
+end
+
+
+# ╔═╡ ed195b52-9174-4d0f-9c5a-dc7ee972d75d
+begin
+	a1hN = lfi.LaserLab.hist1d(a1PN, 20, 0.0, 10.0)
+	lfi.LaserLab.hist1d(a1hN, "Prominence (-)")
+end
+
+# ╔═╡ 6c060e3e-e993-46b0-917d-df9451b93fe2
+begin
+	a1hW = lfi.LaserLab.hist1d(a1WP, 20, 0.0, 10.0)
+	lfi.LaserLab.hist1d(a1hW, "Width (+)")
+end
+
+# ╔═╡ 1e5649f2-2c8b-4533-a1f1-b8f279952ed8
+begin
+	a1hWN = lfi.LaserLab.hist1d(a1WN, 20, 0.0, 10.0)
+	lfi.LaserLab.hist1d(a1hWN, "Width (-)")
+end
+
+# ╔═╡ f62e8d24-10c6-42e9-a68e-f2d68f950ed1
+md"### fit_peaks
+	fit_peaks(htime; pa0=[100.0, 0.5], i0=1)
+"
+
+# ╔═╡ e45bd546-c5fc-4914-b237-3df5f473363d
+function fit_peaks(htime; pa0=[100.0, 0.5], i0=1)
+	expo(t, N, λ) = N*exp(-t/λ)
+	mexp(t, p) = p[1] * exp.(-t/p[2])
+	tdata = lfi.LaserLab.centers(htime)
+	vdata = htime.weights
+	il = length(tdata)
+	fit = curve_fit(mexp, tdata[i0:il], vdata[i0:il], pa0)
+	coef(fit), stderror(fit), expo.(tdata, coef(fit)...)
+end
+
 # ╔═╡ b75f91ae-7c35-4e80-bac9-fe7dfa1bcd3d
 coef650nm, stderr650nm, tft650nm = fit_peaks(ht650nm; pa0=[100.0, 0.5], i0=1)
+
+# ╔═╡ 5e6ea853-c7a2-44ce-acb5-628ed36f8180
+md"### plot_fit
+	plot_fit(htime, coeff, tft)
+"
 
 # ╔═╡ 8953d6fb-f9ad-4f95-b022-5ac95058dbf7
 function plot_fit(htime, coeff, tft)
@@ -728,7 +840,7 @@ function plot_fit(htime, coeff, tft)
 				  color = :black,
 	    		  label="data",
 				  fmt = :png)
-	pp = plot(ps1, tdata, tft, lw=2, label="μ = $(round(coeff[2]*1000, sigdigits=2)) μs", fmt = :png)
+	pp = plot(ps1, tdata, tft, lw=2, label="μ = $(round(coeff[2]*1000, sigdigits=2)) ns", fmt = :png)
 	xlabel!("t (μs)")
 	ylabel!("frequency")
 end
@@ -764,15 +876,6 @@ begin
 	plot_fit(ht650nm4, coef650nm4, tft650nm4)
 end
 
-# ╔═╡ 4a6b9446-8724-4d03-a2d0-48c3d26057b4
-md"### Peaks for 700 nm"
-
-# ╔═╡ 2a21f18e-20e6-41ab-88d1-391a1f71839a
-fls700 = glob_files("../data/scope/signal_700nm/")
-
-# ╔═╡ 6ef46751-1053-4fea-9f89-96e5355d0177
-nfls700 = length(fls700)
-
 # ╔═╡ d68fa4d5-6f6c-459c-9cfd-024a68f5e837
 begin
 	spk700nm = select_peaks(fls700, 1, 2997; nsigma=3.0, wmax=2.5)
@@ -782,15 +885,6 @@ begin
 	plot_fit(ht700nm, coef700nm, tft700nm)
 end
 
-# ╔═╡ a9f1938c-93c8-4e6f-91ad-8b38d0b2f6ff
-md"### Peaks for 732 nm"
-
-# ╔═╡ 07f496b8-6147-43ad-ad64-07938321626d
-fls732 = glob_files("../data/scope/signal_732nm/")
-
-# ╔═╡ 9bff1c70-4d62-4571-b03f-329f6bffb390
-nfls732 = length(fls732)
-
 # ╔═╡ dd70e052-8dbd-4364-acec-9dfb3f907d6c
 begin
 	spk732nm = select_peaks(fls732, 1, 1998; nsigma=3.0, wmax=2.5)
@@ -799,6 +893,18 @@ begin
 	coef732nm, stderr732nm, tft732nm = fit_peaks(ht732nm; pa0=[100.0, 0.5])
 	plot_fit(ht732nm, coef732nm, tft732nm)
 end
+
+# ╔═╡ 2b43e522-6654-4196-8e14-2525d542e5ef
+begin
+	spka1650nm = select_peaks(fa1650, 1, nfa1650; nsigma=2.0, wmax=4.0)
+	ta1650nm = reduce(vcat,[spka1650nm[i].xs for i in 1:length(spka1650nm)])
+	hta1650nm = lfi.LaserLab.hist1d(ta1650nm, 20, 0.0, 2.0)
+	coefa1650nm, stderra1650nm, tfta1650nm = fit_peaks(hta1650nm; pa0=[100.0, 0.5])
+	plot_fit(hta1650nm, coefa1650nm, tfta1650nm)
+end
+
+# ╔═╡ f315cad7-100b-407c-8e0d-2ce8b3669126
+length(ta1650nm)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2483,17 +2589,16 @@ version = "0.9.1+5"
 # ╠═860a66e0-9fdb-4537-865e-bf70e7fa289a
 # ╠═1665009d-f4a8-4d3e-bc9a-3cca8c26c213
 # ╠═c9e85963-fe90-48c4-8e20-fcc92c31ce99
-# ╟─9e58009d-0244-49db-801e-362bcb895eb0
+# ╠═f3fea484-8430-47ab-986b-7b170bef4ba6
+# ╠═9e58009d-0244-49db-801e-362bcb895eb0
 # ╟─aedcf3c2-7d51-466c-a88e-2c681679b8b0
 # ╠═a6cd504a-1afc-4be0-81d2-0de827650526
 # ╠═01355b47-de67-4104-a6bc-3d773b156bae
 # ╠═4db00abd-5074-41fc-bbf5-18f5f2fa08d0
-# ╟─010c2f50-ef21-44df-a1d4-cebfe4e94783
-# ╠═afce0cc9-5bb8-46ab-b8ff-d4d59d53be49
-# ╠═e673cdda-7032-4600-bbd0-01a291aa3eb5
+# ╠═010c2f50-ef21-44df-a1d4-cebfe4e94783
 # ╠═2a9e671f-33c4-42be-99c4-e02f74b01cab
 # ╠═f7643ff9-a02d-473b-8492-3dc380f38383
-# ╠═e8067ab6-abbb-4ac4-b7a1-2fe833499193
+# ╠═61993e02-4a99-457d-b677-605cf7534e87
 # ╠═b20d8cbc-e4c8-4e51-bb5c-f6315df1ccea
 # ╠═42dc83fb-5da1-401c-8303-5e233577a4e6
 # ╠═40523ce0-4cdd-43d4-8c37-3147f3d37a27
@@ -2501,24 +2606,26 @@ version = "0.9.1+5"
 # ╠═726c769b-763b-43da-b1d3-bd012120602e
 # ╠═11563c92-e839-4bfb-98f3-ca2598b95696
 # ╠═f88b142f-c42b-46d7-90e1-a657946df80e
-# ╠═a7c95961-cd27-4c96-b587-f89e3f72a5f6
+# ╠═c688b96b-002f-4550-844d-505416bce77e
 # ╠═35436842-9dc0-4541-8d45-abf3d174ccd1
 # ╠═6a0f7c24-cc8f-4a14-8fdd-70ab6d9a9d06
 # ╠═97f6b530-c549-4ade-b6b0-1c80e0beb0d5
 # ╠═657c7a1a-431d-47d4-ab64-8740e2d29505
-# ╠═d86dd29a-e520-4bf6-8abf-9e41aff62c86
+# ╠═e6a30344-8bda-4988-8ccb-5b7b323e46a9
 # ╠═f5815f51-5ce3-43a4-a262-3cf94529022f
-# ╠═73a0efcd-36f3-4b61-83d8-0501ee7fd02f
+# ╠═4e3574c4-1857-4101-9e69-f7dbba19ba48
 # ╠═c669b848-0d0d-4a82-bfcc-f13319f5bc4d
+# ╠═3e54ffba-6521-4236-bafd-0caaa207a518
 # ╠═f7bc85d0-c386-4c70-af24-9b2dd44544fb
 # ╠═17900908-bffe-4c05-a846-930b6c781522
 # ╠═0c3983ed-e586-44b1-a82a-94539c355139
+# ╠═7ebf77fd-cd26-421a-82d2-7cbb74e3c4e7
 # ╠═c09b06c6-f35b-4350-8012-5f907c53f8f3
 # ╠═f1e45ed4-223f-4b13-9e46-11713c094e94
 # ╟─5c37131b-6ef1-410b-9548-41abba13b2d6
 # ╠═01becbfa-d619-41c7-87ed-0ca447625c90
 # ╠═95d5e897-162c-4d63-a0c6-d7916af1448b
-# ╟─fc15250c-faa0-4feb-9034-2c978a6f5e40
+# ╠═fc15250c-faa0-4feb-9034-2c978a6f5e40
 # ╠═a4802f08-e703-45f9-8f7b-e3cd5c991ab6
 # ╠═297d7b98-5a48-484d-81b1-f8d0e121ab83
 # ╠═52379219-9f4e-442b-ab8d-8965955e27b5
@@ -2540,17 +2647,17 @@ version = "0.9.1+5"
 # ╠═9f5f8052-6ee6-402a-ac0a-cfac3ab782bd
 # ╠═ed36670d-74fa-4ca7-b815-63022739ec48
 # ╠═8fcae1eb-ffd9-4353-953d-7245559bdd19
-# ╠═82924151-50a4-4ec3-a488-ff34bb45605a
-# ╠═79c95b20-7b71-414f-b5d6-41e4cfe373ca
-# ╠═20bb5ee7-cbb9-44bc-9322-563958e09aa2
-# ╠═ceed145f-772d-4235-8a91-44042a16d101
+# ╠═0b4ce181-8a10-47ad-bf70-43adc6645fd1
+# ╠═66cb6d51-f8c0-4d6e-8fca-2efeff9ec36c
+# ╠═2673dfd5-b088-4f35-8669-29e8f9806fe4
 # ╠═853787cc-229c-4b0b-afe6-4bc36666dec6
 # ╠═9428c207-98e0-4fcd-8477-d2d92a15d3c9
 # ╟─188f9e91-2111-4731-9582-cdb8b1d54013
 # ╠═c317ba94-ed7b-4585-a41f-fce3c97f816e
 # ╠═3c7a48b4-c8a8-4891-84ed-0ba146eee549
 # ╠═fff73c5f-0fef-48b5-825e-1a677d52d0ca
-# ╠═60867ba0-58d9-4915-81b2-0ebbaf50f4a3
+# ╠═2d9f1953-fd36-44d9-9376-f6fd4a7756e4
+# ╠═dd0e4114-fd5f-4685-81d6-7900ffe44ad9
 # ╠═8f5253c3-ee2e-4617-af81-9b53782cb08b
 # ╠═2535c853-5d38-4f3c-acab-5fe321243023
 # ╠═5881d208-bca1-4a71-9d94-72abcd263252
@@ -2559,7 +2666,6 @@ version = "0.9.1+5"
 # ╠═153c324a-9861-4ad6-b5fe-0438a54d0275
 # ╠═56ff95ea-a7b7-4cc2-b202-4408711cd188
 # ╠═fa13e453-124b-43c1-84c0-4d0e7ce1ea94
-# ╠═71b9f8dd-688a-4a33-8af9-ac4b6e21e052
 # ╠═afe971a3-8f38-4341-868c-846089ea70f8
 # ╠═67cd1b0d-89cc-46ca-ae4b-3900d072ea68
 # ╠═321b373a-5fda-4c9c-b1ad-34d1f82d086b
@@ -2571,7 +2677,6 @@ version = "0.9.1+5"
 # ╠═941be823-7792-490c-b69c-b8493569cc81
 # ╠═dab28bf1-3c97-4562-be02-17e2486d9ccc
 # ╠═ab03fda5-fbf7-4ae2-a743-b57e95211dad
-# ╠═78b4fe63-d016-4f52-8086-9e6520cafcd5
 # ╠═af7add3b-c1ad-4fbb-bac9-41ba3cafa716
 # ╠═e5e4df13-c2d0-4376-9ecc-36332dfdc61d
 # ╠═0bcb141b-b4db-4c31-9919-745a8bb3d91d
@@ -2581,16 +2686,14 @@ version = "0.9.1+5"
 # ╠═73878b74-389a-4306-834b-9d9a126ba95d
 # ╠═d73cae53-b429-4c06-a63b-9bc876387256
 # ╠═baba5028-d85c-415f-95f6-0393ce686249
-# ╠═7d0e8247-5341-41a6-8356-4b09dbc5310f
-# ╠═8d02c42c-452e-4ad3-9b27-95ac7ea5e210
-# ╠═e45bd546-c5fc-4914-b237-3df5f473363d
+# ╠═f6530e2b-ba30-47be-918d-8ac316053dc9
+# ╠═b3a05a67-3844-4ef8-9bdf-e631477e2b15
 # ╠═d5679626-ae35-4532-9949-87a3991f10e4
 # ╠═3fff2102-a8b4-44ad-870f-7837ae874c2e
 # ╠═938ff2ea-13af-4bce-98d9-8ef5349a7f3d
 # ╠═3ddc6f6e-216b-4f56-95a2-dd9616c1ce51
 # ╠═5e93697b-1924-4ece-bab5-7795e2a5f015
 # ╠═b75f91ae-7c35-4e80-bac9-fe7dfa1bcd3d
-# ╠═8953d6fb-f9ad-4f95-b022-5ac95058dbf7
 # ╠═a49b2124-a1cc-44a8-9993-a6e35fe34cbd
 # ╠═8183fd70-9e17-44dc-882e-a8b9f6d5ee42
 # ╠═baa9f00a-a008-4cfd-9181-1457f128042e
@@ -2603,5 +2706,39 @@ version = "0.9.1+5"
 # ╠═07f496b8-6147-43ad-ad64-07938321626d
 # ╠═9bff1c70-4d62-4571-b03f-329f6bffb390
 # ╠═dd70e052-8dbd-4364-acec-9dfb3f907d6c
+# ╠═45ca1374-d892-4076-b03f-355cd85068e1
+# ╠═d20c6608-85f0-4f73-8f99-a0594768e7d3
+# ╠═c7c7c532-aa8f-484e-b118-8f8656dd53e1
+# ╠═23b8db87-3d65-4335-b7e9-c5f5910de531
+# ╠═b6a05ec9-0341-432e-87a7-d3bff76fd0a6
+# ╠═94a5b96b-14d5-47f6-9fd5-b024b56557ef
+# ╠═5975d71a-a9dd-4576-b388-e11c2ba4e52d
+# ╠═f3aa07d7-7d4b-4aea-9fce-a000c2e7d2da
+# ╠═ed195b52-9174-4d0f-9c5a-dc7ee972d75d
+# ╠═6c060e3e-e993-46b0-917d-df9451b93fe2
+# ╠═1e5649f2-2c8b-4533-a1f1-b8f279952ed8
+# ╠═2b43e522-6654-4196-8e14-2525d542e5ef
+# ╠═f315cad7-100b-407c-8e0d-2ce8b3669126
+# ╠═fde49db9-165b-4b55-928b-b0d3f2610a31
+# ╠═500c0b3b-fc21-45a7-b03d-07c413a947c9
+# ╠═79c95b20-7b71-414f-b5d6-41e4cfe373ca
+# ╠═fe91ac2c-b95a-4d5e-a2fe-f09f43297d4d
+# ╠═e673cdda-7032-4600-bbd0-01a291aa3eb5
+# ╠═1928ef8d-d7df-4b2b-9b9a-f958cacecaa3
+# ╠═17fffef0-699e-4aa2-8931-41afa2ef4da1
+# ╠═0bb31d5b-6d5c-49cc-9ddc-1675dfe4c98f
+# ╠═8fe40af8-5374-48ed-831e-69b52a9e3ffc
+# ╠═1e9d4e87-aa89-4b3e-885f-0f553c0724ec
+# ╠═8458b6e4-4c73-4b8a-b891-c4ca38d63988
+# ╠═78b4fe63-d016-4f52-8086-9e6520cafcd5
+# ╠═f24f35a5-9075-430c-adcb-62946b2c189e
+# ╠═71b9f8dd-688a-4a33-8af9-ac4b6e21e052
+# ╠═c056af02-693b-4837-ab7b-1c4c7b7a9ca5
+# ╠═8d02c42c-452e-4ad3-9b27-95ac7ea5e210
+# ╠═380a7a82-0924-42b6-8698-7573b389e9ad
+# ╠═f62e8d24-10c6-42e9-a68e-f2d68f950ed1
+# ╠═e45bd546-c5fc-4914-b237-3df5f473363d
+# ╠═5e6ea853-c7a2-44ce-acb5-628ed36f8180
+# ╠═8953d6fb-f9ad-4f95-b022-5ac95058dbf7
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
