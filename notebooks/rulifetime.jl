@@ -238,6 +238,9 @@ md"## BOLD-062 A1"
 # ╔═╡ d20c6608-85f0-4f73-8f99-a0594768e7d3
 md"### 650 nm"
 
+# ╔═╡ 8602010c-bf34-479d-b05b-3d093cb7ff42
+png("waveform.png")
+
 # ╔═╡ fde49db9-165b-4b55-928b-b0d3f2610a31
 md"## Functions and data structures"
 
@@ -433,21 +436,22 @@ md"### plot_waveform
 # ╔═╡ 17fffef0-699e-4aa2-8931-41afa2ef4da1
 function plot_waveform(wvfm, mean, std, nsigma, nsigma2; sct=false, trace=false)
 	if sct
-		scatter(wvfm.Time, wvfm.Ampl,  markersize=2,
+		p1 = scatter(wvfm.Time, wvfm.Ampl,  markersize=2,
 				  color = :black,
 	    		  label=false,
 				  fmt = :png)
 	elseif trace
-		plot(wvfm.Ampl, lw=2, label=false, fmt = :png)
+		p1 = plot(wvfm.Ampl, lw=2, label=false, fmt = :png)
 	else
-		plot(wvfm.Time, wvfm.Ampl, lw=2, label=false, fmt = :png)
+		p1 = plot(wvfm.Time, wvfm.Ampl, lw=2, label=false, fmt = :png)
 	end
-	hline!([mean - nsigma * std], label=false)
-	hline!([mean + nsigma * std], label=false)
-	hline!([mean - nsigma2 * std], label=false)
-	hline!([mean + nsigma2 * std], label=false)
+	hline!([mean - nsigma * std], label=false, fmt = :png)
+	hline!([mean + nsigma * std], label=false, fmt = :png)
+	hline!([mean - nsigma2 * std], label=false, fmt = :png)
+	hline!([mean + nsigma2 * std], label=false, fmt = :png)
 	xlabel!("t (μs)")
 	ylabel!("I (mV)")
+	p1
 end
 
 # ╔═╡ c688b96b-002f-4550-844d-505416bce77e
@@ -778,7 +782,7 @@ fa1650 = glob_files2("../data/scope/A1/"; wvl="732nm")
 nfa1650 = length(fa1650)
 
 # ╔═╡ 94a5b96b-14d5-47f6-9fd5-b024b56557ef
-display_waveform(fa1650, 1000, 3.0, 5.0)
+p1 = display_waveform(fa1650, 50, 3.0, 5.0)
 
 # ╔═╡ 5975d71a-a9dd-4576-b388-e11c2ba4e52d
 a1PP, a1WP, a1PN, a1WN = prominence(fa1650, 1, nfa1650, 3)
@@ -2712,6 +2716,7 @@ version = "0.9.1+5"
 # ╠═23b8db87-3d65-4335-b7e9-c5f5910de531
 # ╠═b6a05ec9-0341-432e-87a7-d3bff76fd0a6
 # ╠═94a5b96b-14d5-47f6-9fd5-b024b56557ef
+# ╠═8602010c-bf34-479d-b05b-3d093cb7ff42
 # ╠═5975d71a-a9dd-4576-b388-e11c2ba4e52d
 # ╠═f3aa07d7-7d4b-4aea-9fce-a000c2e7d2da
 # ╠═ed195b52-9174-4d0f-9c5a-dc7ee972d75d
