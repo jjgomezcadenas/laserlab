@@ -124,13 +124,13 @@ md"# BOLD\_062\_A2\_500kHz\_650nm\_100us
 md"## Read waveform"
 
 # ╔═╡ 2098fce4-1a4f-4c4b-825e-37afb2fdcde5
-fn6n5k1m = 21  # test file
+fn6n5k1m = 21;  # test file
 
 # ╔═╡ 097ee9e5-fec4-45ae-9cd3-cb8c890165b0
 md"### Select peaks"
 
 # ╔═╡ f21c3a51-7d70-44d5-bdae-06b4123ed0f2
-sprom6n5k1m = 2.0  #prominence cut
+sprom6n5k1m = 2.0;  #prominence cut
 
 # ╔═╡ d2bd231b-7bf9-4c12-91f2-699f43d62cdd
 md"
@@ -153,13 +153,13 @@ md"# BOLD\_062\_A2\_500kHz\_700nm\_100us"
 md"## Read waveform"
 
 # ╔═╡ 5959c636-6269-48a1-84fa-ea5087cdbed8
-fn7n5k1m = 201  # test file 
+fn7n5k1m = 201;  # test file 
 
 # ╔═╡ 8bc4629f-ef4a-4fb6-b2e7-5d5ac79426fd
 md"### Select peaks"
 
 # ╔═╡ a23cd563-70c1-4fe0-a625-f300b00e2e96
-sprom7n5k1m = 2.0  #prominence cut
+sprom7n5k1m = 2.0;  #prominence cut
 
 # ╔═╡ f4886783-9d88-4971-9505-6bb20e3239c5
 md"
@@ -182,13 +182,13 @@ md"# BOLD062\_A2\_500kHz\_730nm\_100us"
 md"## Read waveform"
 
 # ╔═╡ eb5c2173-e53a-4b3f-aa77-29779fb9a437
-fn8n5k1m = 101  # test file 
+fn8n5k1m = 101;  # test file 
 
 # ╔═╡ efb34903-19d2-48b8-8e7d-bbdd4e212e56
 md"### Select peaks"
 
 # ╔═╡ d3a5a79e-c181-4cd3-bd9f-7893cbdfb229
-sprom8n5k1m = 2.0  #prominence cut
+sprom8n5k1m = 2.0;  #prominence cut
 
 # ╔═╡ 73d26e78-d026-4c0a-83d1-a097705492fb
 md"
@@ -373,6 +373,7 @@ end
 begin
 	sr6n5k1m = sampling_rate(wvfm6n5k1m,wmus100mus)/GHz
 	sp6n5k1m = sampling_period(wvfm6n5k1m,wmus100mus)/ns
+	println("")
 end
 
 # ╔═╡ d8f37622-4d4c-4983-9184-b7892559cca3
@@ -386,6 +387,7 @@ md"
 begin
 	sr7n5k1m = sampling_rate(wvfm7n5k1m,wmus100mus)/GHz
 	sp7n5k1m = sampling_period(wvfm7n5k1m,wmus100mus)/ns
+	println("")
 end
 
 # ╔═╡ f036d804-14ed-40eb-8ac9-91248df6a6f3
@@ -400,6 +402,7 @@ md"
 begin
 	sr8n5k1m = sampling_rate(wvfm8n5k1m,wmus100mus)/GHz
 	sp8n5k1m = sampling_period(wvfm8n5k1m,wmus100mus)/ns
+	println("")
 end
 
 # ╔═╡ 399913df-af72-40db-b900-1605677bbfd0
@@ -741,8 +744,9 @@ end
 begin
 	P6n5k1m, W6n5k1m = proms(fls6n5k1m, 1, n6n5k1m;  
 	                 wmus=wmus100mus, wsym=true, flhz=ffl6n5k1m, promsel=0.5)
-	hP6n5k1m = lfi.LaserLab.hist1d(P6n5k1m, 20, 0.0, 10.0)
+	
 	hW6n5k1m = lfi.LaserLab.hist1d(W6n5k1m, 20, 5.0, 15.0)
+	hP6n5k1m = lfi.LaserLab.hist1d(P6n5k1m, 20, 0.0, 10.0)
 end
 
 # ╔═╡ ed7d8551-7299-4800-9b2c-5c0c9f27424d
@@ -756,8 +760,9 @@ lfi.LaserLab.hist1d(hW6n5k1m, "Width")
 begin
 	P7n5k1m, W7n5k1m = proms(fls7n5k1m, 1, n7n5k1m;  
 	                 wmus=wmus100mus, wsym=true, flhz=ffl7n5k1m, promsel=1.5)
-	hP7n5k1m = lfi.LaserLab.hist1d(P7n5k1m, 20, 0.0, 10.0)
+	
 	hW7n5k1m = lfi.LaserLab.hist1d(W7n5k1m, 20, 5.0, 15.0)
+	hP7n5k1m = lfi.LaserLab.hist1d(P7n5k1m, 20, 0.0, 10.0)
 end
 
 # ╔═╡ 7eaac105-406c-43c1-acbb-9481708f1948
@@ -770,8 +775,9 @@ lfi.LaserLab.hist1d(hW7n5k1m, "Width")
 begin
 	P8n5k1m, W8n5k1m = proms(fls8n5k1m, 1, n8n5k1m;  
 	                 wmus=wmus100mus, wsym=true, flhz=ffl8n5k1m, promsel=1.5)
-	hP8n5k1m = lfi.LaserLab.hist1d(P8n5k1m, 20, 0.0, 10.0)
+	
 	hW8n5k1m = lfi.LaserLab.hist1d(W8n5k1m, 20, 5.0, 15.0)
+	hP8n5k1m = lfi.LaserLab.hist1d(P8n5k1m, 20, 0.0, 10.0)
 end
 
 # ╔═╡ 7a391586-263d-4c53-b4c3-12f98a120905
@@ -1034,7 +1040,7 @@ md"### plot_fit
 "
 
 # ╔═╡ 8953d6fb-f9ad-4f95-b022-5ac95058dbf7
-function plot_fit(htime, coeff, tft)
+function plot_fit(htime, coeff, tft; savefig=false, fn="")
 	tdata =lfi.LaserLab.centers(htime)
 	vdata =htime.weights
 	ps1 = scatter(tdata, vdata, yerr=sqrt.(vdata), markersize=2,
@@ -1042,23 +1048,42 @@ function plot_fit(htime, coeff, tft)
 	    		  label="data",
 				  fmt = :png)
 	pp = plot(ps1, tdata, tft, lw=2, label="μ = $(round(coeff[2]*1000, sigdigits=2)) ns", fmt = :png)
-	xlabel!("t (ns)")
+	xlabel!("t (μs)")
 	ylabel!("frequency")
+	if savefig
+		png(pp, fn)
+	end
+	return pp 
 end
 
 # ╔═╡ 66cf177e-5fbb-4420-bc43-f8fa1ffcea51
-plot_fit(hp6n5k1m, cofe6n5k1m, tft6n5k1m)
+begin
+	pp6n5k1m = plot_fit(hp6n5k1m, cofe6n5k1m, tft6n5k1m; savefig=true,
+		              fn="b62A2_500kHz_650nm_100mus_fit.png")
+	plot(pp6n5k1m)
+end
+
+# ╔═╡ d2ec6ab2-3da8-4f46-83be-583addf68f38
+begin
+    pp6n5k1mx = plot_fit(hp6n5k1m, cofe6n5k1m, tft6n5k1m; savefig=true,
+	              fn="b62A2_500kHz_650nm_100mus_fit.png")
+	plot(pp6n5k1mx)
+end
 
 # ╔═╡ 526d99d2-4571-4976-8a58-e2d88f79d834
 begin
     cofe7n5k1m, stder7n5k1m, tft7n5k1m = fit_peaks(hp7n5k1m; pa0=[100.0, 0.5], i0=1)
-    plot_fit(hp7n5k1m, cofe7n5k1m, tft7n5k1m)
+    pp7n5k1m = plot_fit(hp7n5k1m, cofe7n5k1m, tft7n5k1m; savefig=true,
+	              fn="b62A2_500kHz_700nm_100mus_fit.png")
+	plot(pp7n5k1m)
 end
 
 # ╔═╡ 3a950c36-11b0-4dd5-9656-705f76194fe5
 begin
     cofe8n5k1m, stder8n5k1m, tft8n5k1m = fit_peaks(hp8n5k1m; pa0=[100.0, 0.5], i0=1)
-    plot_fit(hp8n5k1m, cofe8n5k1m, tft8n5k1m)
+    pp8n5k1m = plot_fit(hp8n5k1m, cofe8n5k1m, tft8n5k1m; savefig=true,
+	              fn="b62A2_500kHz_730nm_100mus_fit.png")
+	plot(pp8n5k1m)
 end
 
 # ╔═╡ 6c95fd00-0023-4f00-b495-050ca098cfb6
@@ -2762,94 +2787,95 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╠═b4f98dfc-9e44-11ec-3621-4526f6f187bd
-# ╠═52d4f953-98d1-4016-b2b3-7c234b012189
-# ╠═91726783-795a-4da6-9ca7-2d176ba328ca
-# ╠═1e429641-5615-4c2f-b466-a5e1d5cbc297
-# ╠═860a66e0-9fdb-4537-865e-bf70e7fa289a
-# ╠═1665009d-f4a8-4d3e-bc9a-3cca8c26c213
-# ╠═c9e85963-fe90-48c4-8e20-fcc92c31ce99
+# ╟─b4f98dfc-9e44-11ec-3621-4526f6f187bd
+# ╟─52d4f953-98d1-4016-b2b3-7c234b012189
+# ╟─91726783-795a-4da6-9ca7-2d176ba328ca
+# ╟─1e429641-5615-4c2f-b466-a5e1d5cbc297
+# ╟─860a66e0-9fdb-4537-865e-bf70e7fa289a
+# ╟─1665009d-f4a8-4d3e-bc9a-3cca8c26c213
+# ╟─c9e85963-fe90-48c4-8e20-fcc92c31ce99
 # ╠═f3fea484-8430-47ab-986b-7b170bef4ba6
 # ╠═9e58009d-0244-49db-801e-362bcb895eb0
 # ╟─aedcf3c2-7d51-466c-a88e-2c681679b8b0
-# ╠═a6cd504a-1afc-4be0-81d2-0de827650526
+# ╟─a6cd504a-1afc-4be0-81d2-0de827650526
 # ╠═252430c1-c039-4d85-a961-fa3aa51c9c69
-# ╠═38d57ccd-d0d3-44b2-9ad0-9e0ac33910c6
-# ╠═d904688d-c65a-450b-934d-d7486b93398e
-# ╠═01355b47-de67-4104-a6bc-3d773b156bae
-# ╠═46929efd-6ffd-40b5-996f-5b10be042ba5
+# ╟─38d57ccd-d0d3-44b2-9ad0-9e0ac33910c6
+# ╟─d904688d-c65a-450b-934d-d7486b93398e
+# ╟─01355b47-de67-4104-a6bc-3d773b156bae
+# ╟─46929efd-6ffd-40b5-996f-5b10be042ba5
 # ╠═2098fce4-1a4f-4c4b-825e-37afb2fdcde5
 # ╠═ffdac4df-dd39-4203-875d-c698007fc0c5
-# ╠═d8f37622-4d4c-4983-9184-b7892559cca3
+# ╟─d8f37622-4d4c-4983-9184-b7892559cca3
 # ╠═1a5182c8-787d-4e45-91d3-ae8b523eda5d
-# ╠═8a4386f6-b364-4e64-ba9a-5029260288c5
+# ╟─8a4386f6-b364-4e64-ba9a-5029260288c5
 # ╠═2aa64aa2-90fc-480a-b5a3-37ca6e06158c
-# ╠═d41f7733-f109-4649-bd94-f1bad8abdbb3
+# ╟─d41f7733-f109-4649-bd94-f1bad8abdbb3
 # ╠═4c20fc26-a692-420f-8a15-f739d73d2100
 # ╠═26f91e54-53ca-4c47-9c1b-839e572b62eb
-# ╠═097ee9e5-fec4-45ae-9cd3-cb8c890165b0
+# ╟─097ee9e5-fec4-45ae-9cd3-cb8c890165b0
 # ╠═f21c3a51-7d70-44d5-bdae-06b4123ed0f2
-# ╠═d2bd231b-7bf9-4c12-91f2-699f43d62cdd
+# ╟─d2bd231b-7bf9-4c12-91f2-699f43d62cdd
 # ╠═d0a2d2ef-b439-46cd-8ba6-a17469a2cc96
-# ╠═0c08fd16-9dfd-4f8f-a090-437190fd1da5
+# ╟─0c08fd16-9dfd-4f8f-a090-437190fd1da5
 # ╠═323336be-94ef-4de9-830b-3733625d30b4
 # ╠═ed7d8551-7299-4800-9b2c-5c0c9f27424d
 # ╠═79518efa-e5a6-4c56-bb69-4b3cc8b231e5
-# ╠═31d7b91d-15ae-4e8a-af46-160b64e16094
+# ╟─31d7b91d-15ae-4e8a-af46-160b64e16094
 # ╠═c93d5830-1a1b-408b-8736-54deaa734aac
 # ╠═e180cf32-a993-493b-a6d3-c9939d95f367
-# ╠═408c18b0-f031-4480-b521-b0329ad28011
+# ╟─408c18b0-f031-4480-b521-b0329ad28011
 # ╠═8e0ff0be-584e-4106-8ce6-2b4a7a874079
 # ╠═66cf177e-5fbb-4420-bc43-f8fa1ffcea51
-# ╠═19a7cafb-237a-4d17-bfc8-dd3d82b9a869
-# ╠═114201ce-abf4-4501-a7e4-2606f98f4343
+# ╠═d2ec6ab2-3da8-4f46-83be-583addf68f38
+# ╟─19a7cafb-237a-4d17-bfc8-dd3d82b9a869
+# ╟─114201ce-abf4-4501-a7e4-2606f98f4343
 # ╠═5959c636-6269-48a1-84fa-ea5087cdbed8
 # ╠═86894686-5fdd-43ab-a491-e3015b6bb44d
-# ╠═f036d804-14ed-40eb-8ac9-91248df6a6f3
+# ╟─f036d804-14ed-40eb-8ac9-91248df6a6f3
 # ╠═9df485bd-266d-4d1e-a49c-f06dafd55e12
-# ╠═0059069f-cdb4-45d2-9dc7-306e4f82bb72
+# ╟─0059069f-cdb4-45d2-9dc7-306e4f82bb72
 # ╠═e533df55-59d5-484a-85c8-936de7b6396a
-# ╠═471d1bc5-df15-4bd1-9dc0-ef77ffe624a5
+# ╟─471d1bc5-df15-4bd1-9dc0-ef77ffe624a5
 # ╠═d565ae50-ff90-430a-a186-c1a85686ccf8
 # ╠═733c7f3b-0996-401d-80db-180b6494351c
-# ╠═8bc4629f-ef4a-4fb6-b2e7-5d5ac79426fd
+# ╟─8bc4629f-ef4a-4fb6-b2e7-5d5ac79426fd
 # ╠═a23cd563-70c1-4fe0-a625-f300b00e2e96
-# ╠═f4886783-9d88-4971-9505-6bb20e3239c5
+# ╟─f4886783-9d88-4971-9505-6bb20e3239c5
 # ╠═afc314ec-4a3a-4b2e-9bb3-ddb8d3cff733
-# ╠═abdc25e1-153d-4f17-9acc-14f2ef8c0f46
+# ╟─abdc25e1-153d-4f17-9acc-14f2ef8c0f46
 # ╠═4d4435c4-1b2d-418d-ba0c-8b6e05cd7ee5
 # ╠═7eaac105-406c-43c1-acbb-9481708f1948
 # ╠═07a50870-7241-4649-8db7-72dec6a95810
-# ╠═5a72de44-72ef-408f-940b-e6015cc72fe0
+# ╟─5a72de44-72ef-408f-940b-e6015cc72fe0
 # ╠═96dcbbc0-96e8-4bf8-a724-49e267f503f7
 # ╠═cb23f60e-0764-427e-b263-6fdf89af75e8
-# ╠═0cb56f60-43b1-4580-a63f-6acccac77b80
+# ╟─0cb56f60-43b1-4580-a63f-6acccac77b80
 # ╠═526d99d2-4571-4976-8a58-e2d88f79d834
-# ╠═e57edd48-7db8-4a7e-afd9-eaebcbbc4338
-# ╠═54a713f6-f70d-4379-97a9-af8ef6327e80
+# ╟─e57edd48-7db8-4a7e-afd9-eaebcbbc4338
+# ╟─54a713f6-f70d-4379-97a9-af8ef6327e80
 # ╠═eb5c2173-e53a-4b3f-aa77-29779fb9a437
 # ╠═2f60d20b-62af-42aa-b149-230283f9914e
-# ╠═399913df-af72-40db-b900-1605677bbfd0
+# ╟─399913df-af72-40db-b900-1605677bbfd0
 # ╠═77b76835-f30c-424e-b4d8-05e380f2a524
-# ╠═8bd32ac5-886a-490f-b849-657e8f9d90a8
+# ╟─8bd32ac5-886a-490f-b849-657e8f9d90a8
 # ╠═5c5b2e29-fb2b-4096-af0f-6fd348348067
-# ╠═3624a0fa-a96f-42de-8a09-8172aa52a342
+# ╟─3624a0fa-a96f-42de-8a09-8172aa52a342
 # ╠═8c1b6c42-34a4-4398-a25b-e8a84ffa7e18
 # ╠═427c1404-242a-4b60-933e-0ac467483906
-# ╠═efb34903-19d2-48b8-8e7d-bbdd4e212e56
+# ╟─efb34903-19d2-48b8-8e7d-bbdd4e212e56
 # ╠═d3a5a79e-c181-4cd3-bd9f-7893cbdfb229
-# ╠═73d26e78-d026-4c0a-83d1-a097705492fb
+# ╟─73d26e78-d026-4c0a-83d1-a097705492fb
 # ╠═d7f36e9c-76dd-4791-869b-7d4000a4a675
-# ╠═b27beaa2-d8a7-425d-843d-9fdcb8992de3
+# ╟─b27beaa2-d8a7-425d-843d-9fdcb8992de3
 # ╠═7225258a-ce96-4c53-b476-056a6e90660a
 # ╠═7a391586-263d-4c53-b4c3-12f98a120905
 # ╠═8545525d-a0ea-45cf-b6b7-d111d5244f4c
-# ╠═2d735473-8afa-4b6c-a832-e3b6e4f15067
+# ╟─2d735473-8afa-4b6c-a832-e3b6e4f15067
 # ╠═7a1090f5-4190-4742-a683-566c8a8022be
 # ╠═6ba3294f-4dfb-431c-a8bf-cf7c1acb09f3
-# ╠═2b191d8d-12a3-49af-93ac-b4510aa19bf4
+# ╟─2b191d8d-12a3-49af-93ac-b4510aa19bf4
 # ╠═3a950c36-11b0-4dd5-9656-705f76194fe5
-# ╠═fde49db9-165b-4b55-928b-b0d3f2610a31
+# ╟─fde49db9-165b-4b55-928b-b0d3f2610a31
 # ╠═500c0b3b-fc21-45a7-b03d-07c413a947c9
 # ╠═79c95b20-7b71-414f-b5d6-41e4cfe373ca
 # ╟─50e2ec32-be70-444a-9c80-38770ce5da7e

@@ -785,7 +785,7 @@ end
 
 # ╔═╡ b55852f8-9cbc-4346-a938-b820f04b7ce0
 filter_signal_bp!(wvfm3, wmus; 
-                  filtertype="Butterworth", fihz=20.0e+6, flhz=290.0e+6, n=4)
+                  filtertype="Butterworth", fihz=1.0e+6, flhz=290.0e+6, n=4)
 
 # ╔═╡ 647e0043-3389-43f2-bfd6-329d88fce931
 md"
@@ -1414,7 +1414,7 @@ md"### plot_fit
 "
 
 # ╔═╡ 8953d6fb-f9ad-4f95-b022-5ac95058dbf7
-function plot_fit(htime, coeff, tft)
+function plot_fit(htime, coeff, tft; savefig=false, fn="")
 	tdata =lfi.LaserLab.centers(htime)
 	vdata =htime.weights
 	ps1 = scatter(tdata, vdata, yerr=sqrt.(vdata), markersize=2,
@@ -1424,6 +1424,38 @@ function plot_fit(htime, coeff, tft)
 	pp = plot(ps1, tdata, tft, lw=2, label="μ = $(round(coeff[2]*1000, sigdigits=2)) ns", fmt = :png)
 	xlabel!("t (μs)")
 	ylabel!("frequency")
+	if savefig
+		png(pp, fn)
+	end
+	return pp 
+end
+
+# ╔═╡ 2174c692-ccc7-490b-b2c4-940876c579dd
+begin
+    ppx2 = plot_fit(hpkp, cofe, tft; savefig=true,
+	              fn="b55A_200kHz_650nm_50mus_fit.png")
+	plot(ppx2)
+end
+
+# ╔═╡ 5dd92589-d1a9-4eb0-9e58-d173b8ff3a04
+begin
+    ppx3 = plot_fit(hp6n5k1m, cofe6n5k1m, tft6n5k1m; savefig=true,
+	              fn="b55A_500kHz_650nm_100mus_fit.png")
+	plot(ppx3)
+end
+
+# ╔═╡ b375e4a5-5e99-47da-841b-2475936c437d
+begin
+    ppx4 = plot_fit(hp7n5k1m, cofe7n5k1m, tft7n5k1m; savefig=true,
+	              fn="b55A_500kHz_700nm_100mus_fit.png")
+	plot(ppx4)
+end
+
+# ╔═╡ c8acd563-df8e-4404-904f-6e0b97a13f55
+begin
+    ppx5 = plot_fit(hp73n5k1m, cofe73n5k1m, tft73n5k1m; savefig=true,
+	              fn="b55A_500kHz_732nm_100mus_fit.png")
+	plot(ppx5)
 end
 
 # ╔═╡ 6c95fd00-0023-4f00-b495-050ca098cfb6
@@ -3209,6 +3241,7 @@ version = "0.9.1+5"
 # ╠═73878b74-389a-4306-834b-9d9a126ba95d
 # ╠═d73cae53-b429-4c06-a63b-9bc876387256
 # ╠═baba5028-d85c-415f-95f6-0393ce686249
+# ╠═2174c692-ccc7-490b-b2c4-940876c579dd
 # ╠═b3a05a67-3844-4ef8-9bdf-e631477e2b15
 # ╠═e9b35fca-b72a-4b2e-8167-92e070017e25
 # ╠═01333780-fbab-41cf-8cc5-45677ef971e2
@@ -3253,6 +3286,7 @@ version = "0.9.1+5"
 # ╠═50502497-7576-40a8-917c-840e7c4c52f9
 # ╠═9637e720-24f1-4321-bb77-72316dfb7bbd
 # ╠═57008d1a-1b6d-42a5-86bb-62a9bd8c2f63
+# ╠═5dd92589-d1a9-4eb0-9e58-d173b8ff3a04
 # ╠═4a6b9446-8724-4d03-a2d0-48c3d26057b4
 # ╠═fa381020-606f-4421-9b56-cb5a0360fada
 # ╠═e3413e4a-88ce-47b0-9514-70b1e9245508
@@ -3279,6 +3313,7 @@ version = "0.9.1+5"
 # ╠═133a7d51-791c-4952-8498-b8c938b2fa0d
 # ╠═e2914357-c8c2-4fbf-a0f9-308477242b73
 # ╠═7e9fa3f9-a1a9-45c3-a0cc-1591d320f8df
+# ╠═b375e4a5-5e99-47da-841b-2475936c437d
 # ╠═e424d154-7090-4311-bb03-ecd06bc10f21
 # ╠═9c970c92-9cd2-4440-ae40-b41139340c40
 # ╠═a9f1938c-93c8-4e6f-91ad-8b38d0b2f6ff
@@ -3304,6 +3339,7 @@ version = "0.9.1+5"
 # ╠═7e37e56a-f536-49bd-8839-a4af59ff8bf3
 # ╠═3744cb91-f3f4-481f-964f-40574066fb86
 # ╠═bfb83129-5f50-40fe-87d5-793cfd292bc7
+# ╠═c8acd563-df8e-4404-904f-6e0b97a13f55
 # ╠═fde49db9-165b-4b55-928b-b0d3f2610a31
 # ╠═500c0b3b-fc21-45a7-b03d-07c413a947c9
 # ╠═79c95b20-7b71-414f-b5d6-41e4cfe373ca
