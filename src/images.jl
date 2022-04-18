@@ -182,7 +182,7 @@ function signal_around_maximum(img::Matrix{Float64}, dark::Matrix{Float64}; nsig
 
     println("size of img2 =", size(img2))
 
-	img2 
+	(max=mxx, imax=kx, jmax=ky, img=img2) 
 end
 
 
