@@ -23,7 +23,6 @@ begin
 	using CSV
 	using DataFrames
 	using Images
-	using ImageBinarization
 	using Colors
 	using Plots
 	using Printf
@@ -73,9 +72,6 @@ lfi = ingredients("../src/LaserLab.jl")
 # ╔═╡ 7aafa82d-4fe3-4bdc-a14c-ec48a7178260
 PlutoUI.TableOfContents(title="G2 Bold73 analysis", indent=true)
 
-# ╔═╡ 6926c7d6-0c1d-4054-9d02-3b12c21ad81c
-collect(10:-1:1 )
-
 # ╔═╡ 9da70d55-28b9-4c12-ba6a-c560832a5194
 md"""
 # Read Data
@@ -86,25 +82,15 @@ begin
 	proot ="/Users/jj/JuliaProjects/LaserLab/labdata"
 	sroot = "/Users/jj/JuliaProjects/LaserLab/data/G2Sl"
 	psample = "G2_BOLD_073_A1"
-	xrun = ["G20406","G20407", "G2Ba0408"]
-	prun = Dict("G20406"=>"G2SL_20220406", 
-		        "G20407"=>"G2SL_20220407",
-		        "G2Ba0408"=>"G2SL-BaCl2_20220408")
+	prun = "G2SL_20220407"
+	path = joinpath(proot,psample, prun)
 	pfiles ="*.dat"
-	sflts = string.(collect(2:11));
-	sreps = string.(collect(0:10));
-	
-	md""" Select run type : $(@bind whichxr Select(xrun))"""
-end
-
-# ╔═╡ 21743b1b-3a48-4eb2-9dcd-3a8262c45dec
-begin
-	path = joinpath(proot,psample, prun[whichxr])
 	fls = joinpath(path,pfiles)
 	nfiles = length(fls) 
-	files = Glob.glob(pfiles, path);
-	#names = [split(f,"/")[end] for f in files];
-	
+	sflts = string.(collect(2:11));
+	sreps = string.(collect(0:10));
+	snum = ["1", "2", "c"];
+	stypes=["Dark", "Imag"];
 md"
 - Path for glob: $path
 - files : $fls
@@ -112,101 +98,25 @@ md"
 "
 end
 
+# ╔═╡ dd51775e-a254-49da-9062-c166ec4a0922
+files = Glob.glob(pfiles, path);
+
+# ╔═╡ 6fade49e-845d-4844-9bbc-748f8c958432
+typeof(files)
+
+# ╔═╡ 02e2aa4a-40ff-499b-ab31-1004023b5faa
+names = [split(f,"/")[end] for f in files];
+
 # ╔═╡ a2ce79cf-a447-4cab-8843-a2cd691b4004
 md"""
 # Select Filter and Rep
 """
 
 # ╔═╡ 90bda847-8afe-4968-9a02-50ad7c7cc572
-md""" Select Filter number (2-11): $(@bind whichf Select(sflts))"""
+md""" Select Filter number (1-10 if 0 add all): $(@bind whichf Select(sflts))"""
 
 # ╔═╡ 1cd87997-3ff3-40fa-98b7-ee9655848a76
-md""" Select repetition number (0-10): $(@bind whichr Select(sreps))"""
-
-# ╔═╡ 7d756675-333a-4f8d-aa4d-db84abe72183
-whichr
-
-# ╔═╡ 21f71c85-9e22-4834-a7d7-76e3d1ab681b
-#imgm, drkm, sdrkm, simgm = get_images(files, whichf, whichr);
-
-# ╔═╡ 0387a9f9-4e0b-4568-a698-5fe9e66e5c39
-imgnt = lfi.LaserLab.get_images(files, whichf, whichr);
-
-# ╔═╡ 5c283457-fc1d-4249-bd4e-029204e5c57b
-lfi.LaserLab.plot_images(imgnt, whichf, whichr)
-
-# ╔═╡ 60b420bd-9bfd-4361-bec9-11a1ccd205a5
-begin
-	imgmn = imgnt.cimage ./maximum(imgnt.cimage)
-	gimg = Gray.(imgmn);
-	imgmn_edge = lfi.LaserLab.sujoy(gimg, four_connectivity=true)
-	img_edge = binarize(imgmn_edge, Otsu())
-	img_edgem = convert(Array{Float64}, img_edge)
-	mosaicview(gimg, img_edge; nrow = 1)
-end
-
-# ╔═╡ fa2c16c8-b9e6-43ee-96cd-d91e73d528ca
-img_edgem
-
-# ╔═╡ ef2fd803-4833-400f-9a40-61fff3d50942
-imgmx = lfi.LaserLab.signal_around_maximum(imgnt.cimage, imgnt.cdark; nsigma=5)
-
-# ╔═╡ 1049bc5f-3fcc-4574-8db2-3988227c5fb5
-begin
-	imgmxn = imgmx ./maximum(imgmx)
-	gimgx = Gray.(imgmxn);
-	mosaicview(gimg, gimgx; nrow = 1)
-end
-
-# ╔═╡ bd3beecc-2154-4c70-a8b4-7334b8cc643d
-gimgx
-
-# ╔═╡ c9a93f4d-cd32-410d-bc7e-61fa253bac4b
-
-sedge, nedge = lfi.LaserLab.sum_edge(imgnt.cimage, img_edgem)
-
-# ╔═╡ eb2f4ed6-1b6a-41e0-bc1b-1de01b2a2cd1
-mean(imgmx)
-
-# ╔═╡ 9a40236e-fb18-4e2e-849d-51f4292ec15e
-std(imgmx)
-
-# ╔═╡ 20902f12-03c0-4a98-937a-a9ff8433fb1b
-sum(imgmx)
-
-# ╔═╡ d2ff1ea4-7c02-4b0d-bd85-2fdc8c0495b6
-std(imgnt.cdark)
-
-# ╔═╡ dcdf6ccc-bbe4-4133-9211-5e7648736711
-sum(imgnt.image)
-
-# ╔═╡ c9d4401d-69a5-4df2-a645-76bf3e6bcb63
-sum(imgnt.cimage)
-
-# ╔═╡ 2644c058-591f-4963-a587-3ce58d1b017d
-
-
-# ╔═╡ dfc2478c-9834-427d-a976-38068b9e59fc
-#plot_images(imgm, drkm, sdrkm, simgm)
-
-# ╔═╡ 4aab4565-280c-432c-8f6d-6774a4dbe8be
-#begin
-#	simgmn = simgm ./maximum(simgm);
-#	gimg = Gray.(simgmn);
-#	plot(gimg, layout=(1,1), titlefontsize=10)
-#end
-
-# ╔═╡ 17eac4d7-ea71-4205-87d1-e239317c2d7e
-typeof(simgm)
-
-# ╔═╡ 64ed6a8c-1bca-4c19-83ff-d507ba4359a5
-sdrkmn = sdrkm ./maximum(sdrkm);
-
-# ╔═╡ 1313a166-29f3-4f5e-8e79-dbfab22a69d9
-begin
-	gdrk = Gray.(sdrkmn)
-	plot(gdrk, layout=(1,1), titlefontsize=10)
-end
+md""" Select repetition number (1-10 if 0 first): $(@bind whichr Select(sreps))"""
 
 # ╔═╡ 01aeef0d-12e1-4e32-974f-f5405a661d95
 md"""
@@ -299,6 +209,38 @@ function findpeaks(img::Matrix{Float64}; xrange::Int64=10)
 	img2, stot 
 end
 
+# ╔═╡ 5dc25eb7-7841-4c04-aa5e-7d63acc5a312
+function get_images(files::Vector{String}, whichf::String, whichr::String)
+	ffimg = select_image(files, whichf, whichr, "Imag", "1");
+	imgdf = DataFrame(CSV.File(ffimg, header=false,delim="\t"));
+	imgm  = dftomat(imgdf)
+	
+	ffdrk = select_image(files, whichf, whichr, "Dark", "1");
+	drkdf = DataFrame(CSV.File(ffdrk, header=false,delim="\t"));
+	drkm  = dftomat(drkdf)
+	
+	ffdrk2 = select_image(files, whichf, whichr, "Dark", "2");
+	drkdf2 = DataFrame(CSV.File(ffdrk2, header=false,delim="\t"));
+	sdrk   = drkdf .- drkdf2
+	sdrkm  = dftomat(sdrk)
+	
+	simgdf = imgdf .- drkdf
+	simgm  = dftomat(simgdf)
+	
+	
+	imgm, drkm, sdrkm, simgm
+end
+
+# ╔═╡ 21f71c85-9e22-4834-a7d7-76e3d1ab681b
+imgm, drkm, sdrkm, simgm = get_images(files, whichf, whichr);
+
+# ╔═╡ 4aab4565-280c-432c-8f6d-6774a4dbe8be
+begin
+	simgmn = simgm ./maximum(simgm);
+	gimg = Gray.(simgmn);
+	plot(gimg, layout=(1,1), titlefontsize=10)
+end
+
 # ╔═╡ 6d08fd5c-6757-43dd-a0e3-bb161e78cd26
 pimgx, stot = findpeaks(simgm; xrange=30);
 
@@ -310,6 +252,18 @@ begin
 	pimgn = pimgx ./maximum(pimgx);
 	gimg2  =Gray.(pimgn);
 	plot(gimg2,layout=(1,1), titlefontsize=10)
+end
+
+# ╔═╡ 17eac4d7-ea71-4205-87d1-e239317c2d7e
+typeof(simgm)
+
+# ╔═╡ 64ed6a8c-1bca-4c19-83ff-d507ba4359a5
+sdrkmn = sdrkm ./maximum(sdrkm);
+
+# ╔═╡ 1313a166-29f3-4f5e-8e79-dbfab22a69d9
+begin
+	gdrk = Gray.(sdrkmn)
+	plot(gdrk, layout=(1,1), titlefontsize=10)
 end
 
 # ╔═╡ e6816855-d168-4317-9ddc-8e6b13c1d0a1
@@ -341,28 +295,6 @@ md"""
 - position of max = $indxd
 - DC in spot  = $(round(stotd, sigdigits=3))
 """
-
-# ╔═╡ 5dc25eb7-7841-4c04-aa5e-7d63acc5a312
-function get_images(files::Vector{String}, whichf::String, whichr::String)
-	ffimg = select_image(files, whichf, whichr, "Imag", "1");
-	imgdf = DataFrame(CSV.File(ffimg, header=false,delim="\t"));
-	imgm  = dftomat(imgdf)
-	
-	ffdrk = select_image(files, whichf, whichr, "Dark", "1");
-	drkdf = DataFrame(CSV.File(ffdrk, header=false,delim="\t"));
-	drkm  = dftomat(drkdf)
-	
-	ffdrk2 = select_image(files, whichf, whichr, "Dark", "2");
-	drkdf2 = DataFrame(CSV.File(ffdrk2, header=false,delim="\t"));
-	sdrk   = drkdf .- drkdf2
-	sdrkm  = dftomat(sdrk)
-	
-	simgdf = imgdf .- drkdf
-	simgm  = dftomat(simgdf)
-	
-	
-	imgm, drkm, sdrkm, simgm
-end
 
 # ╔═╡ f41cf5c7-d208-40f9-a4ee-5e992f73ca36
 function recospec(files::Vector{String}; rep::String="5", xrange::Int64=30)
@@ -418,17 +350,6 @@ if zrepx
 	plot!(collect(1:10), repx[6]["stot"], lw=2, label="rep10 S")
 end
 
-# ╔═╡ 3794ff0b-87bf-4b08-9b33-4016280ebbbf
-function plot_images2(imgnt)
-	imghm = heatmap(imgnt.image, title=string("rep=", whichr, " filt=", whichf, " Img" ), titlefontsize=10)
-
-	drkhm = heatmap(imgnt.dark, title=string("rep=", whichr, " filt=", whichf, " Dark" ), titlefontsize=10)
-	
-	simghm = heatmap(imgnt.corr, title=string("rep=", whichr, " filt=", whichf, "Img - Dark" ))
-	
-	plot(imghm, drkhm, simghm, layout=(3,1), titlefontsize=10)
-end
-
 # ╔═╡ fca14add-ed54-449b-82a3-bffd03f88cdd
 function plot_images(imgm, drkm, sdrkm, simgm)
 	imghm = heatmap(imgm, fill_z=imgm, title=string("rep=", whichr, " filt=", whichf, " Img" ), titlefontsize=10)
@@ -441,6 +362,9 @@ function plot_images(imgm, drkm, sdrkm, simgm)
 	
 	plot(imghm, drkhm, sdrkhm, simghm, layout=(2,2), titlefontsize=10)
 end
+
+# ╔═╡ dfc2478c-9834-427d-a976-38068b9e59fc
+plot_images(imgm, drkm, sdrkm, simgm)
 
 # ╔═╡ 4480a6a1-3299-43b9-b871-0b9f525577e5
 function img_stats(img)
@@ -476,30 +400,15 @@ end
 # ╠═53943a33-9cf3-4c9f-add5-278fdc3bc0fe
 # ╠═b829dbf6-486e-4bd1-914c-54fe6d389b9c
 # ╠═7aafa82d-4fe3-4bdc-a14c-ec48a7178260
-# ╠═6926c7d6-0c1d-4054-9d02-3b12c21ad81c
 # ╠═9da70d55-28b9-4c12-ba6a-c560832a5194
 # ╠═6502fdee-cd60-4d32-ac77-c42c845b12ba
-# ╠═21743b1b-3a48-4eb2-9dcd-3a8262c45dec
-# ╠═7d756675-333a-4f8d-aa4d-db84abe72183
+# ╠═dd51775e-a254-49da-9062-c166ec4a0922
+# ╠═6fade49e-845d-4844-9bbc-748f8c958432
+# ╠═02e2aa4a-40ff-499b-ab31-1004023b5faa
 # ╠═a2ce79cf-a447-4cab-8843-a2cd691b4004
 # ╠═90bda847-8afe-4968-9a02-50ad7c7cc572
 # ╠═1cd87997-3ff3-40fa-98b7-ee9655848a76
 # ╠═21f71c85-9e22-4834-a7d7-76e3d1ab681b
-# ╠═0387a9f9-4e0b-4568-a698-5fe9e66e5c39
-# ╠═5c283457-fc1d-4249-bd4e-029204e5c57b
-# ╠═60b420bd-9bfd-4361-bec9-11a1ccd205a5
-# ╠═fa2c16c8-b9e6-43ee-96cd-d91e73d528ca
-# ╠═ef2fd803-4833-400f-9a40-61fff3d50942
-# ╠═1049bc5f-3fcc-4574-8db2-3988227c5fb5
-# ╠═bd3beecc-2154-4c70-a8b4-7334b8cc643d
-# ╠═c9a93f4d-cd32-410d-bc7e-61fa253bac4b
-# ╠═eb2f4ed6-1b6a-41e0-bc1b-1de01b2a2cd1
-# ╠═9a40236e-fb18-4e2e-849d-51f4292ec15e
-# ╠═20902f12-03c0-4a98-937a-a9ff8433fb1b
-# ╠═d2ff1ea4-7c02-4b0d-bd85-2fdc8c0495b6
-# ╠═dcdf6ccc-bbe4-4133-9211-5e7648736711
-# ╠═c9d4401d-69a5-4df2-a645-76bf3e6bcb63
-# ╠═2644c058-591f-4963-a587-3ce58d1b017d
 # ╠═dfc2478c-9834-427d-a976-38068b9e59fc
 # ╠═4aab4565-280c-432c-8f6d-6774a4dbe8be
 # ╠═6d08fd5c-6757-43dd-a0e3-bb161e78cd26
@@ -526,7 +435,6 @@ end
 # ╠═b8af0d87-f9e1-4ea7-9fa0-1c675233a8d3
 # ╠═f41cf5c7-d208-40f9-a4ee-5e992f73ca36
 # ╠═5dc25eb7-7841-4c04-aa5e-7d63acc5a312
-# ╠═3794ff0b-87bf-4b08-9b33-4016280ebbbf
 # ╠═fca14add-ed54-449b-82a3-bffd03f88cdd
 # ╠═4480a6a1-3299-43b9-b871-0b9f525577e5
 # ╠═454cab5c-e715-46bd-a799-0e9e2e9a7f67

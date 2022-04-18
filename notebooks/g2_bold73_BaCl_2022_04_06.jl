@@ -373,7 +373,7 @@ end
 if zrepx
 	repx = [recospec(files; rep=c, xrange=30) for c in scs]
 	
-	edf    = DataFrame("r1" => repx[1]["stot"],
+	fdfx    = DataFrame("r1" => repx[1]["stot"],
 		               "r2" => repx[2]["stot"],
 		               "r3" => repx[3]["stot"],
 		               "r4" => repx[4]["stot"],
@@ -381,14 +381,14 @@ if zrepx
 		               "r6" => repx[6]["stot"])
 	
 	dfname = joinpath(sroot, "G2BaCl2Bold073A1Fluo.csv")
-	CSV.write(dfname, edf)
+	CSV.write(dfname, fdfx)
 
-	plot(collect(1:10),  edf.r1, lw=2, label="rep5 S")
-	plot!(collect(1:10), edf.r2, lw=2, label="rep6 S")
-	plot!(collect(1:10), edf.r3, lw=2, label="rep7 S")
-	plot!(collect(1:10), edf.r4, lw=2, label="rep8 S")
-	plot!(collect(1:10), edf.r5, lw=2, label="rep9 S")
-	plot!(collect(1:10), edf.r6, lw=2, label="rep10 S")
+	plot(collect(1:10),  fdfx.r1, lw=2, label="rep5 S")
+	plot!(collect(1:10), fdfx.r2, lw=2, label="rep6 S")
+	plot!(collect(1:10), fdfx.r3, lw=2, label="rep7 S")
+	plot!(collect(1:10), fdfx.r4, lw=2, label="rep8 S")
+	plot!(collect(1:10), fdfx.r5, lw=2, label="rep9 S")
+	plot!(collect(1:10), fdfx.r6, lw=2, label="rep10 S")
 	
 end
 
@@ -439,7 +439,7 @@ plot(collect(1:10), st5, lw=2, label="rep5 S")
 if zedegr
 	stx = [recoedge(files; rep=c, frange=2:11) for c in scs]
 	
-	fluodf = DataFrame("r1" => stx[1],
+	edf = DataFrame("r1" => stx[1],
 		               "r2" => stx[2],
 		               "r3" => stx[3],
 		               "r4" => stx[4],
@@ -447,16 +447,15 @@ if zedegr
 		               "r6" => stx[6])
 	
 	dfn = joinpath(sroot, "G2BaCl2Bold073A1Edge.csv")
-	CSV.write(dfn, fluodf)
+	CSV.write(dfn, edf)
 
+	plot(collect(1:10),  edf.r1, lw=2, label="rep5 S")
+	plot!(collect(1:10), edf.r2, lw=2, label="rep6 S")
+	plot!(collect(1:10), edf.r3, lw=2, label="rep7 S")
+	plot!(collect(1:10), edf.r4, lw=2, label="rep8 S")
+	plot!(collect(1:10), edf.r5, lw=2, label="rep9 S")
+	plot!(collect(1:10), edf.r6, lw=2, label="rep10 S")
 	
-	plot(collect(1:10), repx[1]["stot"], lw=2, label="rep5 S")
-	plot!(collect(1:10), repx[1]["dtot"], label="rep5 D")
-	plot!(collect(1:10), repx[2]["stot"], lw=2, label="rep6 S")
-	plot!(collect(1:10), repx[3]["stot"], lw=2, label="rep7 S")
-	plot!(collect(1:10), repx[4]["stot"], lw=2, label="rep8 S")
-	plot!(collect(1:10), repx[5]["stot"], lw=2, label="rep9 S")
-	plot!(collect(1:10), repx[6]["stot"], lw=2, label="rep10 S")
 end
 
 # ╔═╡ fca14add-ed54-449b-82a3-bffd03f88cdd
