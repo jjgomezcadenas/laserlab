@@ -88,8 +88,9 @@ begin
 		        "G20407"=>"G2SL_20220407",
 		        "G2Ba0408"=>"G2SL-BaCl2_20220408")
 	pfiles ="*.dat"
-	sflts = string.(collect(2:11));
-	sreps = string.(collect(0:10));
+	fltn = collect(2:11)
+	sflts = string.(fltn)
+	sreps = string.(collect(0:10))
 	
 	md""" Select run type : $(@bind whichxr Select(xrun))"""
 end
@@ -120,20 +121,17 @@ md""" Select Filter number (2-11): $(@bind whichf Select(sflts))"""
 # ╔═╡ 1cd87997-3ff3-40fa-98b7-ee9655848a76
 md""" Select repetition number (0-10): $(@bind whichr Select(sreps))"""
 
-# ╔═╡ 7d756675-333a-4f8d-aa4d-db84abe72183
-whichr
-
 # ╔═╡ 21f71c85-9e22-4834-a7d7-76e3d1ab681b
 #imgm, drkm, sdrkm, simgm = get_images(files, whichf, whichr);
 
 # ╔═╡ 0387a9f9-4e0b-4568-a698-5fe9e66e5c39
-imgnt = lfi.LaserLab.get_images(files, whichf, whichr);
+imgnt = lfi.LaserLab.get_images(files, whichf, whichr)
 
 # ╔═╡ 5c283457-fc1d-4249-bd4e-029204e5c57b
 lfi.LaserLab.plot_images(imgnt, whichf, whichr);
 
 # ╔═╡ bfc98395-7d39-4589-b007-2f8fbbedeaf8
-imgmxnt = lfi.LaserLab.signal_around_maximum(imgnt.cimage, imgnt.cdark; nsigma=5);
+imgmxnt = lfi.LaserLab.signal_around_maximum(imgnt.cimage, imgnt.cdark; nsigma=3);
 
 # ╔═╡ 60b420bd-9bfd-4361-bec9-11a1ccd205a5
 begin
@@ -146,6 +144,9 @@ end
 
 # ╔═╡ bd3beecc-2154-4c70-a8b4-7334b8cc643d
 gimgx
+
+# ╔═╡ 1bfdfd1a-9435-420d-be62-0df760b4bc06
+size(imgmxnt.img)
 
 # ╔═╡ 20902f12-03c0-4a98-937a-a9ff8433fb1b
 stot = sum(imgmxnt.img)
@@ -171,24 +172,96 @@ scs = [string(c) for c in collect(5:10)]
 # ╔═╡ 18a0121f-b0a5-46e5-8178-9bc800476b65
 @bind zrepx CheckBox()
 
+# ╔═╡ f6c0d5d7-bfdd-49fd-97da-786d49e53211
+begin
+	fdf = lfi.LaserLab.load_df_from_csv(sroot, "G20406.csv", lfi.LaserLab.enG)
+	fdf1 = lfi.LaserLab.load_df_from_csv(sroot, "G20407.csv", lfi.LaserLab.enG)
+	fdf2 = lfi.LaserLab.load_df_from_csv(sroot, "G2Ba0408.csv", lfi.LaserLab.enG)
+	xn1 = names(fdf1)
+end
+
 # ╔═╡ 3aa1788a-131a-402f-9493-32d353020219
-fdf = lfi.LaserLab.load_df_from_csv(sroot, "G2Bold073A1Fluo.csv", lfi.LaserLab.enG)
+if whichxr == "G20406"
+	plot(collect(1:10), fdf.r1, lw=2, label="rep1 G20406")
+elseif whichxr == "G20407"
+	plot(collect(1:10), fdf1.r5, lw=2, label=string(xn1[1],whichxr))
+	plot!(collect(1:10), fdf1.r6, lw=2, label=string(xn1[2],whichxr))
+elseif whichxr == "G2Ba0408"
+	plot(collect(1:10), fdf2.r5, lw=2, label=string(xn1[1],whichxr))
+	plot!(collect(1:10), fdf2.r6, lw=2, label=string(xn1[2],whichxr))
+end
 
 # ╔═╡ 8740f867-109f-47c1-9e90-57ece3b83886
+md"""
+# Comparisons
+"""
 
+# ╔═╡ 2d8b888a-9cf8-4c53-9f6b-d61f2d2b7514
+@bind zcomp CheckBox()
 
-# ╔═╡ 8c52eac3-388f-49ea-bcc4-6d9a42085c52
-begin
-	plot(collect(1:10), fdf.r1, lw=2, label="rep5 S")
-	plot!(collect(1:10), fdf.r2, lw=2, label="rep6 S")
-	plot!(collect(1:10), fdf.r3, lw=2, label="rep7 S")
-	plot!(collect(1:10), fdf.r4, lw=2, label="rep8 S")
-	plot!(collect(1:10), fdf.r5, lw=2, label="rep9 S")
-	plot!(collect(1:10), fdf.r6, lw=2, label="rep10 S")
+# ╔═╡ 41cf396d-01ba-4e09-9ac9-bdf0a713de9e
+if zcomp
+	plot(collect(1:10), fdf.r1, lw=2, label="rep1 G20406")
+	plot!(collect(1:10), fdf1.r5, lw=2, label=string(xn1[1],whichxr))
+	plot!(collect(1:10), fdf1.r6, lw=2, label=string(xn1[2],whichxr))
+	plot!(collect(1:10), fdf2.r5, lw=2, label=string(xn1[1],whichxr))
+	plot!(collect(1:10), fdf2.r6, lw=2, label=string(xn1[2],whichxr))
 end
 
 # ╔═╡ cec73687-de04-46e6-a73e-a4d1d3beafc5
 md"# Functions"
+
+# ╔═╡ 3f08fd90-ac06-4c29-a66c-cdb782f0717b
+function sumflt(files, fltn; rep="0", nsigma=3)
+	STOT = Vector{Float64}()
+	for iflt in sflts
+		imgnt = lfi.LaserLab.get_images(files, iflt, rep)
+		imgmxnt = lfi.LaserLab.signal_around_maximum(imgnt.cimage, imgnt.cdark; nsigma=nsigma)
+		stot = sum(imgmxnt.img)
+		push!(STOT,stot)
+	end
+	STOT
+end
+
+# ╔═╡ 2c71142a-34b2-4804-9af7-dc8147ab30a3
+if zrepx
+	if whichxr == "G20406"
+		sts = sumflt(files, fltn; rep="0", nsigma=3)
+		df = DataFrame("r1" => sts)
+		dfn = joinpath(sroot, "G20406.csv")
+		CSV.write(dfn, df)
+		plot(collect(1:10), sts, lw=2, label="rep0 G20406")
+		               
+	elseif whichxr == "G20407"
+		df1 = DataFrame()
+		for rep in scs
+			sts1 = sumflt(files, fltn; rep=rep, nsigma=3)
+			lbl = string("r",rep)
+			df1[!,lbl] = sts1
+		end
+		dfn1 = joinpath(sroot, "G20407.csv")
+		CSV.write(dfn1, df1)
+
+		xn = names(df1)
+		plot(collect(1:10), df1.r5, lw=2, label=string(xn[1],whichxr))
+		plot!(collect(1:10), df1.r6, lw=2, label=string(xn[2],whichxr))
+	elseif whichxr == "G2Ba0408"
+		df2 = DataFrame()
+		for rp in scs
+			sts2 = sumflt(files, fltn; rep=rp, nsigma=3)
+			lbl = string("r",rp)
+			df2[!,lbl] = sts2
+		end
+		dfn2 = joinpath(sroot, "G2Ba0408.csv")
+		CSV.write(dfn2, df2)
+		xn2 = names(df2)
+		plot(collect(1:10), df2.r5, lw=2, label=string(xn2[1],whichxr))
+		plot!(collect(1:10), df2.r6, lw=2, label=string(xn2[2],whichxr))
+	else
+		@info "not implemented"
+	end
+	
+end
 
 # ╔═╡ 6fdaa0d2-b6af-40ca-b8e2-5cb8176bbadb
 function select_image(inames::Vector{String}, fnumber::String, repetition::String,
@@ -302,31 +375,6 @@ function recospec(files::Vector{String}; rep::String="5", xrange::Int64=30)
 	     "dtot" =>STOTd, "dmax"=>MAXd, "dix"=>IXd,"diy"=>IYd)
 end
 
-# ╔═╡ 2c71142a-34b2-4804-9af7-dc8147ab30a3
-if zrepx
-	repx = [recospec(files; rep=c, xrange=30) for c in scs]
-	rp = [repx[i]["stot"] for i in 1:6]
-	
-	fluodf = DataFrame("r1" => repx[1]["stot"],
-		               "r2" => repx[2]["stot"],
-		               "r3" => repx[3]["stot"],
-		               "r4" => repx[4]["stot"],
-		               "r5" => repx[5]["stot"],
-		               "r6" => repx[6]["stot"])
-	
-	dfname = joinpath(sroot, "G2Bold073A1Fluo.csv")
-	CSV.write(dfname, fluodf)
-
-	
-	plot(collect(1:10), repx[1]["stot"], lw=2, label="rep5 S")
-	plot!(collect(1:10), repx[1]["dtot"], label="rep5 D")
-	plot!(collect(1:10), repx[2]["stot"], lw=2, label="rep6 S")
-	plot!(collect(1:10), repx[3]["stot"], lw=2, label="rep7 S")
-	plot!(collect(1:10), repx[4]["stot"], lw=2, label="rep8 S")
-	plot!(collect(1:10), repx[5]["stot"], lw=2, label="rep9 S")
-	plot!(collect(1:10), repx[6]["stot"], lw=2, label="rep10 S")
-end
-
 # ╔═╡ 3794ff0b-87bf-4b08-9b33-4016280ebbbf
 function plot_images2(imgnt)
 	imghm = heatmap(imgnt.image, title=string("rep=", whichr, " filt=", whichf, " Img" ), titlefontsize=10)
@@ -388,7 +436,6 @@ end
 # ╠═9da70d55-28b9-4c12-ba6a-c560832a5194
 # ╠═6502fdee-cd60-4d32-ac77-c42c845b12ba
 # ╠═21743b1b-3a48-4eb2-9dcd-3a8262c45dec
-# ╠═7d756675-333a-4f8d-aa4d-db84abe72183
 # ╠═a2ce79cf-a447-4cab-8843-a2cd691b4004
 # ╠═90bda847-8afe-4968-9a02-50ad7c7cc572
 # ╠═1cd87997-3ff3-40fa-98b7-ee9655848a76
@@ -398,16 +445,20 @@ end
 # ╠═bfc98395-7d39-4589-b007-2f8fbbedeaf8
 # ╠═60b420bd-9bfd-4361-bec9-11a1ccd205a5
 # ╠═bd3beecc-2154-4c70-a8b4-7334b8cc643d
+# ╠═1bfdfd1a-9435-420d-be62-0df760b4bc06
 # ╠═20902f12-03c0-4a98-937a-a9ff8433fb1b
 # ╠═b776cef6-90d6-4897-bd6e-b81a3a58b416
 # ╠═01aeef0d-12e1-4e32-974f-f5405a661d95
 # ╠═8feb58fd-3cb7-4860-bc22-52bcee93d40a
 # ╠═18a0121f-b0a5-46e5-8178-9bc800476b65
 # ╠═2c71142a-34b2-4804-9af7-dc8147ab30a3
+# ╠═f6c0d5d7-bfdd-49fd-97da-786d49e53211
 # ╠═3aa1788a-131a-402f-9493-32d353020219
 # ╠═8740f867-109f-47c1-9e90-57ece3b83886
-# ╠═8c52eac3-388f-49ea-bcc4-6d9a42085c52
+# ╠═2d8b888a-9cf8-4c53-9f6b-d61f2d2b7514
+# ╠═41cf396d-01ba-4e09-9ac9-bdf0a713de9e
 # ╠═cec73687-de04-46e6-a73e-a4d1d3beafc5
+# ╠═3f08fd90-ac06-4c29-a66c-cdb782f0717b
 # ╠═6fdaa0d2-b6af-40ca-b8e2-5cb8176bbadb
 # ╠═edabab28-72bb-43f2-b90b-7b6ba939f2eb
 # ╠═b8af0d87-f9e1-4ea7-9fa0-1c675233a8d3
