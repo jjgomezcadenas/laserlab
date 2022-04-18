@@ -134,20 +134,46 @@ md""" Select Filter number (1-10 if 0 add all): $(@bind whichf Select(sflts))"""
 # ╔═╡ 1cd87997-3ff3-40fa-98b7-ee9655848a76
 md""" Select repetition number (1-10 if 0 first): $(@bind whichr Select(sreps))"""
 
-# ╔═╡ d8caa384-6cc8-4a96-93ee-3504a95c5214
-function sum_edge(img::Matrix{Float64}, edge::Matrix{Float64})
-	sum=0.0
-	nedge = 0
-	for i in 1:size(img)[1]
-		for j in 1:size(img)[2]
-			if edge[i,j] > 0.0 
-				sum += img[i,j]
-				nedge += 1
-			end
-		end
-	end
-	sum, nedge
-end
+# ╔═╡ 6d08fd5c-6757-43dd-a0e3-bb161e78cd26
+#pimgx, stot = findpeaks(simgm; xrange=50);
+
+# ╔═╡ f56df91d-53ce-4ca7-a9c8-7740cc3bc430
+#maxx, indxt = findmax(pimgx);
+
+# ╔═╡ 3444eb77-b397-4ac3-99a2-972abc97090d
+#begin
+#	pimgn = pimgx ./maximum(pimgx);
+#	gimg2  =Gray.(pimgn);
+#	plot(gimg2,layout=(1,1), titlefontsize=10)
+#end
+
+# ╔═╡ 64ed6a8c-1bca-4c19-83ff-d507ba4359a5
+#sdrkmn = sdrkm ./maximum(sdrkm);
+
+# ╔═╡ 1313a166-29f3-4f5e-8e79-dbfab22a69d9
+#begin
+#	gdrk = Gray.(sdrkmn)
+#	plot(gdrk, layout=(1,1), titlefontsize=10)
+#end
+
+# ╔═╡ e6816855-d168-4317-9ddc-8e6b13c1d0a1
+#pimgd, stotd = findpeaks(sdrkm; xrange=30);
+
+# ╔═╡ a9d90521-a7e5-4cd2-92ca-45de8c03e514
+#maxd, indxd = findmax(pimgd)
+
+# ╔═╡ 55a34a0a-ae88-4b80-b6e1-515da142faa8
+#thrz = maxd + sqrt(maxd)
+
+# ╔═╡ 87369d14-7318-417c-bc33-6a1bc807c0ee
+#begin
+	#pimgdn = pimgd ./maximum(pimgd)
+	#gimgd  =Gray.(pimgdn)
+	#plot(gimgd, layout=(1,1), titlefontsize=10)
+#end
+
+# ╔═╡ 43fd3321-83ce-4a9b-8632-74dd3cd68ddd
+#maximum(pimgd)
 
 # ╔═╡ 01aeef0d-12e1-4e32-974f-f5405a661d95
 md"""
@@ -226,6 +252,21 @@ function dftomat(img::DataFrame)
 	mimg
 end
 
+# ╔═╡ d8caa384-6cc8-4a96-93ee-3504a95c5214
+function sum_edge(img::Matrix{Float64}, edge::Matrix{Float64})
+	sum=0.0
+	nedge = 0
+	for i in 1:size(img)[1]
+		for j in 1:size(img)[2]
+			if edge[i,j] > 0.0 
+				sum += img[i,j]
+				nedge += 1
+			end
+		end
+	end
+	sum, nedge
+end
+
 # ╔═╡ b8af0d87-f9e1-4ea7-9fa0-1c675233a8d3
 function findpeaks(img::Matrix{Float64}; xrange::Int64=10)
 	maxx, indxt = findmax(img)
@@ -285,64 +326,15 @@ end
 simg_edgem = convert(Array{Float64}, simg_edge);
 
 # ╔═╡ 3eda9d9c-6489-4f13-8f86-191c51fd8ec7
-sum_edge(simgm, simg_edgem)
-
-# ╔═╡ 6d08fd5c-6757-43dd-a0e3-bb161e78cd26
-pimgx, stot = findpeaks(simgm; xrange=50);
-
-# ╔═╡ f56df91d-53ce-4ca7-a9c8-7740cc3bc430
-maxx, indxt = findmax(pimgx);
-
-# ╔═╡ 3444eb77-b397-4ac3-99a2-972abc97090d
-begin
-	pimgn = pimgx ./maximum(pimgx);
-	gimg2  =Gray.(pimgn);
-	plot(gimg2,layout=(1,1), titlefontsize=10)
-end
-
-# ╔═╡ 17eac4d7-ea71-4205-87d1-e239317c2d7e
-typeof(simgm)
-
-# ╔═╡ 64ed6a8c-1bca-4c19-83ff-d507ba4359a5
-sdrkmn = sdrkm ./maximum(sdrkm);
-
-# ╔═╡ 1313a166-29f3-4f5e-8e79-dbfab22a69d9
-begin
-	gdrk = Gray.(sdrkmn)
-	plot(gdrk, layout=(1,1), titlefontsize=10)
-end
-
-# ╔═╡ e6816855-d168-4317-9ddc-8e6b13c1d0a1
-pimgd, stotd = findpeaks(sdrkm; xrange=30);
-
-# ╔═╡ a9d90521-a7e5-4cd2-92ca-45de8c03e514
-maxd, indxd = findmax(pimgd)
-
-# ╔═╡ 55a34a0a-ae88-4b80-b6e1-515da142faa8
-thrz = maxd + sqrt(maxd)
-
-# ╔═╡ 87369d14-7318-417c-bc33-6a1bc807c0ee
-begin
-	pimgdn = pimgd ./maximum(pimgd)
-	gimgd  =Gray.(pimgdn)
-	plot(gimgd, layout=(1,1), titlefontsize=10)
-end
-
-# ╔═╡ 43fd3321-83ce-4a9b-8632-74dd3cd68ddd
-maximum(pimgd)
+stot, ntot = sum_edge(simgm, simg_edgem)
 
 # ╔═╡ b776cef6-90d6-4897-bd6e-b81a3a58b416
 md"""
 - Filter = $whichf
 - repetition = $whichr
 - **signal**
-- value of max = $maxx
-- position of max = $indxt
 - Total light in spot (DC subtracted) = $(round(stot, sigdigits=3))
-- **DC**
-- value of max = $maxd
-- position of max = $indxd
-- DC in spot  = $(round(stotd, sigdigits=3))
+- Number of points in edge = $ntot
 """
 
 # ╔═╡ f41cf5c7-d208-40f9-a4ee-5e992f73ca36
@@ -467,7 +459,6 @@ end
 # ╠═74b2c6cc-da87-4de2-bb24-499a0fa794d6
 # ╠═3eda9d9c-6489-4f13-8f86-191c51fd8ec7
 # ╠═6d08fd5c-6757-43dd-a0e3-bb161e78cd26
-# ╠═17eac4d7-ea71-4205-87d1-e239317c2d7e
 # ╠═f56df91d-53ce-4ca7-a9c8-7740cc3bc430
 # ╠═3444eb77-b397-4ac3-99a2-972abc97090d
 # ╠═64ed6a8c-1bca-4c19-83ff-d507ba4359a5
