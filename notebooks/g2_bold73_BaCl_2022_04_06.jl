@@ -175,13 +175,16 @@ md""" Select repetition number (1-10 if 0 first): $(@bind whichr Select(sreps))"
 # ╔═╡ 43fd3321-83ce-4a9b-8632-74dd3cd68ddd
 #maximum(pimgd)
 
+# ╔═╡ 8feb58fd-3cb7-4860-bc22-52bcee93d40a
+scs = [string(c) for c in collect(5:10)]
+
+# ╔═╡ 0eda3bbd-a4c2-43f4-96d8-e8c2f255e56f
+@bind zedegr CheckBox()
+
 # ╔═╡ 01aeef0d-12e1-4e32-974f-f5405a661d95
 md"""
 # Reconstruct spectra
 """
-
-# ╔═╡ 8feb58fd-3cb7-4860-bc22-52bcee93d40a
-scs = [string(c) for c in collect(5:10)]
 
 # ╔═╡ 18a0121f-b0a5-46e5-8178-9bc800476b65
 @bind zrepx CheckBox()
@@ -369,9 +372,8 @@ end
 # ╔═╡ 2c71142a-34b2-4804-9af7-dc8147ab30a3
 if zrepx
 	repx = [recospec(files; rep=c, xrange=30) for c in scs]
-	rp = [repx[i]["stot"] for i in 1:6]
 	
-	fluodf = DataFrame("r1" => repx[1]["stot"],
+	edf    = DataFrame("r1" => repx[1]["stot"],
 		               "r2" => repx[2]["stot"],
 		               "r3" => repx[3]["stot"],
 		               "r4" => repx[4]["stot"],
@@ -379,16 +381,15 @@ if zrepx
 		               "r6" => repx[6]["stot"])
 	
 	dfname = joinpath(sroot, "G2BaCl2Bold073A1Fluo.csv")
-	CSV.write(dfname, fluodf)
+	CSV.write(dfname, edf)
 
+	plot(collect(1:10),  edf.r1, lw=2, label="rep5 S")
+	plot!(collect(1:10), edf.r2, lw=2, label="rep6 S")
+	plot!(collect(1:10), edf.r3, lw=2, label="rep7 S")
+	plot!(collect(1:10), edf.r4, lw=2, label="rep8 S")
+	plot!(collect(1:10), edf.r5, lw=2, label="rep9 S")
+	plot!(collect(1:10), edf.r6, lw=2, label="rep10 S")
 	
-	plot(collect(1:10), repx[1]["stot"], lw=2, label="rep5 S")
-	plot!(collect(1:10), repx[1]["dtot"], label="rep5 D")
-	plot!(collect(1:10), repx[2]["stot"], lw=2, label="rep6 S")
-	plot!(collect(1:10), repx[3]["stot"], lw=2, label="rep7 S")
-	plot!(collect(1:10), repx[4]["stot"], lw=2, label="rep8 S")
-	plot!(collect(1:10), repx[5]["stot"], lw=2, label="rep9 S")
-	plot!(collect(1:10), repx[6]["stot"], lw=2, label="rep10 S")
 end
 
 # ╔═╡ b017b44e-9860-4f21-9b99-5a0cdf1b265c
@@ -415,7 +416,6 @@ end
 # ╔═╡ 02464496-4c60-4e5f-a3af-0e5c2bb0b937
 function recoedge(files::Vector{String}; rep::String="5", frange=2:11)
 	STOT = Vector{Float64}()
-	NTOT = Vector{Int64}()
 	
 	for flt in string.(collect(frange))
 		simgm = get_signal_image(files, flt, rep)
@@ -425,16 +425,39 @@ function recoedge(files::Vector{String}; rep::String="5", frange=2:11)
 		simg_edge = binarize(simgmn_edge, Otsu())
 		stot, ntot = sum_edge(simgm, simg_edgem)
 		push!(STOT, stot)
-		push!(NTOT, ntot)
 	end
-	STOT,NTOT
+	STOT
 end
 
 # ╔═╡ ff5ef074-e4d2-4ad0-a93a-2c8aae422105
-st5, nt5 = recoedge(files; rep="5", frange=2:11)
+st5 = recoedge(files; rep="5", frange=2:11)
 
 # ╔═╡ b67c0165-6c9e-43f7-b898-e70c533cc03d
 plot(collect(1:10), st5, lw=2, label="rep5 S")
+
+# ╔═╡ f5b8ddb4-d1e5-41ff-9c6f-19b9afc8128b
+if zedegr
+	stx = [recoedge(files; rep=c, frange=2:11) for c in scs]
+	
+	fluodf = DataFrame("r1" => stx[1],
+		               "r2" => stx[2],
+		               "r3" => stx[3],
+		               "r4" => stx[4],
+		               "r5" => stx[5],
+		               "r6" => stx[6])
+	
+	dfn = joinpath(sroot, "G2BaCl2Bold073A1Edge.csv")
+	CSV.write(dfn, fluodf)
+
+	
+	plot(collect(1:10), repx[1]["stot"], lw=2, label="rep5 S")
+	plot!(collect(1:10), repx[1]["dtot"], label="rep5 D")
+	plot!(collect(1:10), repx[2]["stot"], lw=2, label="rep6 S")
+	plot!(collect(1:10), repx[3]["stot"], lw=2, label="rep7 S")
+	plot!(collect(1:10), repx[4]["stot"], lw=2, label="rep8 S")
+	plot!(collect(1:10), repx[5]["stot"], lw=2, label="rep9 S")
+	plot!(collect(1:10), repx[6]["stot"], lw=2, label="rep10 S")
+end
 
 # ╔═╡ fca14add-ed54-449b-82a3-bffd03f88cdd
 function plot_images(imgm, drkm, sdrkm, simgm)
@@ -516,8 +539,10 @@ end
 # ╠═b776cef6-90d6-4897-bd6e-b81a3a58b416
 # ╠═ff5ef074-e4d2-4ad0-a93a-2c8aae422105
 # ╠═b67c0165-6c9e-43f7-b898-e70c533cc03d
-# ╠═01aeef0d-12e1-4e32-974f-f5405a661d95
 # ╠═8feb58fd-3cb7-4860-bc22-52bcee93d40a
+# ╠═0eda3bbd-a4c2-43f4-96d8-e8c2f255e56f
+# ╠═f5b8ddb4-d1e5-41ff-9c6f-19b9afc8128b
+# ╠═01aeef0d-12e1-4e32-974f-f5405a661d95
 # ╠═18a0121f-b0a5-46e5-8178-9bc800476b65
 # ╠═2c71142a-34b2-4804-9af7-dc8147ab30a3
 # ╠═3aa1788a-131a-402f-9493-32d353020219
