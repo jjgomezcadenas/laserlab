@@ -14,7 +14,7 @@ macro bind(def, element)
     end
 end
 
-# ╔═╡ 59062c8d-edbf-4966-a786-724f9438618c
+# ╔═╡ 58df4de9-b30a-442d-85bd-3b96fe5f8ba9
 begin
 	using Plots
 	using Printf
@@ -35,7 +35,7 @@ begin
 	using LaTeXStrings
 end
 
-# ╔═╡ 547c0f35-243e-4038-bb66-65b627bda4b0
+# ╔═╡ a565dd64-b41a-11ec-2175-7796d0f0fa9d
 begin
 	using Peaks
 	using Glob
@@ -43,7 +43,7 @@ begin
 	using DSP
 end
 
-# ╔═╡ 9d66c472-b742-49b3-9495-1c3be998108b
+# ╔═╡ 05c25b67-51a7-49cf-a8ff-92d0cd42af57
 import Unitful:
     nm, μm, mm, cm, m, km,
     mg, g, kg,
@@ -53,10 +53,11 @@ import Unitful:
 	μW, mW, W,
     A, N, mol, mmol, V, L, M
 
-# ╔═╡ c3b89fa7-67f8-4cc3-b3ba-fcb304f44669
+
+# ╔═╡ 70519966-f882-430e-9659-21cce2a08196
 import PhysicalConstants.CODATA2018: N_A
 
-# ╔═╡ bd9eed27-fc29-41ff-bf12-ec0cd3881ea2
+# ╔═╡ 64d0ae90-d964-4b2d-a0c3-6cac427aa28c
 function ingredients(path::String)
 	# this is from the Julia source code (evalfile in base/loading.jl)
 	# but with the modification that it returns the module instead of the last object
@@ -71,204 +72,200 @@ function ingredients(path::String)
 	m
 end
 
-# ╔═╡ ca6f7233-a1d1-403d-9416-835a51d360db
+# ╔═╡ b3d2b007-148c-4796-b5ba-acbcc80349a8
 lfi = ingredients("../src/LaserLab.jl")
 
-# ╔═╡ ac5daa7a-b00b-4975-906d-f68e455c2b53
-begin
-	spG = lfi.LaserLab.CsvG(';',',')  # spanish: decimals represented with ',' delimited with ';'
-	enG = lfi.LaserLab.CsvG(',','.')  # english
-	enG2 = lfi.LaserLab.CsvG('\t','.')  # english
-	println("")
-end
+# ╔═╡ 86d64dd8-fefe-4f39-9ee6-855f71e13f83
+PlutoUI.TableOfContents(title="Absorption cross section", indent=true)
 
-# ╔═╡ a8ffd5c7-2a6f-4955-8e9f-ea605a8cb24d
-function fit_straight_line(tdata, vdata; pa0=[0.0, 0.5], i0=1)
-	tfun(t, a, b) = a + b * t
-	pfun(t, p) = p[1] .+ p[2] .* t
-	il = length(tdata)
-	fit = curve_fit(pfun, tdata[i0:il], vdata[i0:il], pa0)
-	coef(fit), stderror(fit), tfun.(tdata, coef(fit)...)
-end
-
-# ╔═╡ ea4b37e5-fc26-4ca3-8788-20dd4c57536c
-function fit_abs(absdf, absdict,i)
-	xc = [absdict[name] for name in names(absdf[i, 2:end-1])]
-	yc = collect(values(absdf[i, 2:end-1]))
-	cfit, stderr, fft = fit_straight_line(xc, yc)
-	absdf[i,1], xc, yc, cfit, stderr, fft  
-end
-
-# ╔═╡ c91bef90-362d-4bc7-8378-2f6dc55a20eb
-iλ(λ, λ0) = λ - λ0 + 1
-
-# ╔═╡ 96ae3a10-b116-4544-b282-59b1f58417bf
-PlutoUI.TableOfContents(title="Measuring RuSL", indent=true)
-
-# ╔═╡ 34b3d66e-3b39-43dc-922b-9ba6c15c1bac
-md"""# The RuSL and IrSL molecules
+# ╔═╡ f06304b3-2a45-4bbe-b90b-5cc8d6364ffd
+md"""## The RuSL and IrSL molecules
 
 RuSL and IsSL molecules are a type of phosphorescente molecules which can be used to calibrate the TOPATU laser setup.
 
 The molecules emit ligh peaked in the red (green), with a lifetime in the range of 500-800 ns.
 """
 
-# ╔═╡ 5927e85d-f206-4d51-9b0c-6d2d70a0a0da
+# ╔═╡ df99f75e-0da9-4a05-8788-b4c7c8a27464
 load("../notebooks/img/rusl.png") 
 
-# ╔═╡ 98bfd4d0-9257-4c2e-8256-29833c4b2850
+# ╔═╡ 69adf2f0-9bf8-4be3-b339-356939c33b45
 md"""
-# RuSL: Measurement of the absorption cross section 
+## Measurement of the absorption cross section 
 
-To measure the absorption cross section for a molecular species (in particular RuSl) absorption data is taken with a fluorimeter for different wavelengths and at different concentrations. For each wavelength, a linear fit determines the molar absorption. 
+To measure the absorption cross section for a molecular species (in particular RuSl/IrSL) absorption data is taken with a fluorimeter for different wavelengths and at different concentrations. For each wavelength, a linear fit determines the molar absorption. 
 
 The procedure is ilustrated below.
-
-First, a DF with the info of absorption as a function of λ for different concentrations is loaded.
 """
 
-# ╔═╡ cc7e6e63-7630-4500-a18b-92d254089a12
+# ╔═╡ 6fcc6eae-c745-4d1d-b168-5c83e432a026
+md"""
+### Define data
+"""
+
+# ╔═╡ d0387eb4-38e2-419a-93ff-1908b64e076f
 begin
-	ruslAbs = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/RuSl", "BOLD_063_Rusilatrane_MeOH_calibration_curve.csv", spG)
-	ruslAbs[!, :W] = convert.(Float64, ruslAbs[:, :W])
-	sort!(ruslAbs, rev = false)
-	first(ruslAbs,5)
+sroot = "/Users/jj/JuliaProjects/LaserLab/data"
+sdirs = ["RuSl", "IrSl", "ANN205", "G2Sl"]
+sfiles = Dict("RuSl" =>"BOLD_063_Rusilatrane_MeOH_calibration_curve.csv", 
+	           "IrSl" =>"abs_coef_calibration.csv",
+		       "ANN205" => "BOLD_060_AAN205_all_ACN_ABS.csv",
+			   "G2Sl" => "G2sl_ABS.csv")
+md"""
+Select the molecule type 
+"""
 end
 
-# ╔═╡ 38f06b03-50b7-4254-b111-d9b15a39a910
+# ╔═╡ 87c749b9-e1c4-46ec-a226-63d0dc026d64
+@bind whichm Select(sdirs)
+
+# ╔═╡ 2b930128-e09b-4f3c-a8fa-f3fc24008f74
 md"""
-Plotting the absorption at any given concentration as a function of λ gives similar results. The molecule has a strong absorption peak at 250nm, and a second peak near 450 nm. 
+You have selected the molecule $(whichm)
 """
 
-# ╔═╡ b992f24e-ead5-4117-8744-1a81c16f13a7
+# ╔═╡ f6fa9dca-382f-44c2-9a47-4563c37418ad
+path = string(sroot,"/", whichm)
+
+# ╔═╡ f36cf944-f374-4eda-85c8-43b13b65ac69
+md"""
+### Load data
+"""
+
+# ╔═╡ 4b68f3b0-e779-4970-bb4f-939729b362d9
+md"""
+Read a DF with the info of absorption as a function of λ for different concentrations.
+
+Accept only rows in which all concentrations were measured positive. 
+"""
+
+# ╔═╡ 67375ee4-de06-4163-9551-5ae01b4d3a67
 begin
-	prusl_5E_5M = plot(ruslAbs.W, ruslAbs.rusl_5E_5M, label="RuSL: 5e-5M", lw=2)
-	prusl_1E_5M = plot!(ruslAbs.W, ruslAbs.rusl_1E_5M, label="RuSL: 2e-5M", lw=2)
-	xlabel!("λ (nm) ")
-	ylabel!("Abs (M)")
-	#title!("Tranmission of the objective ")
+	dfAbs = lfi.LaserLab.load_df_from_csv(path, sfiles[whichm], lfi.LaserLab.spG)
+	dfAbs[!, :W] = convert.(Float64, dfAbs[:, :W])
+	sort!(dfAbs, rev = false)
+	# get rid of data with negatives in the case of Ir 
+
+	if whichm == "IrSl"
+		for cname in names(dfAbs)
+			filter!(row -> row[cname] > 0.0, dfAbs)
+		end
+	end
+	
+	first(dfAbs,5)
 end
 
-# ╔═╡ a5bc9651-176f-41ed-8cc9-81c1accfc4db
+# ╔═╡ 3213e1c8-27f1-4a02-b194-6aeca12167b1
 md"""
-To measure the absorption cross section at 250 nm, we represent the values of the absortivity as a function of the concentration for this wavelength, and fit a straight line. 
+Plotting the absorption at any given concentration as a function of λ gives similar results. 
 """
 
-# ╔═╡ 977a2703-17c9-443f-a110-334e38377909
-ruslAbs[1, :]
-
-# ╔═╡ 26decc7c-a3c2-41a3-8eec-5ed12296918f
-ruslCon=Dict("rusl_5E_5M" =>5E-5,
-			 "rusl_1E_5M" =>1E-5,
-			 "rusl_5E_6M" =>5E-6,
-			 "rusl_1E_6M" =>1E-6,
-			 "rusl_5E_7M" =>5E-7,
-		     "rusl_1E_7M" =>1E-7)
-
-# ╔═╡ ac1d5662-e8c9-48a0-a30f-dcf9ca15af15
-xc = [ruslCon[name] for name in names(ruslAbs[1, 2:end-1])]
-
-# ╔═╡ ffa56bac-2f5c-4d1b-8e5a-7d3412393f14
-yc = collect(values(ruslAbs[1, 2:end-1]))
-
-# ╔═╡ fedadec6-70a7-483f-9199-877ef60a5861
-cfit, stderr, fft = fit_straight_line(xc, yc)
-
-# ╔═╡ dc1fd780-64d8-4113-b19f-9bb0733eed99
+# ╔═╡ 4bfdabcb-631c-41e8-b9a9-aa6379cb3cb9
 begin
-	cal250 = scatter(xc, yc, markersize=3,
+	prusl_5E_5M = plot(dfAbs.W, dfAbs.c_5E_5M, label="$whichm 5e-5M", lw=2)
+	prusl_1E_5M = plot!(dfAbs.W, dfAbs.c_1E_5M, label="$whichm: 2e-5M", lw=2)
+	xlabel!(L"\lambda (nm) ")
+	ylabel!(L"Abs (cm^{-1})")
+end
+
+# ╔═╡ d13c5e2f-bbbc-4e7f-b150-53662b1740a0
+md"""
+We can perform a fit at a chosen wavelength
+"""
+
+# ╔═╡ b1c40397-3eda-4446-a095-042fbd1c9c8e
+begin
+nw = length(dfAbs.W) 
+λ0 = Int(dfAbs[1, 1])	
+
+md""" 
+select a wavelength to plot
+"""
+end
+
+# ╔═╡ 368cea92-4b20-4cbe-87ce-7296f33077bd
+@bind λ Slider(λ0:λ0+nw-1)
+
+# ╔═╡ ff2ffc8e-e88f-426c-b047-72cdf348d008
+md"""
+Finally we perform the fit for all the wavelengths
+"""
+
+# ╔═╡ a2a7cf14-761a-42ae-a4d1-c1e553d55bd5
+path
+
+# ╔═╡ 3464e2bb-f040-4f1a-b73b-0d9a8f874cf4
+md"""
+Check that data was correctly written
+"""
+
+# ╔═╡ 5875df9b-03e2-4c52-afba-e1fb327f1ded
+begin
+	absorptionXSdf2 = lfi.LaserLab.load_df_from_csv(path, "absXSdf.csv", lfi.LaserLab.enG)
+	first(absorptionXSdf2,5)
+end
+
+# ╔═╡ 7cf17d19-bac4-4a8b-b244-a8a3d1048c29
+begin
+	absorptionXSdfMeta2 = lfi.LaserLab.load_df_from_csv(path, "absXSmd.csv", lfi.LaserLab.enG)
+	first(absorptionXSdfMeta2,1)
+end
+
+# ╔═╡ cd555877-bb22-4ad5-a0f7-ec3be25eee9f
+begin
+	plot(absorptionXSdf2.λ, absorptionXSdf2.ϵ, lw=2,
 			color = :black,
 		    legend=false,
 			fmt = :png)
-	plot(cal250, xc, fft)
-	xlabel!("C (M)")
-	ylabel!("Abs")
+	xlabel!(L"\lambda ~(nm)")
+	ylabel!(L"\epsilon ~ (M^{-1} cm^{-1})")
 end
 
-# ╔═╡ b01206a2-7b5e-4a7a-842b-354ab1ec5b0d
+# ╔═╡ 416d89c2-6512-4f24-bb5e-ecb3e59b6c36
 md"""
-Fit at 250 nm. 
-
-- Intercept at origin =$(round(cfit[1], sigdigits=5))
-- Slope (molar absorption) = $(round(cfit[2], sigdigits=5)) ``M^{-1} cm^{-1}``
+## Useful functions and Data Structures
 """
 
-# ╔═╡ fcbff47c-d7ee-471e-b452-2360a142ac29
-md"""
-The procedure needs to be repeated for all wavelengths. We start by defining a function that takes the dataframe, the dictionary defining the concentrations and an index that will later run through the wavelength colum, and return the wavelength value, fit parameters and function.
+# ╔═╡ 138b5f20-254a-48e6-bc4c-d44666add5b3
+cdict=Dict("c_5E_5M" =>5E-5,
+			 "c_1E_5M" =>1E-5,
+			 "c_2d5E_5M" =>2.5E-5,
+			 "c_5E_6M" =>5E-6,
+			 "c_1E_6M" =>1E-6,
+			 "c_5E_7M" =>5E-7,
+		     "c_1E_7M" =>1E-7)
 
-	fit_abs(absdf, absdict,i)
- 
- `absdf : absorption dataframe`
- 
- `absdict : dictionary defining the concentrations`
- 
- `i : wavelength index`
-"""
+# ╔═╡ e3dd5eb5-4a5f-4462-8db7-9f94c8e6b41a
+iλ(λ, λ0) = λ - λ0 + 1
 
-# ╔═╡ 9042910c-802b-4a71-8863-5b64984b3a8c
-λ1, xc1, yc1, cfit1, stderr1, fft1 = fit_abs(ruslAbs, ruslCon, 1)
-
-# ╔═╡ d8c646d9-6c1a-4ca1-8f4a-a22bb1623132
-md"""
-We can reproduce now the previous result, with:
-
-- Intercept at origin =$(round(cfit1[1], sigdigits=5))
-- Slope (molar absorption) = $(round(cfit1[2], sigdigits=5)) ``M^{-1} cm^{-1}``
-- 
-"""
-
-# ╔═╡ c42f8de4-5790-4558-8e98-a16540c78885
-begin
-	sc1 = scatter(xc1, yc1, markersize=3,
-			color = :black,
-		    legend=false,
-			fmt = :png)
-	plot(sc1, xc1, fft1)
-	xlabel!("C (M)")
-	ylabel!("Abs")
-end
-
-# ╔═╡ bd2b9f50-672d-4cf2-806e-93c8b7d71918
-md"""
-We can now examine any wavelenght, by performing the fit at the chosen wavelength
-"""
-
-# ╔═╡ 73c8585e-6d3c-4119-a786-950244ceeeb2
-nw = length(ruslAbs.W) 
-
-# ╔═╡ 6a44f96c-a264-48b9-83f3-bc64a607c730
-λ0 = Int(ruslAbs[1, 1])
-
-# ╔═╡ b7715de1-59a9-460c-8c4e-535713f1e317
-md""" select a wavelength to plot
-"""
-
-# ╔═╡ b80f21e4-331c-4677-84d4-77259c2422b4
-@bind λ Slider(λ0:λ0+nw)
-
-# ╔═╡ c4f1bc99-f0b2-45eb-afd5-19483de2e8c8
+# ╔═╡ 9fde7427-4ea7-4fc0-93d9-2fc0c65fb04f
 md"""
 Wavelength selected = $λ nm
 
 Wavelength index = $(iλ(λ, λ0)) 
 """
 
-# ╔═╡ 725a2620-6e6d-4964-840a-ca318fe871db
-λs, xcs, ycs, cfits, stderrs, ffts = fit_abs(ruslAbs, ruslCon, iλ(λ, λ0))
+# ╔═╡ 908f4d0f-8f36-4378-afc9-c2c322dd983b
+function fit_abs(absdf, absdict,i)
+	xc = [absdict[name] for name in names(absdf[i, 2:end-1])]
+	yc = collect(values(absdf[i, 2:end-1]))
+	cfit, stderr, fft = lfi.LaserLab.fit_straight_line(xc, yc)
+	absdf[i,1], xc, yc, cfit, stderr, fft  
+end
 
-# ╔═╡ f866230f-0cbe-4462-a3d7-0ef148a944c9
+# ╔═╡ 30898a18-523e-45db-9df4-4fbc949050f9
 begin
+	λs, xcs, ycs, cfits, stderrs, ffts = fit_abs(dfAbs, cdict, iλ(λ, λ0))
 	scs = scatter(xcs, ycs, markersize=3,
 			color = :black,
 		    legend=false,
 			fmt = :png)
 	plot(scs, xcs, ffts)
-	xlabel!("C (M)")
-	ylabel!("Abs")
+	xlabel!(L"C (M)")
+	ylabel!(L"Abs (cm^{-1})")
 end
 
-# ╔═╡ da025bce-a955-4f6a-916c-bac1e1f491dd
+# ╔═╡ eedcaf5d-20ff-4afb-aba6-222a9ef8246e
 md"""
 Fit result:
 
@@ -277,15 +274,7 @@ Fit result:
 - 
 """
 
-# ╔═╡ e6e50f4a-6da4-4b10-9b92-2c7436f57072
-md"""
-Finally we perform the fit for all the wavelengths
-"""
-
-# ╔═╡ 6056db12-a40c-4586-bb63-203fcd0c0cce
-zeros(Float64, 10)
-
-# ╔═╡ 9503331e-e97f-4ba9-84aa-c1e11c2f59d1
+# ╔═╡ 1d46a4e6-d9ba-41c4-8de2-9c30a52d65fa
 function fit_abs_all(absdf, absdict)
 	nw = length(absdf.W) 
 	W = zeros(Float64, nw)
@@ -297,13 +286,10 @@ function fit_abs_all(absdf, absdict)
 	end
 	W, Abs
 end
-	
 
-# ╔═╡ f6d52515-c34a-4159-b4e7-625cba13763c
-vλ, ϵ = fit_abs_all(ruslAbs, ruslCon)
-
-# ╔═╡ 1e6c1d0b-8a3b-4cec-928f-a2e892fdbf5e
+# ╔═╡ 3797e8e9-97af-463b-b5aa-524ad5490f95
 begin
+	vλ, ϵ = fit_abs_all(dfAbs, cdict)
 	plot(vλ, ϵ, lw=2,
 			color = :black,
 		    legend=false,
@@ -312,752 +298,23 @@ begin
 	ylabel!(L"\epsilon ~ (M^{-1} cm^{-1})")
 end
 
-# ╔═╡ ea503006-18b6-47a1-8cb3-46d856dfe8b0
+# ╔═╡ 7de9da1c-01d2-419f-b9f8-1d03a82ce838
+begin
+	absorptionXSdf = DataFrame("λ" => vλ, "ϵ" => ϵ)
+	absorptionXSdfMeta = DataFrame("λ" => ["nm"], "ϵ" =>["M^-1cm^-1"])
+	dfname = string(path, "/", "absXSdf.csv")
+	mdname = string(path, "/", "absXSmd.csv")
+	CSV.write(dfname, absorptionXSdf)
+	CSV.write(mdname, absorptionXSdfMeta)
+end
+
+# ╔═╡ 2c4c051f-1b28-4004-b850-88cda6dee104
 md"""
-Finally, we can save the result in a dataframe
+And save the result as DFs to file.
+
+- Data frame saved to $dfname
+- Meta data saved to $mdname
 """
-
-# ╔═╡ 89f8c950-32bd-49d3-8a62-79e0040646ec
-absorptionXSdf = DataFrame("λ" => vλ, "ϵ" => ϵ)
-
-# ╔═╡ fa0c5865-1c22-4a9e-b393-b8f5875ff841
-absorptionXSdfMeta = DataFrame("λ" => ["nm"], "ϵ" =>["M^-1cm^-1"])
-
-# ╔═╡ 15ef23fa-1633-4954-a927-1d289d5573ec
-md"""
-And write to file
-"""
-
-# ╔═╡ d7c66368-4769-4d50-b20f-9ea4ed6eee5a
-begin
-	CSV.write("/Users/jj/JuliaProjects/LaserLab/data/RuSl/absXSdf.csv", absorptionXSdf)
-	CSV.write("/Users/jj/JuliaProjects/LaserLab/data/RuSl/absXSmd.csv", absorptionXSdfMeta)
-end
-
-# ╔═╡ 2838b7e5-752b-4cb6-bec5-f48d122e859c
-begin
-	absorptionXSdf2 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/RuSl", "absXSdf.csv", enG)
-	first(absorptionXSdf2,5)
-end
-
-# ╔═╡ c4cb9e33-4362-40f9-baba-ac822cbedc64
-begin
-	absorptionXSdfMeta2 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/RuSl", "absXSmd.csv", enG)
-	first(absorptionXSdfMeta2,1)
-end
-
-# ╔═╡ 7e150a69-0070-4371-b5c0-02b7ad70d813
-md"### Fluorescence cross section and quantum yield"
-
-# ╔═╡ 16cdbadf-4deb-4a66-8ab7-84437a4fe3d4
-load("../notebooks/img/RuSlAbs.png")
-
-# ╔═╡ 9cc3dfcb-b95d-4086-a228-ed4753f6ca0d
-begin
-	ϵabs = 8801.5/(M*cm)
-	Q    = 0.9
-	λexc = 485.0nm
-	λEM  = 690.0nm
-	println("")
-end
-
-# ╔═╡ 4a0e30fe-398e-4d80-86a2-bfc384cbc6e6
-md"
-- The absorption cross section at 469 nm is ϵ = $ϵabs
-- Measured quantum yield is Q= $Q
-- The excitation wavelength of the laser is $λexc
-"
-
-# ╔═╡ 591f9fcb-7ad1-400e-af0a-29686a4914ec
-md"### Emission spectrum on ML
-
-- ML of RuSL, at a nominal packing of 1 molecule per nm
-- Peak emission around $λEM
-"
-
-# ╔═╡ 9cc092e9-40d2-4c5a-9b55-4e2adccb3382
-begin
-	dfrusl = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/fluorimeter", "RuSL_quartz.csv", spG)
-	dfrusl[!, :λ] = convert.(Float64, dfrusl[:, :λ]) 
-	first(dfrusl,10)
-	println("")
-end
-
-# ╔═╡ d75a8426-c97b-422e-8c69-3f3ce94c5370
-begin
-plot(dfrusl.λ, dfrusl.QUARTZ_Rusilatrane_A, lw=2, label="RuSL on quartz")
-xlabel!("λ (nm)")
-ylabel!("I (a.u.)")
-end
-
-# ╔═╡ a7d330cf-5093-490f-adc8-e482e3084806
-md"## Temporal dependence of the phosoprescence"
-
-# ╔═╡ 280a17c4-6d5e-4ff3-a5ab-dbbcb7199bb2
-begin
-	dfruslt = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/fluorimeter", "Ru_SL_time.csv", spG)
-	dfruslt[!, :λ] = convert.(Float64, dfruslt[:, :λ]) 
-	first(dfruslt,10)
-	println("")
-end
-
-# ╔═╡ a230e061-b6ab-49d4-bdad-730d75e20e9c
-md"### The data fits (but not too well) to a single exponential
-
-- At large times the fluorimeter may be measuring a constant pedestal
-  "
-
-# ╔═╡ 6d5e295c-1c57-4a92-aee2-3ffcbb3306df
-begin
-	mexp(t, p) = p[1] * exp.(-t/p[2])
-	pa0 = [3500.0, 500.0]
-	tdata = dfruslt.λ
-	ydata= dfruslt.Ru_Quartz
-	fit = curve_fit(mexp, tdata, ydata, pa0)
-	cofe = coef(fit)
-	stder = stderror(fit)
-	println("")
-end
-
-# ╔═╡ 80447dc7-1103-4019-bc64-283d4a9368a0
-@info "fit coefficients" cofe
-
-# ╔═╡ 08ec5b69-946f-407e-ac8d-bf8814cc0121
-@info "coefficient errors (std)" stder
-
-# ╔═╡ 58b227ac-627f-49ba-bc58-75039c65733b
-md"## The RUSL experiment
-
-The goal of the RUSL experiment is to use the (modified) TOPATU setup to measure the spectrum (color) and temporal response of the RuSL ML on quartz. This experiment has already been performed in the fluorimeter (see results below), and the main purpose of RUSL is to repeat it with the laser setup to calibrate the system (including temporal response)
-
-The experiment ingredients are:
-
-- A ML of RuSL on quartz. 
-- A pulsed laser of 480 nm (EPL 480 from Edimburgh).
-- The topatu setup, modified to allow measurement of spectrum (with filters) and time response. 
-- The measurement must include spectral response (number of photons observed as a function of the wavelength) and time response (which requires time-stamps for the observed photons)
-"
-
-# ╔═╡ 4223f9f8-8ee6-4ea9-a7bc-6379c81c48c0
-load("../notebooks/img/Nuevo_SET_UP_RuSl.png") 
-
-# ╔═╡ fabba61a-f28d-4535-b0e3-e94f5098bb0a
-md"## The Monolayers
-
-A Monolayer (ML) of fluorophores is characterised by the packing of the fluorophores, the absorption cross section of the individual fluorophores and their emission spectra. These properties may also be correlated or can be modified when moving from solution to ML. For example colective effects of the interference with substrate can modify the naive assumption that the total fluorescence is the product of the number of fluorophores and the fluorescence per fluorophore. However, it is useful to start with the simplest assumption that all cross sections measured in solution hold in solid/gas interface
-
-"
-
-# ╔═╡ 7a1fcff4-6948-4333-b971-8fbf31c7d3ee
-md"#### Define the fluorophores at nominal excitation ($λexc)"
-
-# ╔═╡ a917927d-d471-4465-abd1-30d959af0b45
-frusl = lfi.LaserLab.Fluorophore(λexc, λEM, ϵabs, Q)
-
-# ╔═╡ aa4283d7-37d4-4aaf-a5b7-b515466e545d
-begin
-	λepl    = 485.0nm
-	Pkepl   = 35.0mW
-	P200khz = 0.6μW
-	fepl    = 200.0kHz
-	wepl    = 140.0ps
-	dc      = uconvert(μs, 1.0/fepl)
-end
-
-# ╔═╡ 93b78d1a-ee07-4d66-b5a4-c7a109a24f81
-md"## Laser
-- The experiment requires a VUV pulsed laser. For the experiment we will use a repetition rate of $fepl (pulsed each 1 μs)
-- 
-- The nominal laser for the experiment is the EPL485
-  
-| λepl   | Pkepl      | fepl  | wepl | dc| P|
-|:-------| ---------- |:-----:|:-----:|:-----:|:-----:|
-| $λepl  | $Pkepl| $fepl | $wepl |$dc| $P200khz
-
-"
-
-# ╔═╡ 19b7d7fb-adab-4f29-82af-d059525921ee
-md"#### Define laser"
-
-# ╔═╡ 102a2054-2fd5-406e-8bb4-20ecb47c278f
-epl485 = lfi.LaserLab.PulsedLaser(λepl, Pkepl, fepl, P200khz, wepl)
-
-# ╔═╡ e97474ef-145f-45c8-96f6-213acf4a3b41
-md"### Beam shape
-- The beam has an oval shape, with a long axis of 3.5 mm and short axis of 1.5 mm
-- The entrance iris diameter of the objective is 2.5 mm. The beam overfills one of the dimensions and not quite the other.
-- We will make the approch that the beam fills the entrance iris
-"
-
-# ╔═╡ 106f7063-719e-4eff-857d-3566d6e6d4c8
-load("../notebooks/img/beamspot.png") 
-
-# ╔═╡ 177762d5-b9f2-449b-abba-256f3d4318ad
-md"## Objective
-
-The objective directs the laser light into the ML. For the first round of experiments, it is convenient to focus the laser to the smaller possible spot (diffraction limit). This is done by filling the entrance pupil of the objective with the laser. 
-
-Let's assume a setup in which the back lens of the objective is filled up with a laser beam (assumed to be gaussian). The waist of the beam, assuming $z_r >> f$ (where $f$ is the focal distance of the objective and $z_r$ is the depth of focus of the gaussian beam) is then $w_0 = d/2$, where $d$ is the diameter of the back lens of the objective
-
-The experiment must be conducted in a dry atmosphere, to avoid quenching the phosporescence. Thus the sample must be in a box at vacuum or filled with an inert gas (e.g, argon, N2). The objective may be inside the box (if working distance is small) or outside (if working distance is large)
-
-We will use a reflection objective, the MM40XF-VUV, characterized by a large working distance and large (for an air coupled) NA. 
-"
-
-# ╔═╡ 4e4ab4e5-bacc-4c58-8000-10602a1f8465
-#load("../notebooks/img/LMM40XVUV.png")  
-
-# ╔═╡ e35f8650-dc2e-46f3-9220-26754e8860e0
-#md"### Characteristics of the MM40xVUV
-
-#| Feature   | Value     
-#|:-------| ---------- |
-#| Entrance pupil diameter  | $dd| 
-#| Focal length  | $fl| 
-#|NA  | $NA|
-#|M (magnification)  | $MM|
-#|working distance  | $wd|
-#|Tranmission (250-1000 nm)  | $T|
-#|Damage threshold  | $dth|
-#"
-
-# ╔═╡ 13827ddc-bebd-44d5-929f-f4ac6f43b093
-#begin
-#	dd    = 5.1mm
-#	fl    = 5.0mm
-#	NA    = 0.5
-#	dth   = 0.3J/cm^2
-#	wd    = 7.8mm
-#	T     = 0.85
-#	MM     = 40.0
-#end
-
-# ╔═╡ 2a07dd38-bac4-410c-8135-5c4e6f851df6
-#lmm40xf_uvv  = lfi.LaserLab.Objective("LMM40XF-UVVV", fl, dd, MM)
-
-# ╔═╡ ebe4e491-1c61-45cb-a559-64fa3f5fbb9d
-load("../notebooks/img/NikonMUE31900.png") 
-
-# ╔═╡ d6d6dc94-5b99-4de6-a5c3-ab2be2b49d32
-begin
-	dd    = 2.4mm
-	fl    = 2.0mm
-	NA    = 0.6
-	wd    = 10.0mm
-	MM    = 100.0
-end
-
-# ╔═╡ a3703591-17d4-4049-8c1b-21a4c8329ffd
-md"### Characteristics of the NikonMUE31900
-
-| Feature   | Value     
-|:-------| ---------- |
-| Entrance pupil diameter  | $dd| 
-| Focal length  | $fl| 
-|NA  | $NA|
-|M (magnification)  | $MM|
-|working distance  | $wd|
-"
-
-# ╔═╡ b0112287-c957-4ce3-ba24-9c47c8128b2d
-tobj  = lfi.LaserLab.Objective("Nikon", fl, dd, MM)
-
-# ╔═╡ 417fecfd-b316-4e63-8e68-303d4c568434
-md"## The laser beam as a Gaussian Laser"
-
-# ╔═╡ bbd09112-d6cd-4f0f-9a87-7b85be983e09
-md"### Focusing the beam"
-
-# ╔═╡ 8c405cc2-e8b5-4125-b21d-f7a22f94fb59
-md"The beam is now focused in a narrow spot by the objective. "
-
-# ╔═╡ ebe77978-7d7f-407d-9a73-4be3568265ef
-gepl485 = lfi.LaserLab.propagate_paralell_beam(epl485, tobj)
-
-# ╔═╡ e7e7b1ca-b27f-406c-9df0-5ffea702719f
-md"### Spot size and Depth of focus
-
-The spot size is $(round(lfi.LaserLab.spot_size(gepl485)/nm,digits=1)) nm, while the depth of focus is $(round(lfi.LaserLab.depth_of_focus(gepl485)/nm, digits=1)) nm. "
-
-# ╔═╡ f48eb494-f9f5-4e4f-9fc0-ffa20312155a
-i0mWcm2f = round(uconvert(W/cm^2, gepl485.I0)/(W*cm^-2), sigdigits=2);
-
-# ╔═╡ fc5b2f60-2c04-4835-a222-9971189ac54e
-ng0 = round(gepl485.γ0/(Hz*cm^-2), sigdigits=2);
-
-# ╔═╡ 4eeabd93-cd82-4051-b2d0-bee3db1723e4
-md"### Power density 
-
-- The power density in the spot is now much larger: $(i0mWcm2f ) W/cm2
-- Or in term of photon density: $(ng0) Hz/cm2
-"
-
-# ╔═╡ e40a68c6-5885-49d1-9259-fdd3be09fee4
-md"In a gaussian laser, the intensity as a function of the radial direction ($\rho$) and the direction of propagation (z) is:
-
-$I(\rho, z) = I_0 ( W_0 / W(z))^2 \exp{-2 \rho^2/W^2(z)}$
-"
-
-# ╔═╡ f79fb47b-b4f7-442a-927f-0c186e673b80
-md"Since both the spot size and the depth of focus are small, we can approximate the intensity that will illuminate the molecules of the mono layer with I(0,0)"
-
-# ╔═╡ 8da11b18-5934-4207-941b-795969173f21
-fI = lfi.LaserLab.I(gepl485) ;
-
-# ╔═╡ ce47be17-7773-4797-beb7-202d3c02555a
-begin()
-zl=-5.0:0.01:5.0
-p1 = plot(zl, fI.(0.0*μm, zl*μm)/(mW * cm^-2), label="I(0,z)")
-xlabel!("z (μm)")
-ylabel!("I(0,z)")
-
-rl=-1.0:0.01:1.0
-p2 = plot(rl, fI.(rl*μm, 0*μm)/(mW * cm^-2), label="I(ρ,0)")
-xlabel!("ρ (μm)")
-ylabel!("I(0,z)")
-
-plot(p1,p2, layout = (1, 2), legend=false, fmt = :png)
-end
-
-# ╔═╡ 498d145b-ce5f-46a5-b77e-31f412e04eb9
-md"### Packing of the monolayer
-
-- One can define the packing of the ML in terms of the 'pitch' or distance separating two molecules. This is a crucial parameter of the experiment.
-
-"
-
-# ╔═╡ 0d4a0651-4ce4-497e-8764-2bcbbef83cf1
-md"##### molecular pitch (in nm)"
-
-# ╔═╡ d437cc55-8c19-4d0b-86d8-760da3956895
-@bind mp NumberField(1.0:10.0^3; default=1.0)
-
-# ╔═╡ 7dedd16b-4279-4f50-8120-d9ef394f3e13
-pitch = mp*nm;
-
-# ╔═╡ 649fa1b3-0dd2-487d-9bdf-7db97a0ec178
-ml = lfi.LaserLab.Monolayer(pitch);
-
-# ╔═╡ 92a5b436-1d8e-4436-8dda-8b1d3518bdea
-md"This corresponds to $(uconvert(cm^-2, ml.σ)) molecules"
-
-# ╔═╡ 8d4516fd-8838-4e5f-a61d-9dc1f65b31ad
-aspot = π * gepl485.w0^2;
-
-# ╔═╡ c5b0405a-a991-45a5-aa04-d09020b0c7f0
-md"### Spot area
-- The area of the spot iluminated by the beam is $(round(uconvert(μm^2,aspot)/μm^2, digits=1)) μm2"
-
-# ╔═╡ 03e15d19-ea63-413e-8ec5-4d50e28558ac
-nmol = uconvert(μm^2, aspot) * ml.σ;
-
-# ╔═╡ 4a1cf5fc-b44f-4b19-ac8e-d610da0a17cb
-md"### Number of molecules in the spot
-- The number of molecules in the spot illuminated by the beam is: $(round(nmol))"
-
-# ╔═╡ 39a7f7b4-058b-4283-b35c-4409ea9e478a
-md"### Fluorescence per molecule
-- The fluorescence of each molecule is the product of the beam density, the fluorescence cross section and the quantum yield:
-
-$f = I_0 \cdot \sigma \cdot Q$
-"
-
-# ╔═╡ abe34c91-9824-45e4-8865-7b3f73ff8758
-fmrs = lfi.LaserLab.fluorescence(frusl, gepl485.γ0);
-
-# ╔═╡ 52aeae45-0dfc-48f2-a362-20d1add0ff7f
-md"### Fluorescence per molecule for free and chelated species
-- The fluorescence per molecule for RuSL is: $(round(fmrs/Hz)) Hz, 
-"
-
-# ╔═╡ 9d97d16a-8f90-4ff7-ac0b-ee610c20ee32
-sfrs = fmrs * nmol;
-
-# ╔═╡ 960ba1ef-495d-4bb2-8aff-73cb68ae440e
-md"### Total fluorescence in the spot
-
-The total fluorescence in the spot is the product of the number of molecules and the fluorescence per molecule:
-
-- Fluorescence in spot for RuSL = $(round(sfrs/Hz, sigdigits=1)) Hz
-
-"
-
-# ╔═╡ 8815a3e2-e559-4857-b20e-14aa5f91d341
-md"## Filters and dichroics"
-
-# ╔═╡ 89aa75b3-2263-450e-9f2e-cd7c875a7919
-md"### Dichroic DMLP 567
-- Transmits > 98% of the light above 600 nm.
-"
-
-# ╔═╡ b5045344-fb52-4b2e-88b9-1c1d4d1d50f6
-begin
-	dmlp567 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "dmlp567.csv", spG)
-	dmlp567[!, :λ] = convert.(Float64, dmlp567[:, :λ]) 
-	first(dmlp567,10)
-	println("")
-end
-
-# ╔═╡ f6fefa8e-8490-4c0d-b707-c9a95011cbb1
-begin
-	dp1 = plot(dmlp567.λ, dmlp567.T, lw=2, label = "T", fmt = :png)
-	plot(dp1, dmlp567.λ, dmlp567.R, lw=2, label = "R", fmt = :png)
-	xlabel!("λ (nm)")
-	ylabel!("T (R) (%)")
-end
-
-# ╔═╡ 3555a982-9879-460f-babf-6f31c11c6f7f
-md"### High band pass filter FGL550"
-
-# ╔═╡ 954d503d-19f2-4575-84d7-2d1722a28a7f
-begin
-	fgl550 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "fgl550.csv", spG)
-	fgl550[!, :λ] = convert.(Float64, fgl550[:, :λ]) 
-	first(fgl550,10)
-	println("")
-end
-
-# ╔═╡ 41eb41f7-bc6e-4dce-8d39-68142fd329db
-begin
-	plot(fgl550.λ, fgl550.T, lw=2, label = "T", fmt = :png)
-	xlabel!("λ (nm)")
-	ylabel!("T  (%)")
-end
-
-# ╔═╡ bc6ba394-d1b8-4c1b-8a01-c23bcd29178c
-md"### Color filters FF01"
-
-# ╔═╡ 7140a27e-4cde-4c7d-a794-9a624e540677
-begin
-	ff550 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-550_49_Spectrum.csv", enG2)
-	ff600 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-600_52-25.csv", enG2)
-	ff650 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-650_54_Spectrum.csv", enG2)
-	ff692 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-692_40_Spectrum.csv", enG2)
-	ff732 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-732_68_Spectrum.csv", enG2)
-	ff810 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-810_Spectrum.csv", spG)
-	ff810[!, :T] = ff810[!, :T] * 0.01 
-	first(ff550,10)
-	println("")
-end
-
-# ╔═╡ b0bf01be-6a53-4c42-9d9a-752bf4652986
-begin
-	ff550s = filter(df -> df.T >= 0.01, ff550)
-	ff600s = filter(df -> df.T >= 0.01, ff600)
-	ff650s = filter(df -> df.T >= 0.01, ff650)
-	ff692s = filter(df -> df.T >= 0.01, ff692)
-	ff732s = filter(df -> df.T >= 0.01, ff732)
-	ff810s = filter(df -> df.T >= 0.01, ff810)
-	println("")
-end
-
-# ╔═╡ 0ee9bd36-7192-4922-abaf-7d7d08605915
-begin
-	p550 = plot(ff550s.λ, ff550s.T, lw=2, label = "FF01-550", fmt = :png)
-	p600 = plot(p550, ff600s.λ, ff600s.T, lw=2, label = "FF01-600", fmt = :png)
-	p650 = plot(p600, ff650s.λ, ff650s.T, lw=2, label = "FF01-650", fmt = :png)
-	p692 = plot(p650, ff692s.λ, ff692s.T, lw=2, label = "FF01-692", fmt = :png)
-	p732 = plot(p692, ff732s.λ, ff732s.T, lw=2, label = "FF01-732", fmt = :png)
-	p810 = plot(p732, ff810s.λ, ff810s.T, lw=2, label = "FF01-810", fmt = :png)
-	xlabel!("λ (nm)")
-	ylabel!("T  ")
-end
-
-# ╔═╡ df1ff4c2-8c84-455a-9cc4-7fdc34e2cb83
-begin
-	λm = [550.0, 600.0, 650.0, 692.0, 732.0] * nm
-	Im = [0.23, 0.43, 3.44, 1.7, 1.22] * MHz
-	wm = [size(ff550s)[1], size(ff600s)[1], size(ff650s)[1], size(ff692s)[1], size(ff732s)[1]] * nm 
-	Ilm = uconvert.(MHz*μm^-1, Im ./λm) 
-	Ilmx = round.(Ilm ./ (MHz*μm^-1),  sigdigits=2)
-	It = sum(Im)
-end
-
-# ╔═╡ d5ef9a03-f716-454b-a5de-0c67ee935679
-md"## Summary of measurements with TOPATU setup and RuSL ML
-- P = $(epl485.P)
-- f = $(epl485.f) 
-  
-| λ filter (nm)   | FF550      | FF600  | FF650 | FF692| FF732|
-|:-------| ---------- |:-----:|:-----:|:-----:|:-----:|
-| λ0 (nm)  | $(λm[1])| $(λm[2]) | $(λm[3]) |$(λm[4])| $(λm[5])
-| w (nm)  | $(wm[1])| $(wm[2]) | $(wm[3]) |$(wm[4])| $(wm[5])
-| I (MHz)  | $(Im[1])| $(Im[2]) | $(Im[3]) |$(Im[4])| $(Im[5])
-| Ilm (MHz/nm)  | $(Ilmx[1])| $(Ilmx[2]) | $(Ilmx[3]) |$(Ilmx[4])| $(Ilmx[5])
-
-Total observed light = $It
-
-"
-
-# ╔═╡ 6396d4af-e668-4a73-b8be-b73b8b41267c
-begin
-ps2 = scatter(λm/nm, Ilmx, markersize=3,
-		color = :black,
-	    legend=false,
-		fmt = :png)
-plot(ps2, λm/nm, Ilmx, lw=2)
-xlabel!("λ (nm)")
-ylabel!("Il (MHz/μm)")
-end
-
-# ╔═╡ 6445e2c6-4dcc-44dd-bdda-564e4c9b3911
-effCCD = lfi.LaserLab.ccd()
-
-# ╔═╡ 7e0b0616-5dd0-44d3-beab-4fa32521d3ff
-begin
-	wl = 350.0:10.0:1000.0
-	eccd = effCCD.(collect(wl))
-	plot(wl, eccd, lw=2)
-	xlabel!("λ (nm)")
-	ylabel!("ϵ")
-end
-
-# ╔═╡ b49c15a7-d9de-4942-b09c-7f2ed9b4550e
-function ccd_eff(lmn,wmn)
-	effx = zeros(1,5)
-	for i in 1:5
-		effx[i] = (effCCD(lmn[i] - wmn[i]/2.0) + effCCD(lmn[i] + wmn[i]/2.0))/2.0
-	end
-	#@info "effx" effx
-	sum(effx)/length(effx)
-end
-
-# ╔═╡ 356b7b35-6794-40d0-8c88-b8e066f086a6
-begin
-	lmn = λm/nm
-	wmn = wm/nm
-	ϵobj = 0.95
-	ϵd = 0.95
-	ϵf = 0.85
-	ϵPMT = 0.1
-	ϵNA      = lfi.LaserLab.transmission(tobj)
-	efccd = ccd_eff(lmn,wmn)
-	ϵT =  ϵobj^2 * ϵd^2 * ϵf * ϵPMT * ϵNA
-	ϵTc =  ϵobj^2 * ϵd^2 * ϵf * efccd * ϵNA
-	qf = 0.1
-	println("")
-end
-
-# ╔═╡ f38318dd-f7bb-4bf1-9bc9-d1f7ed8a8397
-md"## Detected Light
-
-The detected light is the product of the emitted fluorescence and the detection efficiency, which in turns includes:
-
-- Transmission efficiency of the objective : ϵ_obj_vuv =$(ϵobj^2)
-- Tranmission due to the NA ϵ_NA = $(round(ϵNA, digits=2))
-- Transmission due to the dichroic ϵd =$(ϵd^2)
-- Tranmission due to the filters ϵf = $ϵf
-- Transmission due to PMT ϵPMT = $ϵPMT
-- Transmission due to CCD ϵCCD = $(round(efccd, digits=2))
-- Quenching factor of phosphorescence due to oxygen = $qf
-- The total tranmission (with PMT) is $(round(ϵT, digits=3))
-- The total tranmission (with CCD) is $(round(ϵTc, digits=3))
-"
-
-# ╔═╡ f615fc39-bfd9-45ce-84fe-a28921bde525
-
-
-# ╔═╡ 43e8a5f1-512c-46b7-91f6-89d3c7e81368
-begin
-	osf  = sfrs * ϵT * qf
-	osfc = sfrs * ϵTc * qf
-end
-
-# ╔═╡ d49e7e9b-6487-407b-aef7-2884461879a0
-md" ### Expected observed light in the PMT
-
-Thus the total expected light in the PMT for a ML of ~ $(uconvert(cm^-2, ml.σ)) molecules is:
-
-- Expected observed light:
-  -  with PMT= $(round(osf/Hz, sigdigits=1)) Hz
-  -  with CCD= $(round(osfc/Hz, sigdigits=1)) Hz
-
-"
-
-# ╔═╡ ae5f17d2-3c31-4a9c-85e4-f2f22625d86b
-begin
-	P0 = 1.5μW
-	f0  = 500kHz
-	println("")
-end
-
-# ╔═╡ c3952378-79bb-4605-8ffb-828c1e3e3321
-#load("../notebooks/img/RuSlCCD250222.png")   
-
-# ╔═╡ 0f7ff8a4-43e4-4829-a4b4-78594664cee2
-md"## TCSP experiments"
-
-# ╔═╡ 131f4e45-85f5-43bc-8c32-d59f8803bfd6
-md"### Typical setup"
-
-# ╔═╡ a4066207-4c50-4360-b43f-218d5355ff3e
-load("../notebooks/img/tcsp_setup.png")   
-
-# ╔═╡ 218fc76e-1060-40ff-a52f-d884441380e2
-md"### Photon counting technique"
-
-# ╔═╡ 58b61eac-e1de-48f3-a37b-ecc1f8d5f8ab
-load("../notebooks/img/tcspc.png")  
-
-# ╔═╡ 320f9c75-5047-4a4c-890b-ffdc70767634
-md" The phothon counting technique requires that one photon is recorded on average per pulse (in this case in the period 1-5 mus). This is to avoid inefficiencies which can bias the measurement as ilustrated below."
-
-# ╔═╡ b97cd0a9-ee46-4520-a408-f60150bbea74
-load("../notebooks/img/tcspc_deadtime.png")  
-
-# ╔═╡ b96961fd-6a9a-40bb-b582-2b3586f56edb
-md"However, most TCSPC techniques are designed for short interval times. The dead time is typically a few nanoseconds, thus no loss for dead time is expected here. Nevertheless the system is designed to record just one photon per pulse. This implies that the average number of photons must be reduced to 1 per 1 (5) μs. This can be done by:
-- attenuating the laser light
-- reducing the laser power
-- spacing the molecules in the ML
-"
-
-# ╔═╡ eba3554f-ae6f-4a3d-8131-43ffa2743977
-md"# Appendix"
-
-# ╔═╡ f57ca807-9b3a-4f77-9607-74ee3a411990
-md"## Fitting"
-
-# ╔═╡ 7a6a3b8a-8b1c-41d5-ab25-7d294f1bee3d
-md"### *func1dfit* is a light wrapper to curve_fit"
-
-# ╔═╡ 92698c05-edf3-4b9e-a10a-1da9ed0dc82a
-"""
-    func1dfit(ffit::Function, x::Vector{<:Real},
-              y::Vector{<:Real}, p0::Vector{<:Real},
-              lb::Vector{Float64}, ub::Vector{Float64})
-
-Fit a function to the data x, y with start prediction p0
-and return coefficients and errors.
-"""
-func1dfit(ffit::Function, x::Vector{<:Real},
-          y::Vector{<:Real}, p0::Vector{<:Real},
-          lb::Vector{<:Real}, ub::Vector{<:Real}) = curve_fit(ffit, x, y, p0, 
-			                                                 lower=lb, upper=ub)
-    
-
-# ╔═╡ 0dd448d1-9952-438c-9284-e0c320c955aa
-md"### Example: fit to a polynomial"
-
-# ╔═╡ f8b61a8e-2679-48cd-842c-17d6e6ee760e
-
-pol3(x, a, b, c, d) = a + b*x + c*x^2 + d*x^3
-
-
-# ╔═╡ bfc6e346-3525-47d7-a436-ffa02dab11b9
-begin
-	err_sigma = 0.04
-	x=collect(LinRange(0., 10., 100))
-	p0 = [10.0, 1.0, 0.7, 0.5]
-	y = pol3.(x, p0...)
-    y += rand(Normal(0, err_sigma), length(y))
-    lb = fill( 0.0, length(p0))
-    ub = fill(20.0, length(p0))
-    pol3_fit = @. pol(x, p) = p[1] + p[2] * x + p[3] * x^2 + p[4] * x^3
-    fq = func1dfit(pol3_fit, x, y, p0, lb, ub)
-	cfq = coef(fq)
-	sfq = stderror(fq)
-end
-
-# ╔═╡ 2ff6f551-2662-43a5-9776-70951ff40364
-@info "fit coefficients" cfq
-
-# ╔═╡ ec3cd40c-6a52-48fd-a3ce-9e091250e981
-yf = pol3.(x, cfq...);
-
-# ╔═╡ 525b0316-8374-4882-aa5b-84f2bf33c5c3
-@info "coefficient errors (std)" sfq
-
-# ╔═╡ 840fa50e-bf0f-42f9-8e7f-ec3cc4bdb9af
-sfq
-
-# ╔═╡ 5738e27c-5307-4623-bd43-67f66b7b97d2
-@info "margin_of_error (90%)" margin_error(fq, 0.1)
-
-# ╔═╡ 14360d77-340e-488d-bed0-00f408ef1dd4
-all(isapprox.(cfq, p0; atol=err_sigma))
-
-# ╔═╡ 685fd840-64b1-427d-83f3-217664ea9798
-begin
-pp1 = scatter(x, y,
-	          label="p3",
-			  markersize=2,
-			  color = :black,
-	          legend=false,
-		   	  fmt = :png)
-pp2 = plot(pp1, x, yf, lw=2)
-	
-xlabel!("x")
-ylabel!("p3(x)")
-end
-
-# ╔═╡ 8ecc8206-275b-4d55-9b01-e82e7f2df5dc
-md"### Fit an exponential"
-
-# ╔═╡ aac7a640-97fe-46c0-89b3-7e76978baf0d
-exp(1.0)
-
-# ╔═╡ 89ef5f08-7a1e-42a5-8fcf-b7efa63a8a68
-expo(t, N, λ) = N*exp(-t/λ)
-
-# ╔═╡ 426f8190-7865-4bd1-bc23-0adb5fc1892c
-begin
-	err_sigma2 = 0.05
-	t=collect(LinRange(0.0, 5000.0, 1000))
-	p0t = [3500.0, 500.0]
-	yt = expo.(t, p0t...)
-	yts = yt + rand(Normal(0, err_sigma2), length(yt)) .* yt
-    lbt = [0.0, 0.0]
-    ubt = [50000.0, 50000.0]
-    expo_fit = @. expo(t, p) = p[1]*exp(-t/p[2])
-    fqe = func1dfit(expo_fit, t, yts, p0t, lbt, ubt)
-	cfqe = coef(fqe)
-	sfqe = stderror(fqe)
-end
-
-# ╔═╡ 2fdad658-0b71-4d42-8591-9284fee3aeb6
-
-begin
-	tft = expo.(tdata, coef(fit)...);
-	println("")
-end
-
-# ╔═╡ 5a0cc7d8-a3c3-45b9-8b91-9528e4938fb0
-begin
-ps1 = scatter(tdata, ydata, markersize=1,
-		color = :black,
-	    legend=false,
-		fmt = :png)
-pp = plot(ps1, tdata, tft, lw=2,fmt = :png)
-xlabel!("t (ns)")
-ylabel!("I (a.u.)")
-end
-
-# ╔═╡ f1e6c6b6-49fa-44bb-bb9a-07986f6a1d13
-expo(0,3000.,500.)
-
-# ╔═╡ c54205d5-ea1a-4416-b4b0-3bdb168dae61
-fqe.converged
-
-# ╔═╡ b83d4ff4-cc73-4cf7-abad-78da291eb404
-@info "fit coefficients" cfqe
-
-# ╔═╡ 13ad7221-0d2d-4a77-9258-9edace85fde0
-@info "coefficient errors (std)" sfqe
-
-# ╔═╡ f2b2cc4d-54ed-4f2f-80bc-bc3bf82bb2e8
-begin
-pp3 = scatter(t, yt,
-	          label="expo",
-			  markersize=2,
-			  color = :black,
-	          legend=false,
-		   	  fmt = :png)
-#pp2 = plot(pp1, x, yf, lw=2)
-	
-xlabel!("t")
-ylabel!("expo(t)")
-end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2760,172 +2017,45 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╠═59062c8d-edbf-4966-a786-724f9438618c
-# ╠═547c0f35-243e-4038-bb66-65b627bda4b0
-# ╠═9d66c472-b742-49b3-9495-1c3be998108b
-# ╠═c3b89fa7-67f8-4cc3-b3ba-fcb304f44669
-# ╠═bd9eed27-fc29-41ff-bf12-ec0cd3881ea2
-# ╠═ca6f7233-a1d1-403d-9416-835a51d360db
-# ╠═ac5daa7a-b00b-4975-906d-f68e455c2b53
-# ╠═a8ffd5c7-2a6f-4955-8e9f-ea605a8cb24d
-# ╠═ea4b37e5-fc26-4ca3-8788-20dd4c57536c
-# ╠═c91bef90-362d-4bc7-8378-2f6dc55a20eb
-# ╠═96ae3a10-b116-4544-b282-59b1f58417bf
-# ╠═34b3d66e-3b39-43dc-922b-9ba6c15c1bac
-# ╠═5927e85d-f206-4d51-9b0c-6d2d70a0a0da
-# ╟─98bfd4d0-9257-4c2e-8256-29833c4b2850
-# ╠═cc7e6e63-7630-4500-a18b-92d254089a12
-# ╟─38f06b03-50b7-4254-b111-d9b15a39a910
-# ╠═b992f24e-ead5-4117-8744-1a81c16f13a7
-# ╟─a5bc9651-176f-41ed-8cc9-81c1accfc4db
-# ╠═977a2703-17c9-443f-a110-334e38377909
-# ╠═26decc7c-a3c2-41a3-8eec-5ed12296918f
-# ╠═ac1d5662-e8c9-48a0-a30f-dcf9ca15af15
-# ╠═ffa56bac-2f5c-4d1b-8e5a-7d3412393f14
-# ╠═dc1fd780-64d8-4113-b19f-9bb0733eed99
-# ╠═fedadec6-70a7-483f-9199-877ef60a5861
-# ╟─b01206a2-7b5e-4a7a-842b-354ab1ec5b0d
-# ╟─fcbff47c-d7ee-471e-b452-2360a142ac29
-# ╠═9042910c-802b-4a71-8863-5b64984b3a8c
-# ╟─d8c646d9-6c1a-4ca1-8f4a-a22bb1623132
-# ╟─c42f8de4-5790-4558-8e98-a16540c78885
-# ╟─bd2b9f50-672d-4cf2-806e-93c8b7d71918
-# ╠═73c8585e-6d3c-4119-a786-950244ceeeb2
-# ╠═6a44f96c-a264-48b9-83f3-bc64a607c730
-# ╠═b7715de1-59a9-460c-8c4e-535713f1e317
-# ╠═b80f21e4-331c-4677-84d4-77259c2422b4
-# ╠═c4f1bc99-f0b2-45eb-afd5-19483de2e8c8
-# ╠═725a2620-6e6d-4964-840a-ca318fe871db
-# ╠═f866230f-0cbe-4462-a3d7-0ef148a944c9
-# ╠═da025bce-a955-4f6a-916c-bac1e1f491dd
-# ╠═e6e50f4a-6da4-4b10-9b92-2c7436f57072
-# ╠═6056db12-a40c-4586-bb63-203fcd0c0cce
-# ╠═9503331e-e97f-4ba9-84aa-c1e11c2f59d1
-# ╠═f6d52515-c34a-4159-b4e7-625cba13763c
-# ╠═1e6c1d0b-8a3b-4cec-928f-a2e892fdbf5e
-# ╠═ea503006-18b6-47a1-8cb3-46d856dfe8b0
-# ╠═89f8c950-32bd-49d3-8a62-79e0040646ec
-# ╠═fa0c5865-1c22-4a9e-b393-b8f5875ff841
-# ╠═15ef23fa-1633-4954-a927-1d289d5573ec
-# ╠═d7c66368-4769-4d50-b20f-9ea4ed6eee5a
-# ╠═2838b7e5-752b-4cb6-bec5-f48d122e859c
-# ╠═c4cb9e33-4362-40f9-baba-ac822cbedc64
-# ╟─7e150a69-0070-4371-b5c0-02b7ad70d813
-# ╠═16cdbadf-4deb-4a66-8ab7-84437a4fe3d4
-# ╟─4a0e30fe-398e-4d80-86a2-bfc384cbc6e6
-# ╠═9cc3dfcb-b95d-4086-a228-ed4753f6ca0d
-# ╟─591f9fcb-7ad1-400e-af0a-29686a4914ec
-# ╠═9cc092e9-40d2-4c5a-9b55-4e2adccb3382
-# ╠═d75a8426-c97b-422e-8c69-3f3ce94c5370
-# ╟─a7d330cf-5093-490f-adc8-e482e3084806
-# ╟─280a17c4-6d5e-4ff3-a5ab-dbbcb7199bb2
-# ╟─a230e061-b6ab-49d4-bdad-730d75e20e9c
-# ╠═6d5e295c-1c57-4a92-aee2-3ffcbb3306df
-# ╠═80447dc7-1103-4019-bc64-283d4a9368a0
-# ╠═08ec5b69-946f-407e-ac8d-bf8814cc0121
-# ╠═2fdad658-0b71-4d42-8591-9284fee3aeb6
-# ╠═5a0cc7d8-a3c3-45b9-8b91-9528e4938fb0
-# ╟─58b227ac-627f-49ba-bc58-75039c65733b
-# ╠═4223f9f8-8ee6-4ea9-a7bc-6379c81c48c0
-# ╟─fabba61a-f28d-4535-b0e3-e94f5098bb0a
-# ╟─7a1fcff4-6948-4333-b971-8fbf31c7d3ee
-# ╠═a917927d-d471-4465-abd1-30d959af0b45
-# ╠═93b78d1a-ee07-4d66-b5a4-c7a109a24f81
-# ╟─aa4283d7-37d4-4aaf-a5b7-b515466e545d
-# ╟─19b7d7fb-adab-4f29-82af-d059525921ee
-# ╠═102a2054-2fd5-406e-8bb4-20ecb47c278f
-# ╟─e97474ef-145f-45c8-96f6-213acf4a3b41
-# ╟─106f7063-719e-4eff-857d-3566d6e6d4c8
-# ╟─177762d5-b9f2-449b-abba-256f3d4318ad
-# ╟─4e4ab4e5-bacc-4c58-8000-10602a1f8465
-# ╟─e35f8650-dc2e-46f3-9220-26754e8860e0
-# ╟─13827ddc-bebd-44d5-929f-f4ac6f43b093
-# ╟─2a07dd38-bac4-410c-8135-5c4e6f851df6
-# ╟─a3703591-17d4-4049-8c1b-21a4c8329ffd
-# ╟─ebe4e491-1c61-45cb-a559-64fa3f5fbb9d
-# ╟─d6d6dc94-5b99-4de6-a5c3-ab2be2b49d32
-# ╠═b0112287-c957-4ce3-ba24-9c47c8128b2d
-# ╟─417fecfd-b316-4e63-8e68-303d4c568434
-# ╟─bbd09112-d6cd-4f0f-9a87-7b85be983e09
-# ╟─8c405cc2-e8b5-4125-b21d-f7a22f94fb59
-# ╟─ebe77978-7d7f-407d-9a73-4be3568265ef
-# ╟─e7e7b1ca-b27f-406c-9df0-5ffea702719f
-# ╟─f48eb494-f9f5-4e4f-9fc0-ffa20312155a
-# ╟─4eeabd93-cd82-4051-b2d0-bee3db1723e4
-# ╟─fc5b2f60-2c04-4835-a222-9971189ac54e
-# ╟─e40a68c6-5885-49d1-9259-fdd3be09fee4
-# ╟─f79fb47b-b4f7-442a-927f-0c186e673b80
-# ╠═8da11b18-5934-4207-941b-795969173f21
-# ╟─ce47be17-7773-4797-beb7-202d3c02555a
-# ╟─498d145b-ce5f-46a5-b77e-31f412e04eb9
-# ╟─0d4a0651-4ce4-497e-8764-2bcbbef83cf1
-# ╟─d437cc55-8c19-4d0b-86d8-760da3956895
-# ╟─7dedd16b-4279-4f50-8120-d9ef394f3e13
-# ╟─649fa1b3-0dd2-487d-9bdf-7db97a0ec178
-# ╟─92a5b436-1d8e-4436-8dda-8b1d3518bdea
-# ╟─c5b0405a-a991-45a5-aa04-d09020b0c7f0
-# ╟─8d4516fd-8838-4e5f-a61d-9dc1f65b31ad
-# ╟─4a1cf5fc-b44f-4b19-ac8e-d610da0a17cb
-# ╟─03e15d19-ea63-413e-8ec5-4d50e28558ac
-# ╟─39a7f7b4-058b-4283-b35c-4409ea9e478a
-# ╟─52aeae45-0dfc-48f2-a362-20d1add0ff7f
-# ╟─abe34c91-9824-45e4-8865-7b3f73ff8758
-# ╟─960ba1ef-495d-4bb2-8aff-73cb68ae440e
-# ╟─9d97d16a-8f90-4ff7-ac0b-ee610c20ee32
-# ╟─8815a3e2-e559-4857-b20e-14aa5f91d341
-# ╟─89aa75b3-2263-450e-9f2e-cd7c875a7919
-# ╟─b5045344-fb52-4b2e-88b9-1c1d4d1d50f6
-# ╟─f6fefa8e-8490-4c0d-b707-c9a95011cbb1
-# ╟─3555a982-9879-460f-babf-6f31c11c6f7f
-# ╟─954d503d-19f2-4575-84d7-2d1722a28a7f
-# ╟─41eb41f7-bc6e-4dce-8d39-68142fd329db
-# ╟─bc6ba394-d1b8-4c1b-8a01-c23bcd29178c
-# ╟─7140a27e-4cde-4c7d-a794-9a624e540677
-# ╠═b0bf01be-6a53-4c42-9d9a-752bf4652986
-# ╟─0ee9bd36-7192-4922-abaf-7d7d08605915
-# ╠═d5ef9a03-f716-454b-a5de-0c67ee935679
-# ╠═df1ff4c2-8c84-455a-9cc4-7fdc34e2cb83
-# ╠═6396d4af-e668-4a73-b8be-b73b8b41267c
-# ╠═f38318dd-f7bb-4bf1-9bc9-d1f7ed8a8397
-# ╠═356b7b35-6794-40d0-8c88-b8e066f086a6
-# ╠═6445e2c6-4dcc-44dd-bdda-564e4c9b3911
-# ╠═7e0b0616-5dd0-44d3-beab-4fa32521d3ff
-# ╠═b49c15a7-d9de-4942-b09c-7f2ed9b4550e
-# ╠═f615fc39-bfd9-45ce-84fe-a28921bde525
-# ╠═d49e7e9b-6487-407b-aef7-2884461879a0
-# ╠═43e8a5f1-512c-46b7-91f6-89d3c7e81368
-# ╟─ae5f17d2-3c31-4a9c-85e4-f2f22625d86b
-# ╠═c3952378-79bb-4605-8ffb-828c1e3e3321
-# ╟─0f7ff8a4-43e4-4829-a4b4-78594664cee2
-# ╟─131f4e45-85f5-43bc-8c32-d59f8803bfd6
-# ╠═a4066207-4c50-4360-b43f-218d5355ff3e
-# ╟─218fc76e-1060-40ff-a52f-d884441380e2
-# ╟─58b61eac-e1de-48f3-a37b-ecc1f8d5f8ab
-# ╠═320f9c75-5047-4a4c-890b-ffdc70767634
-# ╠═b97cd0a9-ee46-4520-a408-f60150bbea74
-# ╠═b96961fd-6a9a-40bb-b582-2b3586f56edb
-# ╠═eba3554f-ae6f-4a3d-8131-43ffa2743977
-# ╠═f57ca807-9b3a-4f77-9607-74ee3a411990
-# ╠═7a6a3b8a-8b1c-41d5-ab25-7d294f1bee3d
-# ╠═92698c05-edf3-4b9e-a10a-1da9ed0dc82a
-# ╠═0dd448d1-9952-438c-9284-e0c320c955aa
-# ╠═f8b61a8e-2679-48cd-842c-17d6e6ee760e
-# ╠═bfc6e346-3525-47d7-a436-ffa02dab11b9
-# ╠═2ff6f551-2662-43a5-9776-70951ff40364
-# ╠═ec3cd40c-6a52-48fd-a3ce-9e091250e981
-# ╠═525b0316-8374-4882-aa5b-84f2bf33c5c3
-# ╠═840fa50e-bf0f-42f9-8e7f-ec3cc4bdb9af
-# ╠═5738e27c-5307-4623-bd43-67f66b7b97d2
-# ╠═14360d77-340e-488d-bed0-00f408ef1dd4
-# ╠═685fd840-64b1-427d-83f3-217664ea9798
-# ╠═8ecc8206-275b-4d55-9b01-e82e7f2df5dc
-# ╠═aac7a640-97fe-46c0-89b3-7e76978baf0d
-# ╠═89ef5f08-7a1e-42a5-8fcf-b7efa63a8a68
-# ╠═f1e6c6b6-49fa-44bb-bb9a-07986f6a1d13
-# ╠═426f8190-7865-4bd1-bc23-0adb5fc1892c
-# ╠═c54205d5-ea1a-4416-b4b0-3bdb168dae61
-# ╠═b83d4ff4-cc73-4cf7-abad-78da291eb404
-# ╠═13ad7221-0d2d-4a77-9258-9edace85fde0
-# ╠═f2b2cc4d-54ed-4f2f-80bc-bc3bf82bb2e8
+# ╠═58df4de9-b30a-442d-85bd-3b96fe5f8ba9
+# ╠═a565dd64-b41a-11ec-2175-7796d0f0fa9d
+# ╠═05c25b67-51a7-49cf-a8ff-92d0cd42af57
+# ╠═70519966-f882-430e-9659-21cce2a08196
+# ╟─64d0ae90-d964-4b2d-a0c3-6cac427aa28c
+# ╠═b3d2b007-148c-4796-b5ba-acbcc80349a8
+# ╠═86d64dd8-fefe-4f39-9ee6-855f71e13f83
+# ╠═f06304b3-2a45-4bbe-b90b-5cc8d6364ffd
+# ╠═df99f75e-0da9-4a05-8788-b4c7c8a27464
+# ╠═69adf2f0-9bf8-4be3-b339-356939c33b45
+# ╠═6fcc6eae-c745-4d1d-b168-5c83e432a026
+# ╠═d0387eb4-38e2-419a-93ff-1908b64e076f
+# ╠═87c749b9-e1c4-46ec-a226-63d0dc026d64
+# ╠═2b930128-e09b-4f3c-a8fa-f3fc24008f74
+# ╠═f6fa9dca-382f-44c2-9a47-4563c37418ad
+# ╠═f36cf944-f374-4eda-85c8-43b13b65ac69
+# ╠═4b68f3b0-e779-4970-bb4f-939729b362d9
+# ╠═67375ee4-de06-4163-9551-5ae01b4d3a67
+# ╠═3213e1c8-27f1-4a02-b194-6aeca12167b1
+# ╠═4bfdabcb-631c-41e8-b9a9-aa6379cb3cb9
+# ╠═d13c5e2f-bbbc-4e7f-b150-53662b1740a0
+# ╠═b1c40397-3eda-4446-a095-042fbd1c9c8e
+# ╠═368cea92-4b20-4cbe-87ce-7296f33077bd
+# ╠═9fde7427-4ea7-4fc0-93d9-2fc0c65fb04f
+# ╠═eedcaf5d-20ff-4afb-aba6-222a9ef8246e
+# ╠═30898a18-523e-45db-9df4-4fbc949050f9
+# ╟─ff2ffc8e-e88f-426c-b047-72cdf348d008
+# ╠═3797e8e9-97af-463b-b5aa-524ad5490f95
+# ╠═2c4c051f-1b28-4004-b850-88cda6dee104
+# ╠═a2a7cf14-761a-42ae-a4d1-c1e553d55bd5
+# ╠═7de9da1c-01d2-419f-b9f8-1d03a82ce838
+# ╟─3464e2bb-f040-4f1a-b73b-0d9a8f874cf4
+# ╠═5875df9b-03e2-4c52-afba-e1fb327f1ded
+# ╠═7cf17d19-bac4-4a8b-b244-a8a3d1048c29
+# ╠═cd555877-bb22-4ad5-a0f7-ec3be25eee9f
+# ╠═416d89c2-6512-4f24-bb5e-ecb3e59b6c36
+# ╠═138b5f20-254a-48e6-bc4c-d44666add5b3
+# ╠═e3dd5eb5-4a5f-4462-8db7-9f94c8e6b41a
+# ╠═908f4d0f-8f36-4378-afc9-c2c322dd983b
+# ╠═1d46a4e6-d9ba-41c4-8de2-9c30a52d65fa
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

@@ -4,7 +4,17 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 52d4f953-98d1-4016-b2b3-7c234b012189
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
+# ╔═╡ 2659ca26-15c1-4bc4-b0a4-17d8f27ade9e
 begin
 	using Plots
 	using Printf
@@ -22,9 +32,10 @@ begin
 	using Distributions
 	using Statistics
 	using StatsBase
+	using LaTeXStrings
 end
 
-# ╔═╡ 91726783-795a-4da6-9ca7-2d176ba328ca
+# ╔═╡ 6cfb7168-b501-11ec-164a-9f2899eae5b5
 begin
 	using Peaks
 	using Glob
@@ -32,13 +43,7 @@ begin
 	using DSP
 end
 
-# ╔═╡ b4f98dfc-9e44-11ec-3621-4526f6f187bd
-md"# RuSL Lifetime: Bold62 500 kHz 
-
-- JJGC, 18-03-2022
-"
-
-# ╔═╡ 1e429641-5615-4c2f-b466-a5e1d5cbc297
+# ╔═╡ 8e7f6754-f313-4dcb-b6d3-f5c119182fef
 import Unitful:
     nm, μm, mm, cm, m, km,
     mg, g, kg,
@@ -48,10 +53,11 @@ import Unitful:
 	μW, mW, W,
     A, N, mol, mmol, V, L, M
 
-# ╔═╡ 860a66e0-9fdb-4537-865e-bf70e7fa289a
+
+# ╔═╡ dde5f10a-40a9-4717-9bd3-b146d2e0e193
 import PhysicalConstants.CODATA2018: N_A
 
-# ╔═╡ 1665009d-f4a8-4d3e-bc9a-3cca8c26c213
+# ╔═╡ 4d4dcb77-f40c-4828-8acb-fd956bb3ec69
 function ingredients(path::String)
 	# this is from the Julia source code (evalfile in base/loading.jl)
 	# but with the modification that it returns the module instead of the last object
@@ -66,1028 +72,325 @@ function ingredients(path::String)
 	m
 end
 
-# ╔═╡ c9e85963-fe90-48c4-8e20-fcc92c31ce99
+# ╔═╡ 8de8578f-29cc-4129-8a2d-99ba03ab3642
 lfi = ingredients("../src/LaserLab.jl")
 
-# ╔═╡ f3fea484-8430-47ab-986b-7b170bef4ba6
-PlutoUI.TableOfContents(title="Table of Contents", indent=true)
+# ╔═╡ e185f426-f28f-430c-a7ee-fd84ab1dcf55
+PlutoUI.TableOfContents(title="ML coverage", indent=true)
 
-# ╔═╡ 9e58009d-0244-49db-801e-362bcb895eb0
-md" ## Introduction
-Data was taken with the TOPATU setup, with the following elements:
+# ╔═╡ 883cfaa0-5d0f-4fad-b18a-3155ca977db8
+md"""
+## Theory
 
-1. EPL480 nm laser operating at 500 kHz (2 μs pulses).
-2. A PMT H13543 from Hamamatsu, with 20 % QE at 500 nm, 10.6 % QE at 700 nm and 8 % QE at 800 nm.
-3. Data was taken with three different band filters, centered at 660, 700 and 730 nm.
-4. Coincidence were triggered in a scope, at 10 MHz rate, the trigger signal was given by the laser.
+To compute the level of coverage of a ML we use the definition of molar attenuation coefficient:
 
-   **Features of the data**
+$A = \epsilon \cdot c \cdot l$
 
-- The PMT data is somewhat noisy. Thus, it is necessary to characterise single electron pulses by a peak search analysis. 
-"
+Where $A$ is the measured absorbance $\epsilon$ the the molar attenuation coefficient, $c$ is the concentration and $l$ the length that the radiation transverses.
 
-# ╔═╡ aedcf3c2-7d51-466c-a88e-2c681679b8b0
-load("../notebooks/img/setupPMTScope.png") 
+Define:
 
-# ╔═╡ a6cd504a-1afc-4be0-81d2-0de827650526
+$\Gamma = c \cdot l = \frac{n}{V}\cdot l$
+
+Which has units of number of molecules per unit surface. Thus:
+
+$\Gamma (mol/cm^2) = \frac{A}{10^3\epsilon} (1)$
+
+Where the factor $10^3$ comes about because $\epsilon$ is normally expressed in $M^{-1}cm^-{1}$, that is
+$\frac{l}{mol \cdot cm} = 10^3\frac{cm^2}{mol}$. 
+
+The procedure is then:
+
+- Measure $\epsilon = f(\lambda)$ in solution
+- Assume that $\epsilon$ in solution and in a ML is the same (that is assume that absorbance depends only on the molecular cross section and that this is the same in solution or in ML)
+- Measure $A = f(\lambda)$ for an specific ML
+- Apply (1)
+
+
+"""
+
+# ╔═╡ c006224d-6e1c-4dab-946f-cfc0ccbef36d
+md"""
+## Define data
+"""
+
+# ╔═╡ f4713b48-b5e8-47f5-a252-5b8e4eef91f2
 begin
-	spG = lfi.LaserLab.CsvG(';',',')  # spanish: decimals represented with ',' delimited with ';'
-	enG = lfi.LaserLab.CsvG(',','.')  # english
-	enG2 = lfi.LaserLab.CsvG('\t','.')  # english
-	println("")
+sroot = "/Users/jj/JuliaProjects/LaserLab/data"
+sdirs = ["RuSl", "IrSl","G2Sl","ANN205"]
+sml = ["Bold55","Bold62","Bold77","Bold73"]
+
+
+md"""
+Select the molecule type and series
+"""
 end
 
-# ╔═╡ 252430c1-c039-4d85-a961-fa3aa51c9c69
-md"## Laser frequency and DAQ window"
+# ╔═╡ 65b9b4a4-8cff-4844-8ecd-bf3d35234af8
+@bind whichm Select(sdirs)
 
-# ╔═╡ d904688d-c65a-450b-934d-d7486b93398e
+# ╔═╡ d675f7a1-ba30-42f9-8f4a-190f957adea5
+@bind whichl Select(sml)
+
+# ╔═╡ d0980c6d-de68-4dac-89ad-c25dfb19ac83
+md"""
+You have selected the molecule $(whichm) and the sample $(whichl)
+"""
+
+# ╔═╡ 0df57da4-e05c-41ac-b75a-84c1b8ceb748
 begin
-	f500kHz = 500.0kHz
-	w100mus = 100.0μs
-	wmus100mus=w100mus/μs # window in μs
-	tlaser500kHz = uconvert(μs, 1.0/f500kHz)
-	tlus2 = tlaser500kHz/μs
+path = string(sroot,"/",whichm)
+fn = string(whichl,"_ABS.csv")
+
+md"""
+- file path = $path
+- file name with absorbance data = $fn
+"""
 end
 
-# ╔═╡ 38d57ccd-d0d3-44b2-9ad0-9e0ac33910c6
-md" - Parameters:
- - laser frequency= $f500kHz
- - DAQ window= $w100mus
- - Laser pulses every $tlaser500kHz
-"
+# ╔═╡ e01fa44b-12b0-444d-bac2-48130894db6b
+md"""
+Read a DF with the info of absorption as a function of λ for different concentrations.
 
-# ╔═╡ 01355b47-de67-4104-a6bc-3d773b156bae
-md"# BOLD\_062\_A2\_500kHz\_650nm\_100us
-"
+Accept only rows in which all concentrations were measured positive. 
+"""
 
-# ╔═╡ 46929efd-6ffd-40b5-996f-5b10be042ba5
-md"## Read waveform"
-
-# ╔═╡ 2098fce4-1a4f-4c4b-825e-37afb2fdcde5
-fn6n5k1m = 21;  # test file
-
-# ╔═╡ 097ee9e5-fec4-45ae-9cd3-cb8c890165b0
-md"### Select peaks"
-
-# ╔═╡ f21c3a51-7d70-44d5-bdae-06b4123ed0f2
-sprom6n5k1m = 2.0;  #prominence cut
-
-# ╔═╡ d2bd231b-7bf9-4c12-91f2-699f43d62cdd
-md"
-- Peak Prominence cut = $sprom6n5k1m
-"
-
-# ╔═╡ 0c08fd16-9dfd-4f8f-a090-437190fd1da5
-md"### Optimizing prominence cut"
-
-# ╔═╡ 31d7b91d-15ae-4e8a-af46-160b64e16094
-md"### Selection"
-
-# ╔═╡ 408c18b0-f031-4480-b521-b0329ad28011
-md"### Fits"
-
-# ╔═╡ 19a7cafb-237a-4d17-bfc8-dd3d82b9a869
-md"# BOLD\_062\_A2\_500kHz\_700nm\_100us"
-
-# ╔═╡ 114201ce-abf4-4501-a7e4-2606f98f4343
-md"## Read waveform"
-
-# ╔═╡ 5959c636-6269-48a1-84fa-ea5087cdbed8
-fn7n5k1m = 201;  # test file 
-
-# ╔═╡ 8bc4629f-ef4a-4fb6-b2e7-5d5ac79426fd
-md"### Select peaks"
-
-# ╔═╡ a23cd563-70c1-4fe0-a625-f300b00e2e96
-sprom7n5k1m = 2.0;  #prominence cut
-
-# ╔═╡ f4886783-9d88-4971-9505-6bb20e3239c5
-md"
-- Peak Prominence cut = $sprom7n5k1m
-"
-
-# ╔═╡ abdc25e1-153d-4f17-9acc-14f2ef8c0f46
-md"### Optimizing prominence cut"
-
-# ╔═╡ 5a72de44-72ef-408f-940b-e6015cc72fe0
-md"### Selection"
-
-# ╔═╡ 0cb56f60-43b1-4580-a63f-6acccac77b80
-md"### Fits"
-
-# ╔═╡ e57edd48-7db8-4a7e-afd9-eaebcbbc4338
-md"# BOLD062\_A2\_500kHz\_730nm\_100us"
-
-# ╔═╡ 54a713f6-f70d-4379-97a9-af8ef6327e80
-md"## Read waveform"
-
-# ╔═╡ eb5c2173-e53a-4b3f-aa77-29779fb9a437
-fn8n5k1m = 101;  # test file 
-
-# ╔═╡ efb34903-19d2-48b8-8e7d-bbdd4e212e56
-md"### Select peaks"
-
-# ╔═╡ d3a5a79e-c181-4cd3-bd9f-7893cbdfb229
-sprom8n5k1m = 2.0;  #prominence cut
-
-# ╔═╡ 73d26e78-d026-4c0a-83d1-a097705492fb
-md"
-- Peak Prominence cut = $sprom8n5k1m
-"
-
-# ╔═╡ b27beaa2-d8a7-425d-843d-9fdcb8992de3
-md"### Optimizing prominence cut"
-
-# ╔═╡ 2d735473-8afa-4b6c-a832-e3b6e4f15067
-md"### Selection"
-
-# ╔═╡ 2b191d8d-12a3-49af-93ac-b4510aa19bf4
-md"### Fits"
-
-# ╔═╡ fde49db9-165b-4b55-928b-b0d3f2610a31
-md"# Functions and data structures"
-
-# ╔═╡ 500c0b3b-fc21-45a7-b03d-07c413a947c9
-md"
-	struct SPeaks
-"
-
-# ╔═╡ 79c95b20-7b71-414f-b5d6-41e4cfe373ca
-struct SPeaks
-	peaks::Vector{Int64}
-	proms::Vector{Float64} 
-	widths::Vector{Float64} 
-	leftedge::Vector{Float64} 
-	rightedge::Vector{Float64}
-	xs::Vector{Float64}
-	ys::Vector{Float64}
-	xbase::Vector{Float64}
-	promsel::Float64
-end
-
-# ╔═╡ 50e2ec32-be70-444a-9c80-38770ce5da7e
-md"
-	shift_waveform!(wvfm:DataFrame, wmus::Float64, wsym::Bool)
-
- Shifts waveform to mV in Y (reverses sign) and to μs in x.
- If the window is centered in zero, shifts it, so that first time is zero.
-
- **Fields**:
-  
-*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
-
-*wmus*  : width of time window in μs.
-
-*wsym* : true if the window is symmetric (centered at zero)
-
-**Returns**
-
-Shifts waveform to mV in Y (reverses sign) and to μs in x.
- If the window is centered in zero, shifts it, so that first time is zero.
-
-"
-
-# ╔═╡ 6be64cc8-a357-477c-ae0e-cb0405de4f4b
-function shift_waveform!(wvfm::DataFrame, wmus::Float64, wsym::Bool)
-	wvfm[!, :Ampl] = -1000.0 * wvfm[!, :Ampl] 
-	wvfm[!, :Time] = 1e+6  .* wvfm[!, :Time]
-	if wsym
-		wvfm[!, :Time] = wmus/2.0  .+ wvfm[!, :Time]
-	end
-	wvfm
-end
-
-# ╔═╡ fe91ac2c-b95a-4d5e-a2fe-f09f43297d4d
-md"
-	read_waveform(wdir::String, wname::String; wmus::Float64=5, symmetric::Bool=false)
- 
-**Fields**:
-  
-*wdir*   : name of directory
-
-*wname*  : name of file
-*wmus*  : width of time window in μs.
-
-*wsym* : If true the window is symmetric (centered at zero)
-
-**Returns**
-
-Waveform as a data frame, amplitude in mV (signal positive), time in μs.
-"
-
-# ╔═╡ e5bf7e93-f089-4b77-a2e0-d014bdc309e1
-function read_waveform(wdir::String, wname::String; wmus::Float64, 
-	                   wsym::Bool=false)
-	
-	wvfm = lfi.LaserLab.load_df_from_csv(wdir, wname, enG,5)
-	shift_waveform!(wvfm, wmus, wsym)
-	
-end
-
-# ╔═╡ 0eded161-9ad3-475e-a6d2-d8068f15bad5
-md"
-	read_waveform(csvf::Vector{String}, fnumber::Integer; wmus::Float64, 
-	              wsym::Bool)
-
-  Like previous method but takes a vector of strings with the name of the files and an integer with the index of the file to be read
-"
-
-# ╔═╡ e673cdda-7032-4600-bbd0-01a291aa3eb5
-function read_waveform(csvf::Vector{String}, fnumber::Integer; wmus::Float64, 
-	                   wsym::Bool)
-	
-	wvfm = DataFrame(CSV.File(csvf[fnumber], header=5, delim=enG.delim, decimal=enG.decimal))
-	shift_waveform!(wvfm, wmus, wsym)
-end
-
-# ╔═╡ ffdac4df-dd39-4203-875d-c698007fc0c5
+# ╔═╡ b9f6f019-b59c-4c62-8d50-6f3f8198343a
 begin
-	fls6n5k1m = glob("../labdata/BOLD_062_A2_500kHz_650nm_100us/C1*.csv")
-	n6n5k1m = length(fls6n5k1m) 
-	
-	ffl6n5k1m = 200.0e+6
-	wvfm6n5k1m = read_waveform(fls6n5k1m,fn6n5k1m; wmus=wmus100mus, wsym=true)
-	first(wvfm6n5k1m,3)
-end
+	dfAbs = lfi.LaserLab.load_df_from_csv(path, fn, lfi.LaserLab.spG)
+	dfAbs[!, :W] = convert.(Float64, dfAbs[:, :W])
+	sort!(dfAbs, rev = false)
+	# get rid of data with negatives in the case of Ir 
 
-# ╔═╡ 86894686-5fdd-43ab-a491-e3015b6bb44d
-begin
-	fls7n5k1m = glob("../labdata/BOLD_062_A2_500kHz_700nm_100us/C1*.csv")
-	n7n5k1m = length(fls7n5k1m) 
-	
-	ffl7n5k1m = 200.0e+6
-	wvfm7n5k1m = read_waveform(fls7n5k1m,fn7n5k1m; wmus=wmus100mus, wsym=true)
-	first(wvfm7n5k1m,3)
-end
-
-# ╔═╡ 2f60d20b-62af-42aa-b149-230283f9914e
-begin
-	fls8n5k1m = glob("../labdata/BOLD062_A2_500kHz_730nm_100us/C1*.csv")
-	n8n5k1m = length(fls8n5k1m) 
-	
-	ffl8n5k1m = 200.0e+6
-	wvfm8n5k1m = read_waveform(fls8n5k1m,fn8n5k1m; wmus=wmus100mus, wsym=true)
-	first(wvfm8n5k1m,3)
-end
-
-# ╔═╡ 96dad766-398d-414c-ac66-dfaa76947ffc
-md"
-		sampling_rate(wvfm::DataFrame, wmus::Float64)
-**Fields**:
-  
-*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
-
-*wmus*  : width of time window in μs.
-
-**Returns**
-
-The sampling rate
-"
-
-# ╔═╡ b43916ba-0499-4d82-b81c-49aba21ee145
-function sampling_rate(wvfm::DataFrame, wmus::Float64) 
-	uconvert(GHz, (length(wvfm.Time) / (wmus*1.0e-6)) * Hz)
-end
-
-
-# ╔═╡ 5dfbb58a-1411-4264-9540-8cc26263910f
-md"
-		sampling_period(wvfm::DataFrame, wmus::Float64)
-  **Fields**:
-  
-*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
-
-*wmus*  : width of time window in μs.
-
-**Returns**
-
-The sampling period
-"
-
-# ╔═╡ ff872f5f-b10b-4065-8850-d81f9d6aece3
-function sampling_period(wvfm::DataFrame, wmus::Float64) 
-	uconvert(ns, 1.0 / sampling_rate(wvfm, wmus))
-end
-
-# ╔═╡ 1a5182c8-787d-4e45-91d3-ae8b523eda5d
-begin
-	sr6n5k1m = sampling_rate(wvfm6n5k1m,wmus100mus)/GHz
-	sp6n5k1m = sampling_period(wvfm6n5k1m,wmus100mus)/ns
-	println("")
-end
-
-# ╔═╡ d8f37622-4d4c-4983-9184-b7892559cca3
-md"
-- Files in directory = $n6n5k1m
-- sampling rate= $(round(sr6n5k1m, sigdigits=2)) GHz
-- sampling period = $(round(sp6n5k1m, sigdigits=2) )ns
-"
-
-# ╔═╡ 9df485bd-266d-4d1e-a49c-f06dafd55e12
-begin
-	sr7n5k1m = sampling_rate(wvfm7n5k1m,wmus100mus)/GHz
-	sp7n5k1m = sampling_period(wvfm7n5k1m,wmus100mus)/ns
-	println("")
-end
-
-# ╔═╡ f036d804-14ed-40eb-8ac9-91248df6a6f3
-md"
-- Files in directory = $n7n5k1m
-- sampling rate= $(round(sr7n5k1m, sigdigits=2)) GHz
-- sampling period = $(round(sp7n5k1m, sigdigits=2) )ns
-"
-
-
-# ╔═╡ 77b76835-f30c-424e-b4d8-05e380f2a524
-begin
-	sr8n5k1m = sampling_rate(wvfm8n5k1m,wmus100mus)/GHz
-	sp8n5k1m = sampling_period(wvfm8n5k1m,wmus100mus)/ns
-	println("")
-end
-
-# ╔═╡ 399913df-af72-40db-b900-1605677bbfd0
-md"
-- Files in directory = $n8n5k1m
-- sampling rate= $(round(sr8n5k1m, sigdigits=2)) GHz
-- sampling period = $(round(sp8n5k1m, sigdigits=2) )ns
-"
-
-# ╔═╡ 5ff2bb27-3db8-4b05-bd90-c73b493a9c76
-md"
-	thrx(wvfm::DataFrame; nsigma=1, waveform='filtered')
-Return the mean, std, and (+-) threshold at nsigma, for raw or filtered waveform
-"
-
-# ╔═╡ f20b33b0-c0ec-4ee7-8273-6b738eb44dd7
-function thrx(wvfm::DataFrame; nsigma=1, waveform="filtered")
-	if waveform=="filtered"
-		ampl = "fAmpl"
-	else
-		ampl = "Ampl"
-	end
-	
-	meanfs = mean(wvfm[!, ampl])
-	stdfs = std(wvfm[!, ampl])
-	thrp = meanfs + stdfs * nsigma
-	thrn = meanfs - stdfs * nsigma
-	meanfs, stdfs, thrp, thrn
-end
-
-# ╔═╡ c548e453-f5bc-40cc-a3d3-b3c0c72d6f9d
-md"
-	filter_signal_lowpass(wvfm::DataFrame, 
-	                      flh::Float64, fs::Float64, filtertype::String, 
-	                      n=4, ϵ=1.0)
-  **Fields**:
-  
-*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
-
-*flh*  : higher frequency accepted by the filter
-
-*fs*  : sampling frequency
-
-*filtertype*  : two possible filters: Butterworth or Chebyshev1
-
-*n* : filter order
-
-*ϵ* : ripple factor for Chebyshev1 filter
-
-**Returns**
-
-frequency response, filter (Butterworth, or Chebyshev) and filtered signal
-"
-
-# ╔═╡ b5e2dfb7-c325-4898-b45d-8f071f1958b6
-
-function filter_signal_lowpass(wvfm::DataFrame, 
-	                           flh::Float64, fs::Float64, filtertype::String, 
-	                           n=4, ϵ=1.0)
-
-	responsetype = Lowpass(flh; fs=fs)
-	
-	if filtertype == "Butterworth"
-		designmethod = Butterworth(n)
-	elseif filtertype == "Chebyshev1"
-		ripple = 10.0*log10(ϵ^2 + 1.0)
-		designmethod = Chebyshev1(n, ripple)
-	end
-	filter = digitalfilter(responsetype, designmethod)
-	H, w = freqresp(filter)	
-	H, filter, filt(filter, wvfm.Ampl)
-end
-
-# ╔═╡ c5c7a723-6975-4903-ae84-aee4a1bb5441
-md"
-	filter_signal_bandpass(wvfm::DataFrame, 
-	                       fll::Float64, flh::Float64, fs::Float64, 
-	                       filtertype::String, n=4, ϵ=1.0)
-
-  **Fields**:
-  
-*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
-
-*flh*  : lower frequency accepted by the filter
-
-*flh*  : higher frequency accepted by the filter
-
-*fs*  : sampling frequency
-
-*filtertype*  : two possible filters: Butterworth or Chebyshev1
-
-*n* : filter order
-
-*ϵ* : ripple factor for Chebyshev1 filter
-
-**Returns**
-
-frequency response, filter (Butterworth, or Chebyshev) and filtered signal
-"
-
-# ╔═╡ 1f950122-3c05-4d4c-85c2-1ed2094b1448
-
-function filter_signal_bandpass(wvfm::DataFrame, 
-	                            fll::Float64, flh::Float64, fs::Float64, 
-	                            filtertype::String, n=4, ϵ=1.0)
-
-	responsetype = Bandpass(fll, flh; fs=fs)
-	
-	if filtertype == "Butterworth"
-		designmethod = Butterworth(n)
-	elseif filtertype == "Chebyshev1"
-		ripple = 10.0*log10(ϵ^2 + 1.0)
-		designmethod = Chebyshev1(n, ripple)
-	end
-	filter = digitalfilter(responsetype, designmethod)
-	H, w = freqresp(filter)	
-	H, filter, filt(filter, wvfm.Ampl)
-end
-
-# ╔═╡ d686b4a3-03fd-4213-9b82-45fd395f96ee
-md"
-	filter_signal_lp!(wvfm::DataFrame, wmus::Float64; 
-                           filtertype::String, flhz::Float64, 
-                           n=4, ϵ=1.0)
-   **Fields**:
-  
-*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
-
-*wmus*  : width of time window in μs.
-
-*filtertype*  : two possible filters: Butterworth or Chebyshev1
-
-*flhz*  : higer frequency accepted by the filter in Hz
-
-*n* : filter order
-
-*ϵ* : ripple factor for Chebyshev1 filter
-
-**Returns**
-
-A column with the filtered amplitude is added to the waveform
-"
-
-# ╔═╡ 35f0fda8-7e9a-4f5c-bbd3-979e8d04ebfa
-function filter_signal_lp!(wvfm::DataFrame, wmus::Float64; 
-                           filtertype::String, flhz::Float64, 
-                           n=4, ϵ=1.0)
-	fs = uconvert(Hz, sampling_rate(wvfm, wmus))/Hz
-	hcb, fltcb, fsgncb = filter_signal_lowpass(wvfm, flhz, fs, filtertype, n, ϵ)
-	wvfm[!, "fAmpl"] = fsgncb
-end
-
-
-# ╔═╡ 4c20fc26-a692-420f-8a15-f739d73d2100
-begin
-    filter_signal_lp!(wvfm6n5k1m, wmus100mus; filtertype="Butterworth", flhz=ffl6n5k1m, n=4)
-    first(wvfm6n5k1m,3)
-end
-
-# ╔═╡ d565ae50-ff90-430a-a186-c1a85686ccf8
-begin
-    filter_signal_lp!(wvfm7n5k1m, wmus100mus; filtertype="Butterworth", flhz=ffl7n5k1m, n=4)
-    first(wvfm7n5k1m,3)
-end
-
-# ╔═╡ 8c1b6c42-34a4-4398-a25b-e8a84ffa7e18
-begin
-    filter_signal_lp!(wvfm8n5k1m, wmus100mus; filtertype="Butterworth", flhz=ffl8n5k1m, n=4)
-    first(wvfm8n5k1m,3)
-end
-
-# ╔═╡ d8a84dea-adbb-48c5-809b-309236f3dfc5
-md"
-	filter_signal_bp!(wvfm::DataFrame, wmus::Float64; 
-                           filtertype:String, fihz::Float64, flhz::Float64, 
-                           n=4, ϵ=1)
-"
-
-# ╔═╡ 3d5ef2d8-1d1c-4f90-9178-f72ce4d67f51
-function filter_signal_bp!(wvfm::DataFrame, wmus::Float64; 
-                           filtertype::String, fihz::Float64, flhz::Float64, 
-                           n=4, ϵ=1)
-	fs = uconvert(Hz, sampling_rate(wvfm, wmus))/Hz
-	hcb, fltcb, fsgncb = filter_signal_bandpass(wvfm, fihz, flhz, fs, 
-		                                        filtertype, n, ϵ)
-	wvfm[!, "fAmpl"] = fsgncb
-end
-
-# ╔═╡ 647e0043-3389-43f2-bfd6-329d88fce931
-md"
-	plot_filtered_waveform(wvfm; window=false, waveform='filtered', wstart=-1, wend=-1, thrp=0, thrn=0)
-"
-
-# ╔═╡ 843d888f-1e8d-4875-b175-1bc0a98f3320
-function plot_filtered_waveform(wvfm; window=false, waveform="filtered", wstart=-1, wend=-1, thrp=0, thrn=0, scatter=true)
-	
-	if waveform=="filtered"
-		ampl = "fAmpl"
-	else
-		ampl = "Ampl"
-	end
-	
-	if window
-		plot(wvfm.Time[wstart:wend], wvfm[wstart:wend, ampl], lw=2, label=waveform, fmt = :png)
-		if scatter
-			scatter!(wvfm.Time[wstart:wend], wvfm[wstart:wend, ampl],  markersize=2,
-					  color = :black, label=false, fmt = :png)
-		end
-	else
-		plot(wvfm.Time, wvfm[!, ampl], lw=2, label=waveform, fmt = :png)
-		if scatter
-			scatter!(wvfm.Time, wvfm[!, ampl], markersize=2,
-					  color = :black, label=false, fmt = :png)
+	if whichm == "IrSl"
+		for cname in names(dfAbs)
+			filter!(row -> row[cname] > 0.0, dfAbs)
 		end
 	end
 	
-	hline!([thrp], label=false, fmt = :png)
-	hline!([thrn], label=false, fmt = :png)
-	xlabel!("Time (μs or index)")
-	ylabel!("Amplitude")
+	last(dfAbs,5)
 end
 
-# ╔═╡ 26f91e54-53ca-4c47-9c1b-839e572b62eb
+# ╔═╡ 7f8c6f63-30c7-43e9-a5df-6cb67f2b74aa
+size(dfAbs)
+
+# ╔═╡ c7427c4a-56d9-4033-9171-f6ab25711758
+first(dfAbs)
+
+# ╔═╡ 3ff80bb3-ac92-4037-9438-9dc195d13297
+last(dfAbs)
+
+# ╔═╡ 90a82dcf-e51c-4958-9f9f-9f37f2eb849f
+smr = names(dfAbs)[2:end]
+
+# ╔═╡ b3819994-d5f8-44fc-90ab-3cbec701b2a7
+@bind whichr Select(smr)
+
+# ╔═╡ 6e4a4689-1125-48ad-82c0-48d272a5e9f4
 begin
-    fmean6n5k1m, fstd6n5k1m, fthrp6n5k1m, fthr6n5k1m = thrx(wvfm6n5k1m; nsigma=2.0, waveform="filtered")
-    plot_filtered_waveform(wvfm6n5k1m; window=false, thrp=fthrp6n5k1m, thrn=fthr6n5k1m)
+	plot(dfAbs.W, dfAbs[!, whichr], label="$whichl-$whichr", lw=2)
+	xlabel!(L"\lambda (nm) ")
+	ylabel!(L"Abs (cm^{-1})")
 end
 
-# ╔═╡ d41f7733-f109-4649-bd94-f1bad8abdbb3
-md"### Filter signal
-- Filter frequency (in Hz) = $ffl6n5k1m
+# ╔═╡ 60de60f0-4cda-4e47-8c18-43ee47ab35a7
+md"""
+Read a file with the molar absorption coefficient, ϵ,  as a function of λ in Solution
+"""
 
-Filtered wvfm:
-- mean = $fmean6n5k1m
-- std = $fstd6n5k1m
-"
-
-# ╔═╡ 733c7f3b-0996-401d-80db-180b6494351c
+# ╔═╡ 98984600-57f9-4229-bebb-a7944b38a590
 begin
-    fmean7n5k1m, fstd7n5k1m, fthrp7n5k1m, fthr7n5k1m = thrx(wvfm7n5k1m; nsigma=2.0, waveform="filtered")
-    plot_filtered_waveform(wvfm7n5k1m; window=false, thrp=fthrp7n5k1m, thrn=fthr7n5k1m)
+	absorptionXSdf2 = lfi.LaserLab.load_df_from_csv(path, "absXSdf.csv", lfi.LaserLab.enG)
+	first(absorptionXSdf2,5)
 end
 
-# ╔═╡ 471d1bc5-df15-4bd1-9dc0-ef77ffe624a5
-md"### Filter signal
-- Filter frequency (in Hz) = $ffl7n5k1m
-
-Filtered wvfm:
-- mean = $fmean7n5k1m
-- std = $fstd7n5k1m
-"
-
-# ╔═╡ 427c1404-242a-4b60-933e-0ac467483906
+# ╔═╡ ebfcb91e-6574-497e-b6a0-927aae6c06f9
 begin
-    fmean8n5k1m, fstd8n5k1m, fthrp8n5k1m, fthr8n5k1m = thrx(wvfm8n5k1m; nsigma=2.0, waveform="filtered")
-    plot_filtered_waveform(wvfm8n5k1m; window=false, thrp=fthrp8n5k1m, thrn=fthr8n5k1m)
+	plot(absorptionXSdf2.λ, absorptionXSdf2.ϵ, lw=2,
+			color = :black,
+		    legend=false,
+			fmt = :png)
+	xlabel!(L"\lambda ~(nm)")
+	ylabel!(L"\epsilon ~ (M^{-1} cm^{-1})")
 end
 
-# ╔═╡ 3624a0fa-a96f-42de-8a09-8172aa52a342
-md"### Filter signal
-- Filter frequency (in Hz) = $ffl8n5k1m
+# ╔═╡ 2fccaaf1-cafb-4618-99f3-7cb3ffd00a2b
+md"""
+## Interpolate functions
+"""
 
-Filtered wvfm:
-- mean = $fmean8n5k1m
-- std = $fstd8n5k1m
-"
+# ╔═╡ a8a6b20a-ddec-49ce-b73e-50b844e96f1d
+begin
+	nodes0 = (absorptionXSdf2.λ,)
+	fϵ = interpolate(nodes0, absorptionXSdf2.ϵ, Gridded(Linear()))
+end
 
-# ╔═╡ 99abe607-0a0e-411a-8784-df5318be1db9
-md"
-	select_peaks(csvf, i0, il; fl=200.0MHz, nsigma=2.0, promsel=0.5, wsel=6.0)
-"
+# ╔═╡ ec6f092c-5996-4af3-b943-cae435bd434d
+begin
+	nodes = (dfAbs.W,)
+	fA = interpolate(nodes, dfAbs[!, whichr], Gridded(Linear()))
+end
 
-# ╔═╡ c126abdc-a067-45fe-be68-817399f31e65
-md"
-	proms(csvf::Vector{String}, fi::Integer, fe::Integer; 
-               wmus::Float64, wsym::Bool, flhz::Float64, promsel::Float64, 
-               nsigma=2.0, filtertype='Butterworth')
-"
+# ╔═╡ 5d3f8105-58f8-4484-9425-10f7cc290ebd
+md"""
+Choose the range to display functions
 
-# ╔═╡ 9d34622a-d7c4-4621-96e8-51e9b801a829
-md"
-	select_filtered_peaks(wvfm::DataFrame, thrp::Float64; 
-                               promsel::Number, wsel=0.0)
-"
+λmin
+"""
 
-# ╔═╡ 58d706c0-44f5-4514-b87b-eaf1f1940448
-function select_filtered_peaks(wvfm::DataFrame, thrp::Float64; 
-                               promsel::Number, wsel=0.0)
+# ╔═╡ 5597879e-0562-4d7a-8a1a-5a5bb312827c
+@bind λmin NumberField(0.0:1.0:1000.0, default=300.0)
 
-	wvfmFlt = filter(row -> row[:fAmpl] > thrp, wvfm)
-	pks, vals = findmaxima(wvfmFlt.fAmpl)
-	peaks2, proms = peakproms(pks, wvfmFlt.fAmpl; minprom=promsel)
+# ╔═╡ 3a63df2e-cfc0-4fbc-aeef-2533b2f7a351
+md"""
+λmax
+"""
+
+# ╔═╡ ce12313f-c3ab-45d1-9b82-c08a827d82dd
+@bind λmax NumberField(0.0:1.0:1000.0, default=600.0)
+
+# ╔═╡ f8afdfcf-8b1c-437e-828c-0040820452be
+begin
+	λs = collect(λmin:λmax)
+	ϵs = fϵ.(λs)
+	As = fA.(λs)
+	pϵ =  plot(λs, ϵs, lw=2,
+			color = :red,
+		    legend=false,
+			fmt = :png)
+	xlabel!(L"\lambda ~(nm)")
+	ylabel!(L"\epsilon ~ (M^{-1} cm^{-1})")
+	pA = plot(λs, As, lw=2,
+			color = :blue,
+		    legend=false,
+			fmt = :png)
+	xlabel!(L"\lambda ~(nm)")
+	ylabel!(L"A")
+	plot(pϵ, pA, layout = (1, 2), legend = false, fmt = :png)
+end
+
+# ╔═╡ 06ba5f65-f6d7-4997-9c5f-17bb3299cb62
+fml_density(λs, fϵ, fA) = N_A * fA.(λs) ./(1e+3 * fϵ.(λs))
+
+# ╔═╡ 03d439c4-a469-4313-8a9d-df8022cccb9c
+fml_density(λs, fϵ, fA)
+
+# ╔═╡ 01eb9d54-22f0-4b1a-aca7-485879da86f3
+begin
+	mls = fml_density(λs, fϵ, fA) /mol^-1
+	pm =  plot(λs, mls, lw=2,
+			color = :red,
+		    legend=false,
+			fmt = :png)
+	xlabel!(L"\lambda ~(nm)")
+	ylabel!(L"ρ ~ (mol/cm2^")
+end
+
+# ╔═╡ 9cbc102a-81e3-4744-881d-ca6cbb92b5e1
+md"""
+The measurement is not reliable (due to rounding errors) for large values of λ. We can limit the range to reasonable values.
+"""
+
+# ╔═╡ fd12cadf-d01c-4402-9be1-bab951d69f66
+@bind λamin NumberField(0.0:1.0:1000.0, default=350.0)
+
+# ╔═╡ 27c4bae3-ab5f-47e7-baf2-10f9f0355ec3
+@bind λamax NumberField(0.0:1.0:1000.0, default=450.0)
+
+# ╔═╡ 04f47b50-0ad7-46e7-8cf8-ed091db60e8f
+begin
+	λ2s = collect(λamin:λamax)
+	mls2 = fml_density(λ2s, fϵ, fA) /mol^-1
+	pm2 =  plot(λ2s, mls2, lw=2,
+			color = :red,
+		    legend=false,
+			fmt = :png)
+	xlabel!(L"\lambda ~(nm)")
+	ylabel!(L"ρ ~ (mol/cm2^")
+end
+
+# ╔═╡ 4af1f223-5c82-44f6-bef5-cd55732cefff
+Γ= mean(mls2)
+
+# ╔═╡ 601b989e-0d24-4b3d-939b-646259885258
+σΓ = std(mls2)
+
+# ╔═╡ 9fe25b91-f22b-414e-a472-5da1768db233
+σr = σΓ / Γ
+
+# ╔═╡ 3016b59c-f0b9-429e-9b77-af9caaef7d08
+md"""
+From this data we can extract the mean coverage and an error:
+
+- Γ = $(round(Γ, sigdigits=3)) ``mol/cm^2``
+- σΓ = $(round(σΓ, sigdigits=2)) ``mol/cm^2``
+- σΓ/Γ = $(round(σr, sigdigits=2))
+"""
+
+# ╔═╡ ce7a7d41-aede-4412-8be5-c500ecfc7c8c
+md"""
+Finally we save the data
+"""
+
+# ╔═╡ 0e027425-3161-4414-b4af-0582b5c70789
+begin
+	mldf = DataFrame("Γ" => Γ, "σΓ" => σΓ)
+	dfname = string(path, "/", whichl, "_", whichr, ".csv")
+	CSV.write(dfname, mldf)
+md"""
+write file : $dfname
+"""
+end
+
+# ╔═╡ e90f3c5c-21c6-4ad2-8ba1-d2aa23bad785
+md" Check to read ml coverage data $(@bind readb CheckBox(false))"
+
+# ╔═╡ 2d01e7e9-8f0d-4ea3-a4e7-9555560ddf59
+if readb
+	files = [string(whichl,"_",name,".csv") for name in smr[1:end]]
+	Gs = zeros(length(files))
+	sGs = zeros(length(files))
+	for (i, file) in enumerate(files) 
+		dfb= lfi.LaserLab.load_df_from_csv(path, file, lfi.LaserLab.enG)
+		Gs[i] = dfb.Γ[1]
+		sGs[i] = dfb.σΓ[1]
+	end
+end
+
+# ╔═╡ f8c82ba2-fefe-42a6-9fcf-cc3e914687c9
+function xnames(files)
+	sf = split.(files,"_")
+	sf2 = [f[2] for f in sf]
+	sf3 = split.(sf2,".")
+	sf4 = [f[1] for f in sf3]
+	sf4
+end
+
+# ╔═╡ c2c20014-edbb-42a6-853e-d996b492e873
+if readb
+	namex = xnames(files)
+	pngf = string(path,"/", whichl,"_cov.png")
+	pp1 = scatter(namex, Gs, yerror=sGs,
+	          label=whichl,
+			  markersize=3,
+			  color = :black,
+	          legend=true,
+		   	  fmt = :png)
 	
-	if length(peaks2) == 0
-		return Nothing 
-	end
-	
-	peaks2, widths, leftedge, rightedge = peakwidths(peaks2, wvfmFlt.fAmpl, proms; minwidth=wsel)
-
-	ys = [wvfmFlt.fAmpl[i] for i in peaks2]
-	xs = [wvfmFlt.Time[i] for i in peaks2]
-	npeaks = length(peaks2)
-	xbase = ones(npeaks,1)*[promsel]
-	
-	return wvfmFlt, SPeaks(peaks2, proms, widths, leftedge, rightedge, xs,ys, xbase, promsel)
 end
 
-# ╔═╡ f6902608-37a4-4c63-98d4-6ad7a704907c
-function select_peaks(csvf::Vector{String}, i0::Integer, il::Integer; 
-					  wmus::Float64, wsym::Bool, flhz::Float64, promsel::Number, 
-               		  nsigma=2.0, filtertype="Butterworth")
-	SPK = []
-	for fileNumber in i0:il
-		wvfm = read_waveform(csvf,fileNumber; wmus=wmus, wsym=wsym)
-		filter_signal_lp!(wvfm, wmus; filtertype=filtertype, flhz=flhz, n=4)
-		_, _, thrp, _ = thrx(wvfm; nsigma=nsigma, waveform="filtered")
-		result = select_filtered_peaks(wvfm, thrp; promsel = promsel, wsel=0.0)
-		if result != Nothing
-			_, speaks = result
-			push!(SPK,speaks)
-		end
-	end
-	SPK
+# ╔═╡ 3acf1087-cca7-4edd-b761-d9130a1f0dce
+if readb
+png(pngf)
 end
 
-# ╔═╡ 00c178f8-d4b9-4822-937a-f4e82da84f11
-function proms(csvf::Vector{String}, fi::Integer, fe::Integer; 
-               wmus::Float64, wsym::Bool, flhz::Float64, promsel::Number, 
-               nsigma=2.0, filtertype="Butterworth")
-	
-	spks0 = select_peaks(csvf, fi, fe; wmus=wmus, wsym=wsym, flhz=flhz,
-	                     promsel=promsel)
-	sP = reduce(vcat,[spks0[i].proms for i in 1:length(spks0)])
-	sW = reduce(vcat,[spks0[i].widths for i in 1:length(spks0)])
-	return sP, sW
-end
+# ╔═╡ 4f4c05b2-79ca-4f26-b8f5-44a724712cdf
+md"""
+png saved in $pngf
+"""
 
-# ╔═╡ 323336be-94ef-4de9-830b-3733625d30b4
-begin
-	P6n5k1m, W6n5k1m = proms(fls6n5k1m, 1, n6n5k1m;  
-	                 wmus=wmus100mus, wsym=true, flhz=ffl6n5k1m, promsel=0.5)
-	
-	hW6n5k1m = lfi.LaserLab.hist1d(W6n5k1m, 20, 5.0, 15.0)
-	hP6n5k1m = lfi.LaserLab.hist1d(P6n5k1m, 20, 0.0, 10.0)
-end
-
-# ╔═╡ ed7d8551-7299-4800-9b2c-5c0c9f27424d
-lfi.LaserLab.hist1d(hP6n5k1m, "Prominence (promsel=0.5)")
-
-
-# ╔═╡ 79518efa-e5a6-4c56-bb69-4b3cc8b231e5
-lfi.LaserLab.hist1d(hW6n5k1m, "Width")
-
-# ╔═╡ 4d4435c4-1b2d-418d-ba0c-8b6e05cd7ee5
-begin
-	P7n5k1m, W7n5k1m = proms(fls7n5k1m, 1, n7n5k1m;  
-	                 wmus=wmus100mus, wsym=true, flhz=ffl7n5k1m, promsel=1.5)
-	
-	hW7n5k1m = lfi.LaserLab.hist1d(W7n5k1m, 20, 5.0, 15.0)
-	hP7n5k1m = lfi.LaserLab.hist1d(P7n5k1m, 20, 0.0, 10.0)
-end
-
-# ╔═╡ 7eaac105-406c-43c1-acbb-9481708f1948
-lfi.LaserLab.hist1d(hP7n5k1m, "Prominence (promsel=0.5)")
-
-# ╔═╡ 07a50870-7241-4649-8db7-72dec6a95810
-lfi.LaserLab.hist1d(hW7n5k1m, "Width")
-
-# ╔═╡ 7225258a-ce96-4c53-b476-056a6e90660a
-begin
-	P8n5k1m, W8n5k1m = proms(fls8n5k1m, 1, n8n5k1m;  
-	                 wmus=wmus100mus, wsym=true, flhz=ffl8n5k1m, promsel=1.5)
-	
-	hW8n5k1m = lfi.LaserLab.hist1d(W8n5k1m, 20, 5.0, 15.0)
-	hP8n5k1m = lfi.LaserLab.hist1d(P8n5k1m, 20, 0.0, 10.0)
-end
-
-# ╔═╡ 7a391586-263d-4c53-b4c3-12f98a120905
-lfi.LaserLab.hist1d(hP8n5k1m, "Prominence (promsel=0.5)")
-
-# ╔═╡ 8545525d-a0ea-45cf-b6b7-d111d5244f4c
-lfi.LaserLab.hist1d(hW8n5k1m, "Width")
-
-# ╔═╡ a840300f-0724-44c8-ba08-d7b59491e0e4
-md"
-	plot_filtered_peaks(wvfmFlt, spks)
-"
-
-# ╔═╡ c1894849-5d29-4857-a715-9b91ffe8163d
-function plot_filtered_peaks(wvfmFlt, spks)
-	plot(wvfmFlt.fAmpl, lw=2, label=false)
-	scatter!(spks.peaks, spks.ys, label="peak")
-	scatter!(spks.leftedge, spks.xbase, label="leftedge")
-	scatter!(spks.rightedge, spks.xbase, label="rightedge")
-	hline!([spks.promsel], label=false)
-	xlabel!("peak index")
-	ylabel!("peak amplitude")
-end
-
-# ╔═╡ d0a2d2ef-b439-46cd-8ba6-a17469a2cc96
-begin
-	r6n5k1m = select_filtered_peaks(wvfm6n5k1m, fthrp6n5k1m; promsel = sprom6n5k1m, wsel=0.0);
-	if r6n5k1m != Nothing
-		wvflt6n5k1m, spk6n5k1m = r6n5k1m
-		plot_filtered_peaks(wvflt6n5k1m, spk6n5k1m)
-	end
-end
-
-# ╔═╡ afc314ec-4a3a-4b2e-9bb3-ddb8d3cff733
-begin
-	r7n5k1m = select_filtered_peaks(wvfm7n5k1m, fthrp7n5k1m; promsel = sprom7n5k1m, wsel=0.0);
-	if r7n5k1m != Nothing
-		wvflt7n5k1m, spk7n5k1m = r7n5k1m
-		plot_filtered_peaks(wvflt7n5k1m, spk7n5k1m)
-	end
-end
-
-# ╔═╡ d7f36e9c-76dd-4791-869b-7d4000a4a675
-begin
-	r8n5k1m = select_filtered_peaks(wvfm8n5k1m, fthrp8n5k1m; promsel = sprom8n5k1m, wsel=0.0);
-	if r8n5k1m != Nothing
-		wvflt8n5k1m, spk8n5k1m = r8n5k1m
-		plot_filtered_peaks(wvflt8n5k1m, spk8n5k1m)
-	end
-end
-
-# ╔═╡ 083a5ba2-7de3-4e51-962f-08289fe987ce
-md"
-	function subtract_laser(tv::Vector{Float64})
-"
-
-# ╔═╡ 773563de-8eb2-4ea4-87fc-86609e35370f
-function subtract_laser(tv::Vector{Float64}, ltus::Float64)
-	tv - ltus * floor.(tv/ltus)
-end
-
-# ╔═╡ c93d5830-1a1b-408b-8736-54deaa734aac
-begin
-    spks6n5k1m = select_peaks(fls6n5k1m, 1, n6n5k1m; wmus=wmus100mus, wsym=true, flhz=ffl6n5k1m, promsel=sprom6n5k1m)
-    t6n5k1m = reduce(vcat,[subtract_laser(spks6n5k1m[i].xs, tlus2) for i in 1:length(spks6n5k1m)])
-    hp6n5k1m = lfi.LaserLab.hist1d(t6n5k1m, 20, 0.0, 2.0)
-end
-
-# ╔═╡ e180cf32-a993-493b-a6d3-c9939d95f367
-lfi.LaserLab.hist1d(hp6n5k1m, "times")
-
-# ╔═╡ 96dcbbc0-96e8-4bf8-a724-49e267f503f7
-begin
-    spks7n5k1m = select_peaks(fls7n5k1m, 1, n7n5k1m; wmus=wmus100mus, wsym=true, flhz=ffl7n5k1m, promsel=sprom7n5k1m)
-    t7n5k1m = reduce(vcat,[subtract_laser(spks7n5k1m[i].xs, tlus2) for i in 1:length(spks7n5k1m)])
-    hp7n5k1m = lfi.LaserLab.hist1d(t7n5k1m, 20, 0.0, 2.0)
-end
-
-# ╔═╡ cb23f60e-0764-427e-b263-6fdf89af75e8
-lfi.LaserLab.hist1d(hp7n5k1m, "times")
-
-# ╔═╡ 7a1090f5-4190-4742-a683-566c8a8022be
-begin
-    spks8n5k1m = select_peaks(fls8n5k1m, 1, n8n5k1m; wmus=wmus100mus, wsym=true, flhz=ffl8n5k1m, promsel=sprom8n5k1m)
-    t8n5k1m = reduce(vcat,[subtract_laser(spks8n5k1m[i].xs, tlus2) for i in 1:length(spks8n5k1m)])
-    hp8n5k1m = lfi.LaserLab.hist1d(t8n5k1m, 20, 0.0, 2.0)
-end
-
-# ╔═╡ 6ba3294f-4dfb-431c-a8bf-cf7c1acb09f3
-lfi.LaserLab.hist1d(hp8n5k1m, "times")
-
-# ╔═╡ cfaf2b26-e39d-47b5-8e99-8d35dbd7b3ac
-md"
-		fourier_transform(wvfm1, ws)
-  	
-   Given waveform **wvfm1** and the data window **ws** in seconds, returns the sampling period, fourier transform amplitude and frequency
-"
-
-# ╔═╡ 13e729c1-15ff-4fcf-b3df-9247fda54109
-function fourier_transform(wvfm1, ws)
-	ts = sampling_period(wvfm1, ws)
-	tss = uconvert(s, ts)/s           # tss is the sampling period in seconds
-	F = fft(wvfm1.Ampl) |> fftshift   # fourier transform
-	freqs = fftfreq(length(wvfm1.Time), 1.0/tss) |> fftshift  # frequencies in Hz
-	ts, F, freqs
-end
-
-# ╔═╡ 52e6ee88-f49d-420e-9a99-9c8c54910362
-md"
-	plot_fft(wvfm1, ws; window=false, is=-1, il=-1)
-"
-
-# ╔═╡ 604081ba-c975-414a-a8b6-68a6c401172f
-function plot_fft(wvfm1, ws; window=false, is=-1, il=-1)
-	ts, F, freqs = fourier_transform(wvfm1, ws)
-	xl = Integer(length(freqs))
-	xi = Integer(2 + xl/2)
-	fmhz = freqs[xi:xl] * 1e-6      # frequencies in MHz
-	ampl = abs.(F)[xi:xl]
-	if window
-		scatter(fmhz[is:il], ampl[is:il],  markersize=2,
-				  color = :black,
-	    		  label=false,
-				  fmt = :png)
-	else
-		plot(fmhz, ampl)
-	end
-	
-	xlabel!("frequency (MHz)")
-	ylabel!("Amplitude")
-end
-
-# ╔═╡ 2aa64aa2-90fc-480a-b5a3-37ca6e06158c
-begin
-	mean6n5k1m, std6n5k1m, thrp6n5k1m, thrn6n5k1m = thrx(wvfm6n5k1m; nsigma=3.0, waveform="raw");
-	pfw6n5k1m = plot_filtered_waveform(wvfm6n5k1m; window=false, waveform="raw", thrp=thrp6n5k1m, thrn=thrn6n5k1m, scatter=false)
-	pfft6n5k1m =plot_fft(wvfm6n5k1m,wmus100mus)
-	plot(pfw6n5k1m, pfft6n5k1m)
-end
-
-# ╔═╡ 8a4386f6-b364-4e64-ba9a-5029260288c5
-md"
-Unfiltered wvfm:
-- mean = $(round(mean6n5k1m, sigdigits=4))
-- std = $(round(std6n5k1m, sigdigits=4))
-"
-
-# ╔═╡ e533df55-59d5-484a-85c8-936de7b6396a
-begin
-	mean7n5k1m, std7n5k1m, thrp7n5k1m, thrn7n5k1m = thrx(wvfm7n5k1m; nsigma=3.0, waveform="raw");
-	pfw7n5k1m = plot_filtered_waveform(wvfm7n5k1m; window=false, waveform="raw", thrp=thrp7n5k1m, thrn=thrn7n5k1m, scatter=false)
-	pfft7n5k1m =plot_fft(wvfm7n5k1m,wmus100mus)
-	plot(pfw7n5k1m, pfft7n5k1m)
-end
-
-# ╔═╡ 0059069f-cdb4-45d2-9dc7-306e4f82bb72
-md"
-Unfiltered wvfm:
-- mean = $(round(mean7n5k1m, sigdigits=4))
-- std = $(round(std7n5k1m, sigdigits=4))
-"
-
-# ╔═╡ 5c5b2e29-fb2b-4096-af0f-6fd348348067
-begin
-	mean8n5k1m, std8n5k1m, thrp8n5k1m, thrn8n5k1m = thrx(wvfm8n5k1m; nsigma=3.0, waveform="raw");
-	pfw8n5k1m = plot_filtered_waveform(wvfm8n5k1m; window=false, waveform="raw", thrp=thrp8n5k1m, thrn=thrn8n5k1m, scatter=false)
-	pfft8n5k1m =plot_fft(wvfm8n5k1m,wmus100mus)
-	plot(pfw8n5k1m, pfft8n5k1m)
-end
-
-# ╔═╡ 8bd32ac5-886a-490f-b849-657e8f9d90a8
-md"
-Unfiltered wvfm:
-- mean = $(round(mean8n5k1m, sigdigits=4))
-- std = $(round(std8n5k1m, sigdigits=4))
-"
-
-# ╔═╡ 1928ef8d-d7df-4b2b-9b9a-f958cacecaa3
-md"
-	plot_waveform(wvfm, mean, std, nsigma, nsigma2; sctter=false)
-"
-
-# ╔═╡ 17fffef0-699e-4aa2-8931-41afa2ef4da1
-function plot_waveform(wvfm, mean, std, nsigma, nsigma2; sct=false, trace=false)
-	if sct
-		p1 = scatter(wvfm.Time, wvfm.Ampl,  markersize=2,
-				  color = :black,
-	    		  label=false,
-				  fmt = :png)
-	elseif trace
-		p1 = plot(wvfm.Ampl, lw=2, label=false, fmt = :png)
-	else
-		p1 = plot(wvfm.Time, wvfm.Ampl, lw=2, label=false, fmt = :png)
-	end
-	hline!([mean - nsigma * std], label=false, fmt = :png)
-	hline!([mean + nsigma * std], label=false, fmt = :png)
-	hline!([mean - nsigma2 * std], label=false, fmt = :png)
-	hline!([mean + nsigma2 * std], label=false, fmt = :png)
-	xlabel!("t (μs)")
-	ylabel!("I (mV)")
-	p1
-end
-
-# ╔═╡ c056af02-693b-4837-ab7b-1c4c7b7a9ca5
-md"### glob_files
-	function glob_files(path)
-"
-
-# ╔═╡ 8d02c42c-452e-4ad3-9b27-95ac7ea5e210
-function glob_files(path)
-	sdr = string(path, "/rep*")
-	drs = glob(sdr) 
-	FLS = String[]
-	for dr in drs
-		fls   = string(dr, "/C1*.csv")
-		csf = glob(fls) 
-		append!(FLS, csf)
-	end
-	FLS
-end
-
-# ╔═╡ 380a7a82-0924-42b6-8698-7573b389e9ad
-function glob_files2(path; wvl="650nm")
-	sdr = string(path, "/", wvl,"*")
-	drs = glob(sdr) 
-	FLS = String[]
-	for dr in drs
-		fls   = string(dr, "/C1*.csv")
-		csf = glob(fls) 
-		append!(FLS, csf)
-	end
-	FLS
-end
-
-# ╔═╡ f62e8d24-10c6-42e9-a68e-f2d68f950ed1
-md"### fit_peaks
-	fit_peaks(htime; pa0=[100.0, 0.5], i0=1)
-"
-
-# ╔═╡ e45bd546-c5fc-4914-b237-3df5f473363d
-function fit_peaks(htime; pa0=[100.0, 0.5], i0=1)
-	expo(t, N, λ) = N*exp(-t/λ)
-	mexp(t, p) = p[1] * exp.(-t/p[2])
-	tdata = lfi.LaserLab.centers(htime)
-	vdata = htime.weights
-	il = length(tdata)
-	fit = curve_fit(mexp, tdata[i0:il], vdata[i0:il], pa0)
-	coef(fit), stderror(fit), expo.(tdata, coef(fit)...)
-end
-
-# ╔═╡ 8e0ff0be-584e-4106-8ce6-2b4a7a874079
-cofe6n5k1m, stder6n5k1m, tft6n5k1m = fit_peaks(hp6n5k1m; pa0=[100.0, 0.5], i0=1)
-
-# ╔═╡ 8c825691-23f7-481a-b837-73e0f78893f5
-
-
-# ╔═╡ 5e6ea853-c7a2-44ce-acb5-628ed36f8180
-md"### plot_fit
-	plot_fit(htime, coeff, tft)
-"
-
-# ╔═╡ 8953d6fb-f9ad-4f95-b022-5ac95058dbf7
-function plot_fit(htime, coeff, tft; savefig=false, fn="")
-	tdata =lfi.LaserLab.centers(htime)
-	vdata =htime.weights
-	ps1 = scatter(tdata, vdata, yerr=sqrt.(vdata), markersize=2,
-				  color = :black,
-	    		  label="data",
-				  fmt = :png)
-	pp = plot(ps1, tdata, tft, lw=2, label="μ = $(round(coeff[2]*1000, sigdigits=2)) ns", fmt = :png)
-	xlabel!("t (μs)")
-	ylabel!("frequency")
-	if savefig
-		png(pp, fn)
-	end
-	return pp 
-end
-
-# ╔═╡ 66cf177e-5fbb-4420-bc43-f8fa1ffcea51
-begin
-	pp6n5k1m = plot_fit(hp6n5k1m, cofe6n5k1m, tft6n5k1m; savefig=true,
-		              fn="b62A2_500kHz_650nm_100mus_fit.png")
-	plot(pp6n5k1m)
-end
-
-# ╔═╡ d2ec6ab2-3da8-4f46-83be-583addf68f38
-begin
-    pp6n5k1mx = plot_fit(hp6n5k1m, cofe6n5k1m, tft6n5k1m; savefig=true,
-	              fn="b62A2_500kHz_650nm_100mus_fit.png")
-	plot(pp6n5k1mx)
-end
-
-# ╔═╡ 526d99d2-4571-4976-8a58-e2d88f79d834
-begin
-    cofe7n5k1m, stder7n5k1m, tft7n5k1m = fit_peaks(hp7n5k1m; pa0=[100.0, 0.5], i0=1)
-    pp7n5k1m = plot_fit(hp7n5k1m, cofe7n5k1m, tft7n5k1m; savefig=true,
-	              fn="b62A2_500kHz_700nm_100mus_fit.png")
-	plot(pp7n5k1m)
-end
-
-# ╔═╡ 3a950c36-11b0-4dd5-9656-705f76194fe5
-begin
-    cofe8n5k1m, stder8n5k1m, tft8n5k1m = fit_peaks(hp8n5k1m; pa0=[100.0, 0.5], i0=1)
-    pp8n5k1m = plot_fit(hp8n5k1m, cofe8n5k1m, tft8n5k1m; savefig=true,
-	              fn="b62A2_500kHz_730nm_100mus_fit.png")
-	plot(pp8n5k1m)
-end
-
-# ╔═╡ 6c95fd00-0023-4f00-b495-050ca098cfb6
-
+# ╔═╡ 2fbf9403-9950-4c80-bf57-01b2cd32e6bf
+xnames(files)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1101,6 +404,7 @@ Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
@@ -1115,19 +419,20 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 UnitfulEquivalences = "da9c4bc3-91c8-4f02-8a40-6b990d2a7e0c"
 
 [compat]
-CSV = "~0.10.2"
+CSV = "~0.10.4"
 DSP = "~0.7.5"
 DataFrames = "~1.3.2"
-Distributions = "~0.25.49"
+Distributions = "~0.25.53"
 FFTW = "~1.4.6"
 Glob = "~1.3.0"
 Images = "~0.25.1"
 Interpolations = "~0.13.5"
+LaTeXStrings = "~1.3.0"
 LsqFit = "~0.12.1"
 Peaks = "~0.4.0"
 PhysicalConstants = "~0.2.1"
-Plots = "~1.26.0"
-PlutoUI = "~0.7.35"
+Plots = "~1.27.5"
+PlutoUI = "~0.7.38"
 QuadGK = "~2.4.2"
 StatsBase = "~0.33.16"
 Unitful = "~1.11.0"
@@ -1170,9 +475,9 @@ version = "0.2.0"
 
 [[deps.ArrayInterface]]
 deps = ["Compat", "IfElse", "LinearAlgebra", "Requires", "SparseArrays", "Static"]
-git-tree-sha1 = "9f8186bc19cd1c129d367cb667215517cc03e144"
+git-tree-sha1 = "8d4a07999261b4461daae67b2d1e12ae1a097741"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "5.0.1"
+version = "5.0.6"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -1185,9 +490,9 @@ version = "1.0.1"
 
 [[deps.AxisArrays]]
 deps = ["Dates", "IntervalSets", "IterTools", "RangeArrays"]
-git-tree-sha1 = "d127d5e4d86c7680b20c35d40b503c74b9a39b5e"
+git-tree-sha1 = "cf6875678085aed97f52bfc493baaebeb6d40bcb"
 uuid = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
-version = "0.4.4"
+version = "0.4.5"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -1205,9 +510,9 @@ version = "0.4.1"
 
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "9519274b50500b8029973d241d32cfbf0b127d97"
+git-tree-sha1 = "873fb188a4b9d76549b81465b1f75c82aaf59238"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-version = "0.10.2"
+version = "0.10.4"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -1229,9 +534,9 @@ version = "0.2.2"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "c9a6160317d1abe9c44b3beb367fd448117679ca"
+git-tree-sha1 = "9950387274246d08af38f6eef8cb5480862a435f"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.13.0"
+version = "1.14.0"
 
 [[deps.ChangesOfVariables]]
 deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
@@ -1288,9 +593,9 @@ version = "0.3.0"
 
 [[deps.Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "SHA", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "44c37b4636bc54afac5c574d2d02b625349d6582"
+git-tree-sha1 = "96b0bc6c52df76506efc8a441c6cf1adcb1babc4"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "3.41.0"
+version = "3.42.0"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1395,9 +700,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "9d3c0c762d4666db9187f363a76b47f7346e673b"
+git-tree-sha1 = "5a4168170ede913a2cd679e53c2123cb4b889795"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.49"
+version = "0.25.53"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -1411,9 +716,9 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[deps.DualNumbers]]
 deps = ["Calculus", "NaNMath", "SpecialFunctions"]
-git-tree-sha1 = "84f04fe68a3176a583b864e492578b9466d87f1e"
+git-tree-sha1 = "5837a837389fccf076445fce071c8ddaea35a566"
 uuid = "fa6b7ba4-c1ee-5f82-b5fc-ecf0adba8f74"
-version = "0.6.6"
+version = "0.6.8"
 
 [[deps.EarCut_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1422,15 +727,16 @@ uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.2.3+0"
 
 [[deps.EllipsisNotation]]
-git-tree-sha1 = "18ee049accec8763be17a933737c1dd0fdf8673a"
+deps = ["ArrayInterface"]
+git-tree-sha1 = "d064b0340db45d48893e7604ec95e7a2dc9da904"
 uuid = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
-version = "1.0.0"
+version = "1.5.0"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "ae13fcbc7ab8f16b0856729b050ef0c446aa3492"
+git-tree-sha1 = "bad72f730e9e91c08d9427d5e8db95478a3c323d"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
-version = "2.4.4+0"
+version = "2.4.8+0"
 
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
@@ -1470,15 +776,15 @@ version = "1.13.0"
 
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates", "Mmap", "Printf", "Test", "UUIDs"]
-git-tree-sha1 = "04d13bfa8ef11720c24e4d840c0033d145537df7"
+git-tree-sha1 = "129b104185df66e408edd6625d480b7f9e9823a0"
 uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
-version = "0.9.17"
+version = "0.9.18"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Statistics"]
-git-tree-sha1 = "4c7d3757f3ecbcb9055870351078552b7d1dbd2d"
+git-tree-sha1 = "246621d23d1f43e3b9c368bf3b72b2331a27c286"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "0.13.0"
+version = "0.13.2"
 
 [[deps.FiniteDiff]]
 deps = ["ArrayInterface", "LinearAlgebra", "Requires", "SparseArrays", "StaticArrays"]
@@ -1534,15 +840,15 @@ version = "3.3.6+0"
 
 [[deps.GR]]
 deps = ["Base64", "DelimitedFiles", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Printf", "Random", "RelocatableFolders", "Serialization", "Sockets", "Test", "UUIDs"]
-git-tree-sha1 = "9f836fb62492f4b0f0d3b06f55983f2704ed0883"
+git-tree-sha1 = "af237c08bda486b74318c8070adb96efa6952530"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.64.0"
+version = "0.64.2"
 
 [[deps.GR_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Pkg", "Qt5Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "a6c850d77ad5118ad3be4bd188919ce97fffac47"
+git-tree-sha1 = "cd6efcf9dc746b06709df14e462f0a3fe0786b1e"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.64.0+0"
+version = "0.64.2+0"
 
 [[deps.GeometryBasics]]
 deps = ["EarCut_jll", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
@@ -1783,15 +1089,15 @@ version = "0.13.5"
 
 [[deps.IntervalSets]]
 deps = ["Dates", "EllipsisNotation", "Statistics"]
-git-tree-sha1 = "3cc368af3f110a767ac786560045dceddfc16758"
+git-tree-sha1 = "bcf640979ee55b652f3b01650444eb7bbe3ea837"
 uuid = "8197267c-284f-5f27-9208-e0e47529a953"
-version = "0.5.3"
+version = "0.5.4"
 
 [[deps.InverseFunctions]]
 deps = ["Test"]
-git-tree-sha1 = "a7254c0acd8e62f1ac75ad24d5db43f5f19f3c65"
+git-tree-sha1 = "91b5dcf362c5add98049e6c29ee756910b03051d"
 uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
-version = "0.1.2"
+version = "0.1.3"
 
 [[deps.InvertedIndices]]
 git-tree-sha1 = "bee5f1ef5bf65df56bdd2e40447590b272a5471f"
@@ -1815,9 +1121,9 @@ version = "1.0.0"
 
 [[deps.JLD2]]
 deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "Printf", "Reexport", "TranscodingStreams", "UUIDs"]
-git-tree-sha1 = "28b114b3279cdbac9a61c57b3e6548a572142b34"
+git-tree-sha1 = "81b9477b49402b47fbe7f7ae0b252077f53e4a08"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.21"
+version = "0.4.22"
 
 [[deps.JLLWrappers]]
 deps = ["Preferences"]
@@ -1868,9 +1174,9 @@ version = "1.3.0"
 
 [[deps.Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
-git-tree-sha1 = "a6552bfeab40de157a297d84e03ade4b8177677f"
+git-tree-sha1 = "6f14549f7760d84b2db7a9b10b88cd3cc3025730"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.15.12"
+version = "0.15.14"
 
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
@@ -1949,9 +1255,9 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "e5718a00af0ab9756305a0392832c8952c7426c1"
+git-tree-sha1 = "58f25e56b706f95125dcb796f39e1fb01d913a71"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.6"
+version = "0.3.10"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -2047,9 +1353,9 @@ version = "0.3.7"
 
 [[deps.NearestNeighbors]]
 deps = ["Distances", "StaticArrays"]
-git-tree-sha1 = "16baacfdc8758bc374882566c9187e785e85c2f0"
+git-tree-sha1 = "ded92de95031d4a8c61dfb6ba9adb6f1d8016ddd"
 uuid = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
-version = "0.4.9"
+version = "0.4.10"
 
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore"]
@@ -2094,9 +1400,9 @@ uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "648107615c15d4e09f7eca16307bc821c1f718d8"
+git-tree-sha1 = "ab05aa4cc89736e95915b01e7279e61b1bfe33b8"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "1.1.13+0"
+version = "1.1.14+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -2129,9 +1435,9 @@ version = "8.44.0+0"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "7e2166042d1698b6072352c74cfd1fca2a968253"
+git-tree-sha1 = "e8185b83b9fc56eb6456200e873ce598ebc7f262"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.11.6"
+version = "0.11.7"
 
 [[deps.PNGFiles]]
 deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
@@ -2153,9 +1459,9 @@ version = "0.12.3"
 
 [[deps.Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "13468f237353112a01b2d6b32f3d0f80219944aa"
+git-tree-sha1 = "621f4f3b4977325b9128d5fae7a8b4829a0c2222"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.2.2"
+version = "2.2.4"
 
 [[deps.Peaks]]
 deps = ["Compat"]
@@ -2186,28 +1492,28 @@ uuid = "eebad327-c553-4316-9ea0-9fa01ccd7688"
 version = "0.1.1"
 
 [[deps.PlotThemes]]
-deps = ["PlotUtils", "Requires", "Statistics"]
-git-tree-sha1 = "a3a964ce9dc7898193536002a6dd892b1b5a6f1d"
+deps = ["PlotUtils", "Statistics"]
+git-tree-sha1 = "8162b2f8547bc23876edd0c5181b27702ae58dce"
 uuid = "ccf2f8ad-2431-5c83-bf29-c5338b663b6a"
-version = "2.0.1"
+version = "3.0.0"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Statistics"]
-git-tree-sha1 = "6f1b25e8ea06279b5689263cc538f51331d7ca17"
+git-tree-sha1 = "bb16469fd5224100e422f0b027d26c5a25de1200"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.1.3"
+version = "1.2.0"
 
 [[deps.Plots]]
-deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "23d109aad5d225e945c813c6ebef79104beda955"
+deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
+git-tree-sha1 = "88ee01b02fba3c771ac4dce0dfc4ecf0cb6fb772"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.26.0"
+version = "1.27.5"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "85bf3e4bd279e405f91489ce518dedb1e32119cb"
+git-tree-sha1 = "670e559e5c8e191ded66fa9ea89c97f10376bb4c"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.35"
+version = "0.7.38"
 
 [[deps.Polynomials]]
 deps = ["LinearAlgebra", "MutableArithmetics", "RecipesBase"]
@@ -2217,15 +1523,15 @@ version = "3.0.0"
 
 [[deps.PooledArrays]]
 deps = ["DataAPI", "Future"]
-git-tree-sha1 = "db3a23166af8aebf4db5ef87ac5b00d36eb771e2"
+git-tree-sha1 = "28ef6c7ce353f0b35d0df0d5930e0d072c1f5b9b"
 uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
-version = "1.4.0"
+version = "1.4.1"
 
 [[deps.Preferences]]
 deps = ["TOML"]
-git-tree-sha1 = "de893592a221142f3db370f48290e3a2ef39998f"
+git-tree-sha1 = "d3538e7f8a790dc8903519090857ef8e1283eecd"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
-version = "1.2.4"
+version = "1.2.5"
 
 [[deps.PrettyTables]]
 deps = ["Crayons", "Formatting", "Markdown", "Reexport", "Tables"]
@@ -2239,9 +1545,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "afadeba63d90ff223a6a48d2009434ecee2ec9e8"
+git-tree-sha1 = "d7a7aef8f8f2d537104f170139553b14dfe39fe9"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.7.1"
+version = "1.7.2"
 
 [[deps.QOI]]
 deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]
@@ -2263,9 +1569,9 @@ version = "2.4.2"
 
 [[deps.Quaternions]]
 deps = ["DualNumbers", "LinearAlgebra", "Random"]
-git-tree-sha1 = "d0baaa6bcbac4369f1ecfb4a8c44b96ef3e5acb9"
+git-tree-sha1 = "522770af103809e8346aefa4b25c31fbec377ccf"
 uuid = "94ee1d12-ae83-5a48-8b1c-48b8ff168ae0"
-version = "0.5.1"
+version = "0.5.3"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
@@ -2293,9 +1599,9 @@ version = "1.2.1"
 
 [[deps.RecipesPipeline]]
 deps = ["Dates", "NaNMath", "PlotUtils", "RecipesBase"]
-git-tree-sha1 = "995a812c6f7edea7527bb570f0ac39d0fb15663c"
+git-tree-sha1 = "dc1e451e15d90347a7decc4221842a022b011714"
 uuid = "01d81517-befc-4cb6-b9ec-a95719d0359c"
-version = "0.5.1"
+version = "0.5.2"
 
 [[deps.Reexport]]
 git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
@@ -2334,9 +1640,9 @@ version = "0.3.0+0"
 
 [[deps.Roots]]
 deps = ["CommonSolve", "Printf", "Setfield"]
-git-tree-sha1 = "0abe7fc220977da88ad86d339335a4517944fea2"
+git-tree-sha1 = "6085b8ac184add45b586ed8d74468310948dcfe8"
 uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "1.3.14"
+version = "1.4.0"
 
 [[deps.Rotations]]
 deps = ["LinearAlgebra", "Quaternions", "Random", "StaticArrays", "Statistics"]
@@ -2429,9 +1735,9 @@ version = "0.6.0"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "74fb527333e72ada2dd9ef77d98e4991fb185f04"
+git-tree-sha1 = "4f6ec5d99a28e1a749559ef7dd518663c5eca3d5"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.4.1"
+version = "1.4.3"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -2451,9 +1757,9 @@ version = "0.33.16"
 
 [[deps.StatsFuns]]
 deps = ["ChainRulesCore", "HypergeometricFunctions", "InverseFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
-git-tree-sha1 = "25405d7016a47cf2bd6cd91e66f4de437fd54a07"
+git-tree-sha1 = "72e6abd6fc9ef0fa62a159713c83b7637a14b2b8"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
-version = "0.9.16"
+version = "0.9.17"
 
 [[deps.StructArrays]]
 deps = ["Adapt", "DataAPI", "StaticArrays", "Tables"]
@@ -2476,10 +1782,10 @@ uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
 version = "1.0.1"
 
 [[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "TableTraits", "Test"]
-git-tree-sha1 = "bb1064c9a84c52e277f1096cf41434b675cd368b"
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "OrderedCollections", "TableTraits", "Test"]
+git-tree-sha1 = "5ce79ce186cc678bbb5c5681ca3379d1ddae11a1"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.6.1"
+version = "1.7.0"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -2497,9 +1803,9 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.TiffImages]]
 deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "OffsetArrays", "PkgVersion", "ProgressMeter", "UUIDs"]
-git-tree-sha1 = "991d34bbff0d9125d93ba15887d6594e8e84b305"
+git-tree-sha1 = "aaa19086bc282630d82f818456bc40b4d314307d"
 uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
-version = "0.5.3"
+version = "0.5.4"
 
 [[deps.TiledIteration]]
 deps = ["OffsetArrays"]
@@ -2567,9 +1873,9 @@ version = "1.25.0+0"
 
 [[deps.WeakRefStrings]]
 deps = ["DataAPI", "InlineStrings", "Parsers"]
-git-tree-sha1 = "c69f9da3ff2f4f02e811c3323c22e5dfcb584cfa"
+git-tree-sha1 = "b1be2855ed9ed8eac54e5caff2afcdb442d52c23"
 uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
-version = "1.4.1"
+version = "1.4.2"
 
 [[deps.WoodburyMatrices]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -2787,143 +2093,58 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╟─b4f98dfc-9e44-11ec-3621-4526f6f187bd
-# ╟─52d4f953-98d1-4016-b2b3-7c234b012189
-# ╟─91726783-795a-4da6-9ca7-2d176ba328ca
-# ╟─1e429641-5615-4c2f-b466-a5e1d5cbc297
-# ╟─860a66e0-9fdb-4537-865e-bf70e7fa289a
-# ╟─1665009d-f4a8-4d3e-bc9a-3cca8c26c213
-# ╟─c9e85963-fe90-48c4-8e20-fcc92c31ce99
-# ╠═f3fea484-8430-47ab-986b-7b170bef4ba6
-# ╠═9e58009d-0244-49db-801e-362bcb895eb0
-# ╟─aedcf3c2-7d51-466c-a88e-2c681679b8b0
-# ╟─a6cd504a-1afc-4be0-81d2-0de827650526
-# ╠═252430c1-c039-4d85-a961-fa3aa51c9c69
-# ╟─38d57ccd-d0d3-44b2-9ad0-9e0ac33910c6
-# ╟─d904688d-c65a-450b-934d-d7486b93398e
-# ╟─01355b47-de67-4104-a6bc-3d773b156bae
-# ╟─46929efd-6ffd-40b5-996f-5b10be042ba5
-# ╠═2098fce4-1a4f-4c4b-825e-37afb2fdcde5
-# ╠═ffdac4df-dd39-4203-875d-c698007fc0c5
-# ╟─d8f37622-4d4c-4983-9184-b7892559cca3
-# ╠═1a5182c8-787d-4e45-91d3-ae8b523eda5d
-# ╟─8a4386f6-b364-4e64-ba9a-5029260288c5
-# ╠═2aa64aa2-90fc-480a-b5a3-37ca6e06158c
-# ╟─d41f7733-f109-4649-bd94-f1bad8abdbb3
-# ╠═4c20fc26-a692-420f-8a15-f739d73d2100
-# ╠═26f91e54-53ca-4c47-9c1b-839e572b62eb
-# ╟─097ee9e5-fec4-45ae-9cd3-cb8c890165b0
-# ╠═f21c3a51-7d70-44d5-bdae-06b4123ed0f2
-# ╟─d2bd231b-7bf9-4c12-91f2-699f43d62cdd
-# ╠═d0a2d2ef-b439-46cd-8ba6-a17469a2cc96
-# ╟─0c08fd16-9dfd-4f8f-a090-437190fd1da5
-# ╠═323336be-94ef-4de9-830b-3733625d30b4
-# ╠═ed7d8551-7299-4800-9b2c-5c0c9f27424d
-# ╠═79518efa-e5a6-4c56-bb69-4b3cc8b231e5
-# ╟─31d7b91d-15ae-4e8a-af46-160b64e16094
-# ╠═c93d5830-1a1b-408b-8736-54deaa734aac
-# ╠═e180cf32-a993-493b-a6d3-c9939d95f367
-# ╟─408c18b0-f031-4480-b521-b0329ad28011
-# ╠═8e0ff0be-584e-4106-8ce6-2b4a7a874079
-# ╠═66cf177e-5fbb-4420-bc43-f8fa1ffcea51
-# ╠═d2ec6ab2-3da8-4f46-83be-583addf68f38
-# ╟─19a7cafb-237a-4d17-bfc8-dd3d82b9a869
-# ╟─114201ce-abf4-4501-a7e4-2606f98f4343
-# ╠═5959c636-6269-48a1-84fa-ea5087cdbed8
-# ╠═86894686-5fdd-43ab-a491-e3015b6bb44d
-# ╟─f036d804-14ed-40eb-8ac9-91248df6a6f3
-# ╠═9df485bd-266d-4d1e-a49c-f06dafd55e12
-# ╟─0059069f-cdb4-45d2-9dc7-306e4f82bb72
-# ╠═e533df55-59d5-484a-85c8-936de7b6396a
-# ╟─471d1bc5-df15-4bd1-9dc0-ef77ffe624a5
-# ╠═d565ae50-ff90-430a-a186-c1a85686ccf8
-# ╠═733c7f3b-0996-401d-80db-180b6494351c
-# ╟─8bc4629f-ef4a-4fb6-b2e7-5d5ac79426fd
-# ╠═a23cd563-70c1-4fe0-a625-f300b00e2e96
-# ╟─f4886783-9d88-4971-9505-6bb20e3239c5
-# ╠═afc314ec-4a3a-4b2e-9bb3-ddb8d3cff733
-# ╟─abdc25e1-153d-4f17-9acc-14f2ef8c0f46
-# ╠═4d4435c4-1b2d-418d-ba0c-8b6e05cd7ee5
-# ╠═7eaac105-406c-43c1-acbb-9481708f1948
-# ╠═07a50870-7241-4649-8db7-72dec6a95810
-# ╟─5a72de44-72ef-408f-940b-e6015cc72fe0
-# ╠═96dcbbc0-96e8-4bf8-a724-49e267f503f7
-# ╠═cb23f60e-0764-427e-b263-6fdf89af75e8
-# ╟─0cb56f60-43b1-4580-a63f-6acccac77b80
-# ╠═526d99d2-4571-4976-8a58-e2d88f79d834
-# ╟─e57edd48-7db8-4a7e-afd9-eaebcbbc4338
-# ╟─54a713f6-f70d-4379-97a9-af8ef6327e80
-# ╠═eb5c2173-e53a-4b3f-aa77-29779fb9a437
-# ╠═2f60d20b-62af-42aa-b149-230283f9914e
-# ╟─399913df-af72-40db-b900-1605677bbfd0
-# ╠═77b76835-f30c-424e-b4d8-05e380f2a524
-# ╟─8bd32ac5-886a-490f-b849-657e8f9d90a8
-# ╠═5c5b2e29-fb2b-4096-af0f-6fd348348067
-# ╟─3624a0fa-a96f-42de-8a09-8172aa52a342
-# ╠═8c1b6c42-34a4-4398-a25b-e8a84ffa7e18
-# ╠═427c1404-242a-4b60-933e-0ac467483906
-# ╟─efb34903-19d2-48b8-8e7d-bbdd4e212e56
-# ╠═d3a5a79e-c181-4cd3-bd9f-7893cbdfb229
-# ╟─73d26e78-d026-4c0a-83d1-a097705492fb
-# ╠═d7f36e9c-76dd-4791-869b-7d4000a4a675
-# ╟─b27beaa2-d8a7-425d-843d-9fdcb8992de3
-# ╠═7225258a-ce96-4c53-b476-056a6e90660a
-# ╠═7a391586-263d-4c53-b4c3-12f98a120905
-# ╠═8545525d-a0ea-45cf-b6b7-d111d5244f4c
-# ╟─2d735473-8afa-4b6c-a832-e3b6e4f15067
-# ╠═7a1090f5-4190-4742-a683-566c8a8022be
-# ╠═6ba3294f-4dfb-431c-a8bf-cf7c1acb09f3
-# ╟─2b191d8d-12a3-49af-93ac-b4510aa19bf4
-# ╠═3a950c36-11b0-4dd5-9656-705f76194fe5
-# ╟─fde49db9-165b-4b55-928b-b0d3f2610a31
-# ╠═500c0b3b-fc21-45a7-b03d-07c413a947c9
-# ╠═79c95b20-7b71-414f-b5d6-41e4cfe373ca
-# ╟─50e2ec32-be70-444a-9c80-38770ce5da7e
-# ╠═6be64cc8-a357-477c-ae0e-cb0405de4f4b
-# ╟─fe91ac2c-b95a-4d5e-a2fe-f09f43297d4d
-# ╠═e5bf7e93-f089-4b77-a2e0-d014bdc309e1
-# ╟─0eded161-9ad3-475e-a6d2-d8068f15bad5
-# ╠═e673cdda-7032-4600-bbd0-01a291aa3eb5
-# ╟─96dad766-398d-414c-ac66-dfaa76947ffc
-# ╠═b43916ba-0499-4d82-b81c-49aba21ee145
-# ╟─5dfbb58a-1411-4264-9540-8cc26263910f
-# ╠═ff872f5f-b10b-4065-8850-d81f9d6aece3
-# ╟─5ff2bb27-3db8-4b05-bd90-c73b493a9c76
-# ╠═f20b33b0-c0ec-4ee7-8273-6b738eb44dd7
-# ╟─c548e453-f5bc-40cc-a3d3-b3c0c72d6f9d
-# ╠═b5e2dfb7-c325-4898-b45d-8f071f1958b6
-# ╟─c5c7a723-6975-4903-ae84-aee4a1bb5441
-# ╠═1f950122-3c05-4d4c-85c2-1ed2094b1448
-# ╟─d686b4a3-03fd-4213-9b82-45fd395f96ee
-# ╠═35f0fda8-7e9a-4f5c-bbd3-979e8d04ebfa
-# ╠═d8a84dea-adbb-48c5-809b-309236f3dfc5
-# ╠═3d5ef2d8-1d1c-4f90-9178-f72ce4d67f51
-# ╠═647e0043-3389-43f2-bfd6-329d88fce931
-# ╠═843d888f-1e8d-4875-b175-1bc0a98f3320
-# ╠═99abe607-0a0e-411a-8784-df5318be1db9
-# ╠═f6902608-37a4-4c63-98d4-6ad7a704907c
-# ╠═c126abdc-a067-45fe-be68-817399f31e65
-# ╠═00c178f8-d4b9-4822-937a-f4e82da84f11
-# ╠═9d34622a-d7c4-4621-96e8-51e9b801a829
-# ╠═58d706c0-44f5-4514-b87b-eaf1f1940448
-# ╟─a840300f-0724-44c8-ba08-d7b59491e0e4
-# ╠═c1894849-5d29-4857-a715-9b91ffe8163d
-# ╟─083a5ba2-7de3-4e51-962f-08289fe987ce
-# ╠═773563de-8eb2-4ea4-87fc-86609e35370f
-# ╠═cfaf2b26-e39d-47b5-8e99-8d35dbd7b3ac
-# ╠═13e729c1-15ff-4fcf-b3df-9247fda54109
-# ╠═52e6ee88-f49d-420e-9a99-9c8c54910362
-# ╠═604081ba-c975-414a-a8b6-68a6c401172f
-# ╠═1928ef8d-d7df-4b2b-9b9a-f958cacecaa3
-# ╠═17fffef0-699e-4aa2-8931-41afa2ef4da1
-# ╠═c056af02-693b-4837-ab7b-1c4c7b7a9ca5
-# ╠═8d02c42c-452e-4ad3-9b27-95ac7ea5e210
-# ╠═380a7a82-0924-42b6-8698-7573b389e9ad
-# ╠═f62e8d24-10c6-42e9-a68e-f2d68f950ed1
-# ╠═e45bd546-c5fc-4914-b237-3df5f473363d
-# ╠═8c825691-23f7-481a-b837-73e0f78893f5
-# ╠═5e6ea853-c7a2-44ce-acb5-628ed36f8180
-# ╠═8953d6fb-f9ad-4f95-b022-5ac95058dbf7
-# ╠═6c95fd00-0023-4f00-b495-050ca098cfb6
+# ╠═2659ca26-15c1-4bc4-b0a4-17d8f27ade9e
+# ╠═6cfb7168-b501-11ec-164a-9f2899eae5b5
+# ╠═8e7f6754-f313-4dcb-b6d3-f5c119182fef
+# ╠═dde5f10a-40a9-4717-9bd3-b146d2e0e193
+# ╠═4d4dcb77-f40c-4828-8acb-fd956bb3ec69
+# ╠═8de8578f-29cc-4129-8a2d-99ba03ab3642
+# ╠═e185f426-f28f-430c-a7ee-fd84ab1dcf55
+# ╠═883cfaa0-5d0f-4fad-b18a-3155ca977db8
+# ╠═c006224d-6e1c-4dab-946f-cfc0ccbef36d
+# ╠═f4713b48-b5e8-47f5-a252-5b8e4eef91f2
+# ╠═65b9b4a4-8cff-4844-8ecd-bf3d35234af8
+# ╠═d675f7a1-ba30-42f9-8f4a-190f957adea5
+# ╠═d0980c6d-de68-4dac-89ad-c25dfb19ac83
+# ╠═0df57da4-e05c-41ac-b75a-84c1b8ceb748
+# ╠═e01fa44b-12b0-444d-bac2-48130894db6b
+# ╠═b9f6f019-b59c-4c62-8d50-6f3f8198343a
+# ╠═7f8c6f63-30c7-43e9-a5df-6cb67f2b74aa
+# ╠═c7427c4a-56d9-4033-9171-f6ab25711758
+# ╠═3ff80bb3-ac92-4037-9438-9dc195d13297
+# ╠═90a82dcf-e51c-4958-9f9f-9f37f2eb849f
+# ╠═b3819994-d5f8-44fc-90ab-3cbec701b2a7
+# ╠═6e4a4689-1125-48ad-82c0-48d272a5e9f4
+# ╠═60de60f0-4cda-4e47-8c18-43ee47ab35a7
+# ╠═98984600-57f9-4229-bebb-a7944b38a590
+# ╠═ebfcb91e-6574-497e-b6a0-927aae6c06f9
+# ╠═2fccaaf1-cafb-4618-99f3-7cb3ffd00a2b
+# ╠═a8a6b20a-ddec-49ce-b73e-50b844e96f1d
+# ╠═ec6f092c-5996-4af3-b943-cae435bd434d
+# ╠═5d3f8105-58f8-4484-9425-10f7cc290ebd
+# ╠═5597879e-0562-4d7a-8a1a-5a5bb312827c
+# ╠═3a63df2e-cfc0-4fbc-aeef-2533b2f7a351
+# ╠═ce12313f-c3ab-45d1-9b82-c08a827d82dd
+# ╠═f8afdfcf-8b1c-437e-828c-0040820452be
+# ╠═06ba5f65-f6d7-4997-9c5f-17bb3299cb62
+# ╠═03d439c4-a469-4313-8a9d-df8022cccb9c
+# ╠═01eb9d54-22f0-4b1a-aca7-485879da86f3
+# ╠═9cbc102a-81e3-4744-881d-ca6cbb92b5e1
+# ╠═fd12cadf-d01c-4402-9be1-bab951d69f66
+# ╠═27c4bae3-ab5f-47e7-baf2-10f9f0355ec3
+# ╠═04f47b50-0ad7-46e7-8cf8-ed091db60e8f
+# ╠═3016b59c-f0b9-429e-9b77-af9caaef7d08
+# ╠═4af1f223-5c82-44f6-bef5-cd55732cefff
+# ╠═601b989e-0d24-4b3d-939b-646259885258
+# ╠═9fe25b91-f22b-414e-a472-5da1768db233
+# ╠═ce7a7d41-aede-4412-8be5-c500ecfc7c8c
+# ╠═0e027425-3161-4414-b4af-0582b5c70789
+# ╠═e90f3c5c-21c6-4ad2-8ba1-d2aa23bad785
+# ╠═2d01e7e9-8f0d-4ea3-a4e7-9555560ddf59
+# ╠═c2c20014-edbb-42a6-853e-d996b492e873
+# ╠═3acf1087-cca7-4edd-b761-d9130a1f0dce
+# ╠═4f4c05b2-79ca-4f26-b8f5-44a724712cdf
+# ╠═f8c82ba2-fefe-42a6-9fcf-cc3e914687c9
+# ╠═2fbf9403-9950-4c80-bf57-01b2cd32e6bf
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

@@ -14,7 +14,7 @@ macro bind(def, element)
     end
 end
 
-# ╔═╡ 59062c8d-edbf-4966-a786-724f9438618c
+# ╔═╡ 52d4f953-98d1-4016-b2b3-7c234b012189
 begin
 	using Plots
 	using Printf
@@ -29,13 +29,13 @@ begin
 	using InteractiveUtils
 	using PlutoUI
 	using LsqFit
+	using StatsFuns
 	using Distributions
 	using Statistics
 	using StatsBase
-	using LaTeXStrings
 end
 
-# ╔═╡ 547c0f35-243e-4038-bb66-65b627bda4b0
+# ╔═╡ 91726783-795a-4da6-9ca7-2d176ba328ca
 begin
 	using Peaks
 	using Glob
@@ -43,7 +43,13 @@ begin
 	using DSP
 end
 
-# ╔═╡ 9d66c472-b742-49b3-9495-1c3be998108b
+# ╔═╡ b4f98dfc-9e44-11ec-3621-4526f6f187bd
+md"# RuSL Lifetime: Bold62 500 kHz 
+
+- JJGC, 18-03-2022
+"
+
+# ╔═╡ 1e429641-5615-4c2f-b466-a5e1d5cbc297
 import Unitful:
     nm, μm, mm, cm, m, km,
     mg, g, kg,
@@ -53,10 +59,10 @@ import Unitful:
 	μW, mW, W,
     A, N, mol, mmol, V, L, M
 
-# ╔═╡ c3b89fa7-67f8-4cc3-b3ba-fcb304f44669
+# ╔═╡ 860a66e0-9fdb-4537-865e-bf70e7fa289a
 import PhysicalConstants.CODATA2018: N_A
 
-# ╔═╡ bd9eed27-fc29-41ff-bf12-ec0cd3881ea2
+# ╔═╡ 1665009d-f4a8-4d3e-bc9a-3cca8c26c213
 function ingredients(path::String)
 	# this is from the Julia source code (evalfile in base/loading.jl)
 	# but with the modification that it returns the module instead of the last object
@@ -71,10 +77,30 @@ function ingredients(path::String)
 	m
 end
 
-# ╔═╡ ca6f7233-a1d1-403d-9416-835a51d360db
+# ╔═╡ c9e85963-fe90-48c4-8e20-fcc92c31ce99
 lfi = ingredients("../src/LaserLab.jl")
 
-# ╔═╡ ac5daa7a-b00b-4975-906d-f68e455c2b53
+# ╔═╡ f3fea484-8430-47ab-986b-7b170bef4ba6
+PlutoUI.TableOfContents(title="Table of Contents", indent=true)
+
+# ╔═╡ 9e58009d-0244-49db-801e-362bcb895eb0
+md" ## Introduction
+Data was taken with the TOPATU setup, with the following elements:
+
+1. EPL480 nm laser operating at 500 kHz (2 μs pulses).
+2. A PMT H13543 from Hamamatsu, with 20 % QE at 500 nm, 10.6 % QE at 700 nm and 8 % QE at 800 nm.
+3. Data was taken with three different band filters, centered at 660, 700 and 730 nm.
+4. Coincidence were triggered in a scope, at 10 MHz rate, the trigger signal was given by the laser.
+
+   **Features of the data**
+
+- The PMT data is somewhat noisy. Thus, it is necessary to characterise single electron pulses by a peak search analysis. 
+"
+
+# ╔═╡ aedcf3c2-7d51-466c-a88e-2c681679b8b0
+load("../notebooks/img/setupPMTScope.png") 
+
+# ╔═╡ a6cd504a-1afc-4be0-81d2-0de827650526
 begin
 	spG = lfi.LaserLab.CsvG(';',',')  # spanish: decimals represented with ',' delimited with ';'
 	enG = lfi.LaserLab.CsvG(',','.')  # english
@@ -82,982 +108,1041 @@ begin
 	println("")
 end
 
-# ╔═╡ a8ffd5c7-2a6f-4955-8e9f-ea605a8cb24d
-function fit_straight_line(tdata, vdata; pa0=[0.0, 0.5], i0=1)
-	tfun(t, a, b) = a + b * t
-	pfun(t, p) = p[1] .+ p[2] .* t
-	il = length(tdata)
-	fit = curve_fit(pfun, tdata[i0:il], vdata[i0:il], pa0)
-	coef(fit), stderror(fit), tfun.(tdata, coef(fit)...)
-end
+# ╔═╡ 252430c1-c039-4d85-a961-fa3aa51c9c69
+md"## Laser frequency and DAQ window"
 
-# ╔═╡ ea4b37e5-fc26-4ca3-8788-20dd4c57536c
-function fit_abs(absdf, absdict,i)
-	xc = [absdict[name] for name in names(absdf[i, 2:end-1])]
-	yc = collect(values(absdf[i, 2:end-1]))
-	cfit, stderr, fft = fit_straight_line(xc, yc)
-	absdf[i,1], xc, yc, cfit, stderr, fft  
-end
-
-# ╔═╡ c91bef90-362d-4bc7-8378-2f6dc55a20eb
-iλ(λ, λ0) = λ - λ0 + 1
-
-# ╔═╡ 96ae3a10-b116-4544-b282-59b1f58417bf
-PlutoUI.TableOfContents(title="Measuring RuSL", indent=true)
-
-# ╔═╡ 34b3d66e-3b39-43dc-922b-9ba6c15c1bac
-md"""# The RuSL and IrSL molecules
-
-RuSL and IsSL molecules are a type of phosphorescente molecules which can be used to calibrate the TOPATU laser setup.
-
-The molecules emit ligh peaked in the red (green), with a lifetime in the range of 500-800 ns.
-"""
-
-# ╔═╡ 5927e85d-f206-4d51-9b0c-6d2d70a0a0da
-load("../notebooks/img/rusl.png") 
-
-# ╔═╡ 98bfd4d0-9257-4c2e-8256-29833c4b2850
-md"""
-# RuSL: Measurement of the absorption cross section 
-
-To measure the absorption cross section for a molecular species (in particular RuSl) absorption data is taken with a fluorimeter for different wavelengths and at different concentrations. For each wavelength, a linear fit determines the molar absorption. 
-
-The procedure is ilustrated below.
-
-First, a DF with the info of absorption as a function of λ for different concentrations is loaded.
-"""
-
-# ╔═╡ cc7e6e63-7630-4500-a18b-92d254089a12
+# ╔═╡ d904688d-c65a-450b-934d-d7486b93398e
 begin
-	ruslAbs = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/RuSl", "BOLD_063_Rusilatrane_MeOH_calibration_curve.csv", spG)
-	ruslAbs[!, :W] = convert.(Float64, ruslAbs[:, :W])
-	sort!(ruslAbs, rev = false)
-	first(ruslAbs,5)
+	f500kHz = 500.0kHz
+	w100mus = 100.0μs
+	wmus100mus=w100mus/μs # window in μs
+	tlaser500kHz = uconvert(μs, 1.0/f500kHz)
+	tlus2 = tlaser500kHz/μs
+	ffl6n5k1m = uconvert(s, tlaser500kHz)/s
 end
 
-# ╔═╡ 38f06b03-50b7-4254-b111-d9b15a39a910
-md"""
-Plotting the absorption at any given concentration as a function of λ gives similar results. The molecule has a strong absorption peak at 250nm, and a second peak near 450 nm. 
-"""
+# ╔═╡ 38d57ccd-d0d3-44b2-9ad0-9e0ac33910c6
+md" - Parameters:
+ - laser frequency= $f500kHz
+ - DAQ window= $w100mus
+ - Laser pulses every $tlaser500kHz
+"
 
-# ╔═╡ b992f24e-ead5-4117-8744-1a81c16f13a7
+# ╔═╡ 01355b47-de67-4104-a6bc-3d773b156bae
+md"# BOLD\_062\_A2\_500kHz\_650nm\_100us
+"
+
+# ╔═╡ 46929efd-6ffd-40b5-996f-5b10be042ba5
+md"## Read waveform"
+
+# ╔═╡ 693c2f21-58b8-4f62-b70a-4494d17b44d6
+function tomd(text, var)
+
+	md =""" $(text) = $(var)
+	"""
+	return md
+end
+
+# ╔═╡ 511c6d72-4bc4-49fb-8a37-667b48c965b8
 begin
-	prusl_5E_5M = plot(ruslAbs.W, ruslAbs.rusl_5E_5M, label="RuSL: 5e-5M", lw=2)
-	prusl_1E_5M = plot!(ruslAbs.W, ruslAbs.rusl_1E_5M, label="RuSL: 2e-5M", lw=2)
-	xlabel!("λ (nm) ")
-	ylabel!("Abs (M)")
-	#title!("Tranmission of the objective ")
+	sinfo = tomd("cats", tlus2)
+	Markdown.parse("$sinfo")
 end
 
-# ╔═╡ a5bc9651-176f-41ed-8cc9-81c1accfc4db
-md"""
-To measure the absorption cross section at 250 nm, we represent the values of the absortivity as a function of the concentration for this wavelength, and fit a straight line. 
-"""
+# ╔═╡ 35fdb24c-b197-4c2f-84c6-bbd805c38965
+#Markdown.parse("$(tomd(`"Files in directory"`, $n6n5k1m))")
 
-# ╔═╡ 977a2703-17c9-443f-a110-334e38377909
-ruslAbs[1, :]
-
-# ╔═╡ 26decc7c-a3c2-41a3-8eec-5ed12296918f
-ruslCon=Dict("rusl_5E_5M" =>5E-5,
-			 "rusl_1E_5M" =>1E-5,
-			 "rusl_5E_6M" =>5E-6,
-			 "rusl_1E_6M" =>1E-6,
-			 "rusl_5E_7M" =>5E-7,
-		     "rusl_1E_7M" =>1E-7)
-
-# ╔═╡ ac1d5662-e8c9-48a0-a30f-dcf9ca15af15
-xc = [ruslCon[name] for name in names(ruslAbs[1, 2:end-1])]
-
-# ╔═╡ ffa56bac-2f5c-4d1b-8e5a-7d3412393f14
-yc = collect(values(ruslAbs[1, 2:end-1]))
-
-# ╔═╡ fedadec6-70a7-483f-9199-877ef60a5861
-cfit, stderr, fft = fit_straight_line(xc, yc)
-
-# ╔═╡ dc1fd780-64d8-4113-b19f-9bb0733eed99
+# ╔═╡ ffdac4df-dd39-4203-875d-c698007fc0c5
 begin
-	cal250 = scatter(xc, yc, markersize=3,
-			color = :black,
-		    legend=false,
-			fmt = :png)
-	plot(cal250, xc, fft)
-	xlabel!("C (M)")
-	ylabel!("Abs")
+	fls6n5k1m = glob("../labdata/BOLD_062_A2_500kHz_650nm_100us/C1*.csv")
+	n6n5k1m = length(fls6n5k1m) 
+	md"
+- Files in directory = $n6n5k1m
+"
 end
 
-# ╔═╡ b01206a2-7b5e-4a7a-842b-354ab1ec5b0d
-md"""
-Fit at 250 nm. 
+# ╔═╡ f66fc1e0-9616-446e-a8d1-e69c0371efb8
+md" select file to read $(@bind fn6n5k1m Slider(1:1:1000, default=1))"
 
-- Intercept at origin =$(round(cfit[1], sigdigits=5))
-- Slope (molar absorption) = $(round(cfit[2], sigdigits=5)) ``M^{-1} cm^{-1}``
-"""
+# ╔═╡ 25bf0bf8-5832-4546-986c-51ea7656016d
+md"reading file $fn6n5k1m"
 
-# ╔═╡ fcbff47c-d7ee-471e-b452-2360a142ac29
-md"""
-The procedure needs to be repeated for all wavelengths. We start by defining a function that takes the dataframe, the dictionary defining the concentrations and an index that will later run through the wavelength colum, and return the wavelength value, fit parameters and function.
+# ╔═╡ d41e8b61-0744-44cf-bcac-b515b4ce0f2e
+md" Check to produce a plot of the waveform and fourier transform"
 
-	fit_abs(absdf, absdict,i)
- 
- `absdf : absorption dataframe`
- 
- `absdict : dictionary defining the concentrations`
- 
- `i : wavelength index`
-"""
+# ╔═╡ 80bda090-3035-4f72-a38d-67707dd68d7b
+@bind zplotWvfm CheckBox()
 
-# ╔═╡ 9042910c-802b-4a71-8863-5b64984b3a8c
-λ1, xc1, yc1, cfit1, stderr1, fft1 = fit_abs(ruslAbs, ruslCon, 1)
+# ╔═╡ 94dc00a5-9f73-4f83-a8bb-44cd912286ac
+md" Check to produce a plot of the filtered waveform $(@bind zfltWvfm CheckBox())"
 
-# ╔═╡ d8c646d9-6c1a-4ca1-8f4a-a22bb1623132
-md"""
-We can reproduce now the previous result, with:
+# ╔═╡ ca6f17dc-f288-40c5-b0fb-63f37be4f4e3
 
-- Intercept at origin =$(round(cfit1[1], sigdigits=5))
-- Slope (molar absorption) = $(round(cfit1[2], sigdigits=5)) ``M^{-1} cm^{-1}``
-- 
-"""
 
-# ╔═╡ c42f8de4-5790-4558-8e98-a16540c78885
-begin
-	sc1 = scatter(xc1, yc1, markersize=3,
-			color = :black,
-		    legend=false,
-			fmt = :png)
-	plot(sc1, xc1, fft1)
-	xlabel!("C (M)")
-	ylabel!("Abs")
-end
+# ╔═╡ 097ee9e5-fec4-45ae-9cd3-cb8c890165b0
+md"### Select peaks"
 
-# ╔═╡ bd2b9f50-672d-4cf2-806e-93c8b7d71918
-md"""
-We can now examine any wavelenght, by performing the fit at the chosen wavelength
-"""
+# ╔═╡ ccfb00c6-018c-4efa-b4ba-a087ac408c87
+md"Select the value of the peak prominence cut  = $(@bind sprom6n5k1m NumberField(0.1:0.1:10.0, default=2.0))"
 
-# ╔═╡ 73c8585e-6d3c-4119-a786-950244ceeeb2
-nw = length(ruslAbs.W) 
-
-# ╔═╡ 6a44f96c-a264-48b9-83f3-bc64a607c730
-λ0 = Int(ruslAbs[1, 1])
-
-# ╔═╡ b7715de1-59a9-460c-8c4e-535713f1e317
-md""" select a wavelength to plot
-"""
-
-# ╔═╡ b80f21e4-331c-4677-84d4-77259c2422b4
-@bind λ Slider(λ0:λ0+nw)
-
-# ╔═╡ c4f1bc99-f0b2-45eb-afd5-19483de2e8c8
-md"""
-Wavelength selected = $λ nm
-
-Wavelength index = $(iλ(λ, λ0)) 
-"""
-
-# ╔═╡ 725a2620-6e6d-4964-840a-ca318fe871db
-λs, xcs, ycs, cfits, stderrs, ffts = fit_abs(ruslAbs, ruslCon, iλ(λ, λ0))
-
-# ╔═╡ f866230f-0cbe-4462-a3d7-0ef148a944c9
-begin
-	scs = scatter(xcs, ycs, markersize=3,
-			color = :black,
-		    legend=false,
-			fmt = :png)
-	plot(scs, xcs, ffts)
-	xlabel!("C (M)")
-	ylabel!("Abs")
-end
-
-# ╔═╡ da025bce-a955-4f6a-916c-bac1e1f491dd
-md"""
-Fit result:
-
-- Intercept at origin =$(round(cfits[1], sigdigits=5))
-- Slope (molar absorption) = $(round(cfits[2], sigdigits=5)) ``M^{-1} cm^{-1}``
-- 
-"""
-
-# ╔═╡ e6e50f4a-6da4-4b10-9b92-2c7436f57072
-md"""
-Finally we perform the fit for all the wavelengths
-"""
-
-# ╔═╡ 6056db12-a40c-4586-bb63-203fcd0c0cce
-zeros(Float64, 10)
-
-# ╔═╡ 9503331e-e97f-4ba9-84aa-c1e11c2f59d1
-function fit_abs_all(absdf, absdict)
-	nw = length(absdf.W) 
-	W = zeros(Float64, nw)
-	Abs = zeros(Float64, nw)
-	for i in 1:nw
-		λ, _, _, cfit, _, _ = fit_abs(absdf, absdict, i)
-		W[i]   = λ
-		Abs[i] = cfit[2]
-	end
-	W, Abs
-end
-	
-
-# ╔═╡ f6d52515-c34a-4159-b4e7-625cba13763c
-vλ, ϵ = fit_abs_all(ruslAbs, ruslCon)
-
-# ╔═╡ 1e6c1d0b-8a3b-4cec-928f-a2e892fdbf5e
-begin
-	plot(vλ, ϵ, lw=2,
-			color = :black,
-		    legend=false,
-			fmt = :png)
-	xlabel!(L"\lambda ~(nm)")
-	ylabel!(L"\epsilon ~ (M^{-1} cm^{-1})")
-end
-
-# ╔═╡ ea503006-18b6-47a1-8cb3-46d856dfe8b0
-md"""
-Finally, we can save the result in a dataframe
-"""
-
-# ╔═╡ 89f8c950-32bd-49d3-8a62-79e0040646ec
-absorptionXSdf = DataFrame("λ" => vλ, "ϵ" => ϵ)
-
-# ╔═╡ fa0c5865-1c22-4a9e-b393-b8f5875ff841
-absorptionXSdfMeta = DataFrame("λ" => ["nm"], "ϵ" =>["M^-1cm^-1"])
-
-# ╔═╡ 15ef23fa-1633-4954-a927-1d289d5573ec
-md"""
-And write to file
-"""
-
-# ╔═╡ d7c66368-4769-4d50-b20f-9ea4ed6eee5a
-begin
-	CSV.write("/Users/jj/JuliaProjects/LaserLab/data/RuSl/absXSdf.csv", absorptionXSdf)
-	CSV.write("/Users/jj/JuliaProjects/LaserLab/data/RuSl/absXSmd.csv", absorptionXSdfMeta)
-end
-
-# ╔═╡ 2838b7e5-752b-4cb6-bec5-f48d122e859c
-begin
-	absorptionXSdf2 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/RuSl", "absXSdf.csv", enG)
-	first(absorptionXSdf2,5)
-end
-
-# ╔═╡ c4cb9e33-4362-40f9-baba-ac822cbedc64
-begin
-	absorptionXSdfMeta2 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/RuSl", "absXSmd.csv", enG)
-	first(absorptionXSdfMeta2,1)
-end
-
-# ╔═╡ 7e150a69-0070-4371-b5c0-02b7ad70d813
-md"### Fluorescence cross section and quantum yield"
-
-# ╔═╡ 16cdbadf-4deb-4a66-8ab7-84437a4fe3d4
-load("../notebooks/img/RuSlAbs.png")
-
-# ╔═╡ 9cc3dfcb-b95d-4086-a228-ed4753f6ca0d
-begin
-	ϵabs = 8801.5/(M*cm)
-	Q    = 0.9
-	λexc = 485.0nm
-	λEM  = 690.0nm
-	println("")
-end
-
-# ╔═╡ 4a0e30fe-398e-4d80-86a2-bfc384cbc6e6
+# ╔═╡ d2bd231b-7bf9-4c12-91f2-699f43d62cdd
 md"
-- The absorption cross section at 469 nm is ϵ = $ϵabs
-- Measured quantum yield is Q= $Q
-- The excitation wavelength of the laser is $λexc
+- Peak Prominence cut = $sprom6n5k1m
 "
 
-# ╔═╡ 591f9fcb-7ad1-400e-af0a-29686a4914ec
-md"### Emission spectrum on ML
+# ╔═╡ 0c08fd16-9dfd-4f8f-a090-437190fd1da5
+md"### Optimizing prominence cut"
 
-- ML of RuSL, at a nominal packing of 1 molecule per nm
-- Peak emission around $λEM
+# ╔═╡ f520d7dc-8ac1-4d0b-a492-e5f96b016ac8
+md" Check to produce histograms of prominence cut $(@bind lrunproms CheckBox())"
+
+# ╔═╡ 31d7b91d-15ae-4e8a-af46-160b64e16094
+md"### Selection"
+
+# ╔═╡ 63405781-f8d4-4e5d-86e9-e17843ca5305
+md" Check to produce and histogram of selected time $(@bind lruntime CheckBox())"
+
+# ╔═╡ e180cf32-a993-493b-a6d3-c9939d95f367
+
+
+# ╔═╡ 408c18b0-f031-4480-b521-b0329ad28011
+md"### Fits"
+
+# ╔═╡ 622eb976-55e7-46e4-a635-33163f452512
+md" Check to produce and histogram of selected time $(@bind lrunfit CheckBox())"
+
+# ╔═╡ 19a7cafb-237a-4d17-bfc8-dd3d82b9a869
+md"# BOLD\_062\_A2\_500kHz\_700nm\_100us"
+
+# ╔═╡ 114201ce-abf4-4501-a7e4-2606f98f4343
+md"## Read waveform"
+
+# ╔═╡ 5959c636-6269-48a1-84fa-ea5087cdbed8
+fn7n5k1m = 201;  # test file 
+
+# ╔═╡ 8bc4629f-ef4a-4fb6-b2e7-5d5ac79426fd
+md"### Select peaks"
+
+# ╔═╡ a23cd563-70c1-4fe0-a625-f300b00e2e96
+sprom7n5k1m = 2.0;  #prominence cut
+
+# ╔═╡ f4886783-9d88-4971-9505-6bb20e3239c5
+md"
+- Peak Prominence cut = $sprom7n5k1m
 "
 
-# ╔═╡ 9cc092e9-40d2-4c5a-9b55-4e2adccb3382
-begin
-	dfrusl = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/fluorimeter", "RuSL_quartz.csv", spG)
-	dfrusl[!, :λ] = convert.(Float64, dfrusl[:, :λ]) 
-	first(dfrusl,10)
-	println("")
-end
+# ╔═╡ abdc25e1-153d-4f17-9acc-14f2ef8c0f46
+md"### Optimizing prominence cut"
 
-# ╔═╡ d75a8426-c97b-422e-8c69-3f3ce94c5370
-begin
-plot(dfrusl.λ, dfrusl.QUARTZ_Rusilatrane_A, lw=2, label="RuSL on quartz")
-xlabel!("λ (nm)")
-ylabel!("I (a.u.)")
-end
+# ╔═╡ 5a72de44-72ef-408f-940b-e6015cc72fe0
+md"### Selection"
 
-# ╔═╡ a7d330cf-5093-490f-adc8-e482e3084806
-md"## Temporal dependence of the phosoprescence"
+# ╔═╡ 0cb56f60-43b1-4580-a63f-6acccac77b80
+md"### Fits"
 
-# ╔═╡ 280a17c4-6d5e-4ff3-a5ab-dbbcb7199bb2
-begin
-	dfruslt = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/fluorimeter", "Ru_SL_time.csv", spG)
-	dfruslt[!, :λ] = convert.(Float64, dfruslt[:, :λ]) 
-	first(dfruslt,10)
-	println("")
-end
+# ╔═╡ e57edd48-7db8-4a7e-afd9-eaebcbbc4338
+md"# BOLD062\_A2\_500kHz\_730nm\_100us"
 
-# ╔═╡ a230e061-b6ab-49d4-bdad-730d75e20e9c
-md"### The data fits (but not too well) to a single exponential
+# ╔═╡ 54a713f6-f70d-4379-97a9-af8ef6327e80
+md"## Read waveform"
 
-- At large times the fluorimeter may be measuring a constant pedestal
-  "
+# ╔═╡ eb5c2173-e53a-4b3f-aa77-29779fb9a437
+fn8n5k1m = 101;  # test file 
 
-# ╔═╡ 6d5e295c-1c57-4a92-aee2-3ffcbb3306df
-begin
-	mexp(t, p) = p[1] * exp.(-t/p[2])
-	pa0 = [3500.0, 500.0]
-	tdata = dfruslt.λ
-	ydata= dfruslt.Ru_Quartz
-	fit = curve_fit(mexp, tdata, ydata, pa0)
-	cofe = coef(fit)
-	stder = stderror(fit)
-	println("")
-end
+# ╔═╡ efb34903-19d2-48b8-8e7d-bbdd4e212e56
+md"### Select peaks"
 
-# ╔═╡ 80447dc7-1103-4019-bc64-283d4a9368a0
-@info "fit coefficients" cofe
+# ╔═╡ d3a5a79e-c181-4cd3-bd9f-7893cbdfb229
+sprom8n5k1m = 2.0;  #prominence cut
 
-# ╔═╡ 08ec5b69-946f-407e-ac8d-bf8814cc0121
-@info "coefficient errors (std)" stder
-
-# ╔═╡ 58b227ac-627f-49ba-bc58-75039c65733b
-md"## The RUSL experiment
-
-The goal of the RUSL experiment is to use the (modified) TOPATU setup to measure the spectrum (color) and temporal response of the RuSL ML on quartz. This experiment has already been performed in the fluorimeter (see results below), and the main purpose of RUSL is to repeat it with the laser setup to calibrate the system (including temporal response)
-
-The experiment ingredients are:
-
-- A ML of RuSL on quartz. 
-- A pulsed laser of 480 nm (EPL 480 from Edimburgh).
-- The topatu setup, modified to allow measurement of spectrum (with filters) and time response. 
-- The measurement must include spectral response (number of photons observed as a function of the wavelength) and time response (which requires time-stamps for the observed photons)
+# ╔═╡ 73d26e78-d026-4c0a-83d1-a097705492fb
+md"
+- Peak Prominence cut = $sprom8n5k1m
 "
 
-# ╔═╡ 4223f9f8-8ee6-4ea9-a7bc-6379c81c48c0
-load("../notebooks/img/Nuevo_SET_UP_RuSl.png") 
+# ╔═╡ b27beaa2-d8a7-425d-843d-9fdcb8992de3
+md"### Optimizing prominence cut"
 
-# ╔═╡ fabba61a-f28d-4535-b0e3-e94f5098bb0a
-md"## The Monolayers
+# ╔═╡ 2d735473-8afa-4b6c-a832-e3b6e4f15067
+md"### Selection"
 
-A Monolayer (ML) of fluorophores is characterised by the packing of the fluorophores, the absorption cross section of the individual fluorophores and their emission spectra. These properties may also be correlated or can be modified when moving from solution to ML. For example colective effects of the interference with substrate can modify the naive assumption that the total fluorescence is the product of the number of fluorophores and the fluorescence per fluorophore. However, it is useful to start with the simplest assumption that all cross sections measured in solution hold in solid/gas interface
+# ╔═╡ 2b191d8d-12a3-49af-93ac-b4510aa19bf4
+md"### Fits"
 
+# ╔═╡ fde49db9-165b-4b55-928b-b0d3f2610a31
+md"# Functions and data structures"
+
+# ╔═╡ 500c0b3b-fc21-45a7-b03d-07c413a947c9
+md"
+	struct SPeaks
 "
 
-# ╔═╡ 7a1fcff4-6948-4333-b971-8fbf31c7d3ee
-md"#### Define the fluorophores at nominal excitation ($λexc)"
-
-# ╔═╡ a917927d-d471-4465-abd1-30d959af0b45
-frusl = lfi.LaserLab.Fluorophore(λexc, λEM, ϵabs, Q)
-
-# ╔═╡ aa4283d7-37d4-4aaf-a5b7-b515466e545d
-begin
-	λepl    = 485.0nm
-	Pkepl   = 35.0mW
-	P200khz = 0.6μW
-	fepl    = 200.0kHz
-	wepl    = 140.0ps
-	dc      = uconvert(μs, 1.0/fepl)
+# ╔═╡ 79c95b20-7b71-414f-b5d6-41e4cfe373ca
+struct SPeaks
+	peaks::Vector{Int64}
+	proms::Vector{Float64} 
+	widths::Vector{Float64} 
+	leftedge::Vector{Float64} 
+	rightedge::Vector{Float64}
+	xs::Vector{Float64}
+	ys::Vector{Float64}
+	xbase::Vector{Float64}
+	promsel::Float64
 end
 
-# ╔═╡ 93b78d1a-ee07-4d66-b5a4-c7a109a24f81
-md"## Laser
-- The experiment requires a VUV pulsed laser. For the experiment we will use a repetition rate of $fepl (pulsed each 1 μs)
-- 
-- The nominal laser for the experiment is the EPL485
+# ╔═╡ 50e2ec32-be70-444a-9c80-38770ce5da7e
+md"
+	shift_waveform!(wvfm:DataFrame, wmus::Float64, wsym::Bool)
+
+ Shifts waveform to mV in Y (reverses sign) and to μs in x.
+ If the window is centered in zero, shifts it, so that first time is zero.
+
+ **Fields**:
   
-| λepl   | Pkepl      | fepl  | wepl | dc| P|
-|:-------| ---------- |:-----:|:-----:|:-----:|:-----:|
-| $λepl  | $Pkepl| $fepl | $wepl |$dc| $P200khz
+*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
+
+*wmus*  : width of time window in μs.
+
+*wsym* : true if the window is symmetric (centered at zero)
+
+**Returns**
+
+Shifts waveform to mV in Y (reverses sign) and to μs in x.
+ If the window is centered in zero, shifts it, so that first time is zero.
 
 "
 
-# ╔═╡ 19b7d7fb-adab-4f29-82af-d059525921ee
-md"#### Define laser"
-
-# ╔═╡ 102a2054-2fd5-406e-8bb4-20ecb47c278f
-epl485 = lfi.LaserLab.PulsedLaser(λepl, Pkepl, fepl, P200khz, wepl)
-
-# ╔═╡ e97474ef-145f-45c8-96f6-213acf4a3b41
-md"### Beam shape
-- The beam has an oval shape, with a long axis of 3.5 mm and short axis of 1.5 mm
-- The entrance iris diameter of the objective is 2.5 mm. The beam overfills one of the dimensions and not quite the other.
-- We will make the approch that the beam fills the entrance iris
-"
-
-# ╔═╡ 106f7063-719e-4eff-857d-3566d6e6d4c8
-load("../notebooks/img/beamspot.png") 
-
-# ╔═╡ 177762d5-b9f2-449b-abba-256f3d4318ad
-md"## Objective
-
-The objective directs the laser light into the ML. For the first round of experiments, it is convenient to focus the laser to the smaller possible spot (diffraction limit). This is done by filling the entrance pupil of the objective with the laser. 
-
-Let's assume a setup in which the back lens of the objective is filled up with a laser beam (assumed to be gaussian). The waist of the beam, assuming $z_r >> f$ (where $f$ is the focal distance of the objective and $z_r$ is the depth of focus of the gaussian beam) is then $w_0 = d/2$, where $d$ is the diameter of the back lens of the objective
-
-The experiment must be conducted in a dry atmosphere, to avoid quenching the phosporescence. Thus the sample must be in a box at vacuum or filled with an inert gas (e.g, argon, N2). The objective may be inside the box (if working distance is small) or outside (if working distance is large)
-
-We will use a reflection objective, the MM40XF-VUV, characterized by a large working distance and large (for an air coupled) NA. 
-"
-
-# ╔═╡ 4e4ab4e5-bacc-4c58-8000-10602a1f8465
-#load("../notebooks/img/LMM40XVUV.png")  
-
-# ╔═╡ e35f8650-dc2e-46f3-9220-26754e8860e0
-#md"### Characteristics of the MM40xVUV
-
-#| Feature   | Value     
-#|:-------| ---------- |
-#| Entrance pupil diameter  | $dd| 
-#| Focal length  | $fl| 
-#|NA  | $NA|
-#|M (magnification)  | $MM|
-#|working distance  | $wd|
-#|Tranmission (250-1000 nm)  | $T|
-#|Damage threshold  | $dth|
-#"
-
-# ╔═╡ 13827ddc-bebd-44d5-929f-f4ac6f43b093
-#begin
-#	dd    = 5.1mm
-#	fl    = 5.0mm
-#	NA    = 0.5
-#	dth   = 0.3J/cm^2
-#	wd    = 7.8mm
-#	T     = 0.85
-#	MM     = 40.0
-#end
-
-# ╔═╡ 2a07dd38-bac4-410c-8135-5c4e6f851df6
-#lmm40xf_uvv  = lfi.LaserLab.Objective("LMM40XF-UVVV", fl, dd, MM)
-
-# ╔═╡ ebe4e491-1c61-45cb-a559-64fa3f5fbb9d
-load("../notebooks/img/NikonMUE31900.png") 
-
-# ╔═╡ d6d6dc94-5b99-4de6-a5c3-ab2be2b49d32
-begin
-	dd    = 2.4mm
-	fl    = 2.0mm
-	NA    = 0.6
-	wd    = 10.0mm
-	MM    = 100.0
-end
-
-# ╔═╡ a3703591-17d4-4049-8c1b-21a4c8329ffd
-md"### Characteristics of the NikonMUE31900
-
-| Feature   | Value     
-|:-------| ---------- |
-| Entrance pupil diameter  | $dd| 
-| Focal length  | $fl| 
-|NA  | $NA|
-|M (magnification)  | $MM|
-|working distance  | $wd|
-"
-
-# ╔═╡ b0112287-c957-4ce3-ba24-9c47c8128b2d
-tobj  = lfi.LaserLab.Objective("Nikon", fl, dd, MM)
-
-# ╔═╡ 417fecfd-b316-4e63-8e68-303d4c568434
-md"## The laser beam as a Gaussian Laser"
-
-# ╔═╡ bbd09112-d6cd-4f0f-9a87-7b85be983e09
-md"### Focusing the beam"
-
-# ╔═╡ 8c405cc2-e8b5-4125-b21d-f7a22f94fb59
-md"The beam is now focused in a narrow spot by the objective. "
-
-# ╔═╡ ebe77978-7d7f-407d-9a73-4be3568265ef
-gepl485 = lfi.LaserLab.propagate_paralell_beam(epl485, tobj)
-
-# ╔═╡ e7e7b1ca-b27f-406c-9df0-5ffea702719f
-md"### Spot size and Depth of focus
-
-The spot size is $(round(lfi.LaserLab.spot_size(gepl485)/nm,digits=1)) nm, while the depth of focus is $(round(lfi.LaserLab.depth_of_focus(gepl485)/nm, digits=1)) nm. "
-
-# ╔═╡ f48eb494-f9f5-4e4f-9fc0-ffa20312155a
-i0mWcm2f = round(uconvert(W/cm^2, gepl485.I0)/(W*cm^-2), sigdigits=2);
-
-# ╔═╡ fc5b2f60-2c04-4835-a222-9971189ac54e
-ng0 = round(gepl485.γ0/(Hz*cm^-2), sigdigits=2);
-
-# ╔═╡ 4eeabd93-cd82-4051-b2d0-bee3db1723e4
-md"### Power density 
-
-- The power density in the spot is now much larger: $(i0mWcm2f ) W/cm2
-- Or in term of photon density: $(ng0) Hz/cm2
-"
-
-# ╔═╡ e40a68c6-5885-49d1-9259-fdd3be09fee4
-md"In a gaussian laser, the intensity as a function of the radial direction ($\rho$) and the direction of propagation (z) is:
-
-$I(\rho, z) = I_0 ( W_0 / W(z))^2 \exp{-2 \rho^2/W^2(z)}$
-"
-
-# ╔═╡ f79fb47b-b4f7-442a-927f-0c186e673b80
-md"Since both the spot size and the depth of focus are small, we can approximate the intensity that will illuminate the molecules of the mono layer with I(0,0)"
-
-# ╔═╡ 8da11b18-5934-4207-941b-795969173f21
-fI = lfi.LaserLab.I(gepl485) ;
-
-# ╔═╡ ce47be17-7773-4797-beb7-202d3c02555a
-begin()
-zl=-5.0:0.01:5.0
-p1 = plot(zl, fI.(0.0*μm, zl*μm)/(mW * cm^-2), label="I(0,z)")
-xlabel!("z (μm)")
-ylabel!("I(0,z)")
-
-rl=-1.0:0.01:1.0
-p2 = plot(rl, fI.(rl*μm, 0*μm)/(mW * cm^-2), label="I(ρ,0)")
-xlabel!("ρ (μm)")
-ylabel!("I(0,z)")
-
-plot(p1,p2, layout = (1, 2), legend=false, fmt = :png)
-end
-
-# ╔═╡ 498d145b-ce5f-46a5-b77e-31f412e04eb9
-md"### Packing of the monolayer
-
-- One can define the packing of the ML in terms of the 'pitch' or distance separating two molecules. This is a crucial parameter of the experiment.
-
-"
-
-# ╔═╡ 0d4a0651-4ce4-497e-8764-2bcbbef83cf1
-md"##### molecular pitch (in nm)"
-
-# ╔═╡ d437cc55-8c19-4d0b-86d8-760da3956895
-@bind mp NumberField(1.0:10.0^3; default=1.0)
-
-# ╔═╡ 7dedd16b-4279-4f50-8120-d9ef394f3e13
-pitch = mp*nm;
-
-# ╔═╡ 649fa1b3-0dd2-487d-9bdf-7db97a0ec178
-ml = lfi.LaserLab.Monolayer(pitch);
-
-# ╔═╡ 92a5b436-1d8e-4436-8dda-8b1d3518bdea
-md"This corresponds to $(uconvert(cm^-2, ml.σ)) molecules"
-
-# ╔═╡ 8d4516fd-8838-4e5f-a61d-9dc1f65b31ad
-aspot = π * gepl485.w0^2;
-
-# ╔═╡ c5b0405a-a991-45a5-aa04-d09020b0c7f0
-md"### Spot area
-- The area of the spot iluminated by the beam is $(round(uconvert(μm^2,aspot)/μm^2, digits=1)) μm2"
-
-# ╔═╡ 03e15d19-ea63-413e-8ec5-4d50e28558ac
-nmol = uconvert(μm^2, aspot) * ml.σ;
-
-# ╔═╡ 4a1cf5fc-b44f-4b19-ac8e-d610da0a17cb
-md"### Number of molecules in the spot
-- The number of molecules in the spot illuminated by the beam is: $(round(nmol))"
-
-# ╔═╡ 39a7f7b4-058b-4283-b35c-4409ea9e478a
-md"### Fluorescence per molecule
-- The fluorescence of each molecule is the product of the beam density, the fluorescence cross section and the quantum yield:
-
-$f = I_0 \cdot \sigma \cdot Q$
-"
-
-# ╔═╡ abe34c91-9824-45e4-8865-7b3f73ff8758
-fmrs = lfi.LaserLab.fluorescence(frusl, gepl485.γ0);
-
-# ╔═╡ 52aeae45-0dfc-48f2-a362-20d1add0ff7f
-md"### Fluorescence per molecule for free and chelated species
-- The fluorescence per molecule for RuSL is: $(round(fmrs/Hz)) Hz, 
-"
-
-# ╔═╡ 9d97d16a-8f90-4ff7-ac0b-ee610c20ee32
-sfrs = fmrs * nmol;
-
-# ╔═╡ 960ba1ef-495d-4bb2-8aff-73cb68ae440e
-md"### Total fluorescence in the spot
-
-The total fluorescence in the spot is the product of the number of molecules and the fluorescence per molecule:
-
-- Fluorescence in spot for RuSL = $(round(sfrs/Hz, sigdigits=1)) Hz
-
-"
-
-# ╔═╡ 8815a3e2-e559-4857-b20e-14aa5f91d341
-md"## Filters and dichroics"
-
-# ╔═╡ 89aa75b3-2263-450e-9f2e-cd7c875a7919
-md"### Dichroic DMLP 567
-- Transmits > 98% of the light above 600 nm.
-"
-
-# ╔═╡ b5045344-fb52-4b2e-88b9-1c1d4d1d50f6
-begin
-	dmlp567 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "dmlp567.csv", spG)
-	dmlp567[!, :λ] = convert.(Float64, dmlp567[:, :λ]) 
-	first(dmlp567,10)
-	println("")
-end
-
-# ╔═╡ f6fefa8e-8490-4c0d-b707-c9a95011cbb1
-begin
-	dp1 = plot(dmlp567.λ, dmlp567.T, lw=2, label = "T", fmt = :png)
-	plot(dp1, dmlp567.λ, dmlp567.R, lw=2, label = "R", fmt = :png)
-	xlabel!("λ (nm)")
-	ylabel!("T (R) (%)")
-end
-
-# ╔═╡ 3555a982-9879-460f-babf-6f31c11c6f7f
-md"### High band pass filter FGL550"
-
-# ╔═╡ 954d503d-19f2-4575-84d7-2d1722a28a7f
-begin
-	fgl550 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "fgl550.csv", spG)
-	fgl550[!, :λ] = convert.(Float64, fgl550[:, :λ]) 
-	first(fgl550,10)
-	println("")
-end
-
-# ╔═╡ 41eb41f7-bc6e-4dce-8d39-68142fd329db
-begin
-	plot(fgl550.λ, fgl550.T, lw=2, label = "T", fmt = :png)
-	xlabel!("λ (nm)")
-	ylabel!("T  (%)")
-end
-
-# ╔═╡ bc6ba394-d1b8-4c1b-8a01-c23bcd29178c
-md"### Color filters FF01"
-
-# ╔═╡ 7140a27e-4cde-4c7d-a794-9a624e540677
-begin
-	ff550 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-550_49_Spectrum.csv", enG2)
-	ff600 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-600_52-25.csv", enG2)
-	ff650 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-650_54_Spectrum.csv", enG2)
-	ff692 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-692_40_Spectrum.csv", enG2)
-	ff732 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-732_68_Spectrum.csv", enG2)
-	ff810 = lfi.LaserLab.load_df_from_csv("/Users/jj/JuliaProjects/LaserLab/data/Filters", "FF01-810_Spectrum.csv", spG)
-	ff810[!, :T] = ff810[!, :T] * 0.01 
-	first(ff550,10)
-	println("")
-end
-
-# ╔═╡ b0bf01be-6a53-4c42-9d9a-752bf4652986
-begin
-	ff550s = filter(df -> df.T >= 0.01, ff550)
-	ff600s = filter(df -> df.T >= 0.01, ff600)
-	ff650s = filter(df -> df.T >= 0.01, ff650)
-	ff692s = filter(df -> df.T >= 0.01, ff692)
-	ff732s = filter(df -> df.T >= 0.01, ff732)
-	ff810s = filter(df -> df.T >= 0.01, ff810)
-	println("")
-end
-
-# ╔═╡ 0ee9bd36-7192-4922-abaf-7d7d08605915
-begin
-	p550 = plot(ff550s.λ, ff550s.T, lw=2, label = "FF01-550", fmt = :png)
-	p600 = plot(p550, ff600s.λ, ff600s.T, lw=2, label = "FF01-600", fmt = :png)
-	p650 = plot(p600, ff650s.λ, ff650s.T, lw=2, label = "FF01-650", fmt = :png)
-	p692 = plot(p650, ff692s.λ, ff692s.T, lw=2, label = "FF01-692", fmt = :png)
-	p732 = plot(p692, ff732s.λ, ff732s.T, lw=2, label = "FF01-732", fmt = :png)
-	p810 = plot(p732, ff810s.λ, ff810s.T, lw=2, label = "FF01-810", fmt = :png)
-	xlabel!("λ (nm)")
-	ylabel!("T  ")
-end
-
-# ╔═╡ df1ff4c2-8c84-455a-9cc4-7fdc34e2cb83
-begin
-	λm = [550.0, 600.0, 650.0, 692.0, 732.0] * nm
-	Im = [0.23, 0.43, 3.44, 1.7, 1.22] * MHz
-	wm = [size(ff550s)[1], size(ff600s)[1], size(ff650s)[1], size(ff692s)[1], size(ff732s)[1]] * nm 
-	Ilm = uconvert.(MHz*μm^-1, Im ./λm) 
-	Ilmx = round.(Ilm ./ (MHz*μm^-1),  sigdigits=2)
-	It = sum(Im)
-end
-
-# ╔═╡ d5ef9a03-f716-454b-a5de-0c67ee935679
-md"## Summary of measurements with TOPATU setup and RuSL ML
-- P = $(epl485.P)
-- f = $(epl485.f) 
-  
-| λ filter (nm)   | FF550      | FF600  | FF650 | FF692| FF732|
-|:-------| ---------- |:-----:|:-----:|:-----:|:-----:|
-| λ0 (nm)  | $(λm[1])| $(λm[2]) | $(λm[3]) |$(λm[4])| $(λm[5])
-| w (nm)  | $(wm[1])| $(wm[2]) | $(wm[3]) |$(wm[4])| $(wm[5])
-| I (MHz)  | $(Im[1])| $(Im[2]) | $(Im[3]) |$(Im[4])| $(Im[5])
-| Ilm (MHz/nm)  | $(Ilmx[1])| $(Ilmx[2]) | $(Ilmx[3]) |$(Ilmx[4])| $(Ilmx[5])
-
-Total observed light = $It
-
-"
-
-# ╔═╡ 6396d4af-e668-4a73-b8be-b73b8b41267c
-begin
-ps2 = scatter(λm/nm, Ilmx, markersize=3,
-		color = :black,
-	    legend=false,
-		fmt = :png)
-plot(ps2, λm/nm, Ilmx, lw=2)
-xlabel!("λ (nm)")
-ylabel!("Il (MHz/μm)")
-end
-
-# ╔═╡ 6445e2c6-4dcc-44dd-bdda-564e4c9b3911
-effCCD = lfi.LaserLab.ccd()
-
-# ╔═╡ 7e0b0616-5dd0-44d3-beab-4fa32521d3ff
-begin
-	wl = 350.0:10.0:1000.0
-	eccd = effCCD.(collect(wl))
-	plot(wl, eccd, lw=2)
-	xlabel!("λ (nm)")
-	ylabel!("ϵ")
-end
-
-# ╔═╡ b49c15a7-d9de-4942-b09c-7f2ed9b4550e
-function ccd_eff(lmn,wmn)
-	effx = zeros(1,5)
-	for i in 1:5
-		effx[i] = (effCCD(lmn[i] - wmn[i]/2.0) + effCCD(lmn[i] + wmn[i]/2.0))/2.0
+# ╔═╡ 6be64cc8-a357-477c-ae0e-cb0405de4f4b
+function shift_waveform!(wvfm::DataFrame, wmus::Float64, wsym::Bool)
+	wvfm[!, :Ampl] = -1000.0 * wvfm[!, :Ampl] 
+	wvfm[!, :Time] = 1e+6  .* wvfm[!, :Time]
+	if wsym
+		wvfm[!, :Time] = wmus/2.0  .+ wvfm[!, :Time]
 	end
-	#@info "effx" effx
-	sum(effx)/length(effx)
+	wvfm
 end
 
-# ╔═╡ 356b7b35-6794-40d0-8c88-b8e066f086a6
-begin
-	lmn = λm/nm
-	wmn = wm/nm
-	ϵobj = 0.95
-	ϵd = 0.95
-	ϵf = 0.85
-	ϵPMT = 0.1
-	ϵNA      = lfi.LaserLab.transmission(tobj)
-	efccd = ccd_eff(lmn,wmn)
-	ϵT =  ϵobj^2 * ϵd^2 * ϵf * ϵPMT * ϵNA
-	ϵTc =  ϵobj^2 * ϵd^2 * ϵf * efccd * ϵNA
-	qf = 0.1
-	println("")
-end
+# ╔═╡ fe91ac2c-b95a-4d5e-a2fe-f09f43297d4d
+md"
+	read_waveform(wdir::String, wname::String; wmus::Float64=5, symmetric::Bool=false)
+ 
+**Fields**:
+  
+*wdir*   : name of directory
 
-# ╔═╡ f38318dd-f7bb-4bf1-9bc9-d1f7ed8a8397
-md"## Detected Light
+*wname*  : name of file
+*wmus*  : width of time window in μs.
 
-The detected light is the product of the emitted fluorescence and the detection efficiency, which in turns includes:
+*wsym* : If true the window is symmetric (centered at zero)
 
-- Transmission efficiency of the objective : ϵ_obj_vuv =$(ϵobj^2)
-- Tranmission due to the NA ϵ_NA = $(round(ϵNA, digits=2))
-- Transmission due to the dichroic ϵd =$(ϵd^2)
-- Tranmission due to the filters ϵf = $ϵf
-- Transmission due to PMT ϵPMT = $ϵPMT
-- Transmission due to CCD ϵCCD = $(round(efccd, digits=2))
-- Quenching factor of phosphorescence due to oxygen = $qf
-- The total tranmission (with PMT) is $(round(ϵT, digits=3))
-- The total tranmission (with CCD) is $(round(ϵTc, digits=3))
+**Returns**
+
+Waveform as a data frame, amplitude in mV (signal positive), time in μs.
 "
 
-# ╔═╡ f615fc39-bfd9-45ce-84fe-a28921bde525
-
-
-# ╔═╡ 43e8a5f1-512c-46b7-91f6-89d3c7e81368
-begin
-	osf  = sfrs * ϵT * qf
-	osfc = sfrs * ϵTc * qf
-end
-
-# ╔═╡ d49e7e9b-6487-407b-aef7-2884461879a0
-md" ### Expected observed light in the PMT
-
-Thus the total expected light in the PMT for a ML of ~ $(uconvert(cm^-2, ml.σ)) molecules is:
-
-- Expected observed light:
-  -  with PMT= $(round(osf/Hz, sigdigits=1)) Hz
-  -  with CCD= $(round(osfc/Hz, sigdigits=1)) Hz
-
-"
-
-# ╔═╡ ae5f17d2-3c31-4a9c-85e4-f2f22625d86b
-begin
-	P0 = 1.5μW
-	f0  = 500kHz
-	println("")
-end
-
-# ╔═╡ c3952378-79bb-4605-8ffb-828c1e3e3321
-#load("../notebooks/img/RuSlCCD250222.png")   
-
-# ╔═╡ 0f7ff8a4-43e4-4829-a4b4-78594664cee2
-md"## TCSP experiments"
-
-# ╔═╡ 131f4e45-85f5-43bc-8c32-d59f8803bfd6
-md"### Typical setup"
-
-# ╔═╡ a4066207-4c50-4360-b43f-218d5355ff3e
-load("../notebooks/img/tcsp_setup.png")   
-
-# ╔═╡ 218fc76e-1060-40ff-a52f-d884441380e2
-md"### Photon counting technique"
-
-# ╔═╡ 58b61eac-e1de-48f3-a37b-ecc1f8d5f8ab
-load("../notebooks/img/tcspc.png")  
-
-# ╔═╡ 320f9c75-5047-4a4c-890b-ffdc70767634
-md" The phothon counting technique requires that one photon is recorded on average per pulse (in this case in the period 1-5 mus). This is to avoid inefficiencies which can bias the measurement as ilustrated below."
-
-# ╔═╡ b97cd0a9-ee46-4520-a408-f60150bbea74
-load("../notebooks/img/tcspc_deadtime.png")  
-
-# ╔═╡ b96961fd-6a9a-40bb-b582-2b3586f56edb
-md"However, most TCSPC techniques are designed for short interval times. The dead time is typically a few nanoseconds, thus no loss for dead time is expected here. Nevertheless the system is designed to record just one photon per pulse. This implies that the average number of photons must be reduced to 1 per 1 (5) μs. This can be done by:
-- attenuating the laser light
-- reducing the laser power
-- spacing the molecules in the ML
-"
-
-# ╔═╡ eba3554f-ae6f-4a3d-8131-43ffa2743977
-md"# Appendix"
-
-# ╔═╡ f57ca807-9b3a-4f77-9607-74ee3a411990
-md"## Fitting"
-
-# ╔═╡ 7a6a3b8a-8b1c-41d5-ab25-7d294f1bee3d
-md"### *func1dfit* is a light wrapper to curve_fit"
-
-# ╔═╡ 92698c05-edf3-4b9e-a10a-1da9ed0dc82a
-"""
-    func1dfit(ffit::Function, x::Vector{<:Real},
-              y::Vector{<:Real}, p0::Vector{<:Real},
-              lb::Vector{Float64}, ub::Vector{Float64})
-
-Fit a function to the data x, y with start prediction p0
-and return coefficients and errors.
-"""
-func1dfit(ffit::Function, x::Vector{<:Real},
-          y::Vector{<:Real}, p0::Vector{<:Real},
-          lb::Vector{<:Real}, ub::Vector{<:Real}) = curve_fit(ffit, x, y, p0, 
-			                                                 lower=lb, upper=ub)
-    
-
-# ╔═╡ 0dd448d1-9952-438c-9284-e0c320c955aa
-md"### Example: fit to a polynomial"
-
-# ╔═╡ f8b61a8e-2679-48cd-842c-17d6e6ee760e
-
-pol3(x, a, b, c, d) = a + b*x + c*x^2 + d*x^3
-
-
-# ╔═╡ bfc6e346-3525-47d7-a436-ffa02dab11b9
-begin
-	err_sigma = 0.04
-	x=collect(LinRange(0., 10., 100))
-	p0 = [10.0, 1.0, 0.7, 0.5]
-	y = pol3.(x, p0...)
-    y += rand(Normal(0, err_sigma), length(y))
-    lb = fill( 0.0, length(p0))
-    ub = fill(20.0, length(p0))
-    pol3_fit = @. pol(x, p) = p[1] + p[2] * x + p[3] * x^2 + p[4] * x^3
-    fq = func1dfit(pol3_fit, x, y, p0, lb, ub)
-	cfq = coef(fq)
-	sfq = stderror(fq)
-end
-
-# ╔═╡ 2ff6f551-2662-43a5-9776-70951ff40364
-@info "fit coefficients" cfq
-
-# ╔═╡ ec3cd40c-6a52-48fd-a3ce-9e091250e981
-yf = pol3.(x, cfq...);
-
-# ╔═╡ 525b0316-8374-4882-aa5b-84f2bf33c5c3
-@info "coefficient errors (std)" sfq
-
-# ╔═╡ 840fa50e-bf0f-42f9-8e7f-ec3cc4bdb9af
-sfq
-
-# ╔═╡ 5738e27c-5307-4623-bd43-67f66b7b97d2
-@info "margin_of_error (90%)" margin_error(fq, 0.1)
-
-# ╔═╡ 14360d77-340e-488d-bed0-00f408ef1dd4
-all(isapprox.(cfq, p0; atol=err_sigma))
-
-# ╔═╡ 685fd840-64b1-427d-83f3-217664ea9798
-begin
-pp1 = scatter(x, y,
-	          label="p3",
-			  markersize=2,
-			  color = :black,
-	          legend=false,
-		   	  fmt = :png)
-pp2 = plot(pp1, x, yf, lw=2)
+# ╔═╡ e5bf7e93-f089-4b77-a2e0-d014bdc309e1
+function read_waveform(wdir::String, wname::String; wmus::Float64, 
+	                   wsym::Bool=false)
 	
-xlabel!("x")
-ylabel!("p3(x)")
+	wvfm = lfi.LaserLab.load_df_from_csv(wdir, wname, enG,5)
+	shift_waveform!(wvfm, wmus, wsym)
+	
 end
 
-# ╔═╡ 8ecc8206-275b-4d55-9b01-e82e7f2df5dc
-md"### Fit an exponential"
+# ╔═╡ 0eded161-9ad3-475e-a6d2-d8068f15bad5
+md"
+	read_waveform(csvf::Vector{String}, fnumber::Integer; wmus::Float64, 
+	              wsym::Bool)
 
-# ╔═╡ aac7a640-97fe-46c0-89b3-7e76978baf0d
-exp(1.0)
+  Like previous method but takes a vector of strings with the name of the files and an integer with the index of the file to be read
+"
 
-# ╔═╡ 89ef5f08-7a1e-42a5-8fcf-b7efa63a8a68
-expo(t, N, λ) = N*exp(-t/λ)
-
-# ╔═╡ 426f8190-7865-4bd1-bc23-0adb5fc1892c
-begin
-	err_sigma2 = 0.05
-	t=collect(LinRange(0.0, 5000.0, 1000))
-	p0t = [3500.0, 500.0]
-	yt = expo.(t, p0t...)
-	yts = yt + rand(Normal(0, err_sigma2), length(yt)) .* yt
-    lbt = [0.0, 0.0]
-    ubt = [50000.0, 50000.0]
-    expo_fit = @. expo(t, p) = p[1]*exp(-t/p[2])
-    fqe = func1dfit(expo_fit, t, yts, p0t, lbt, ubt)
-	cfqe = coef(fqe)
-	sfqe = stderror(fqe)
+# ╔═╡ e673cdda-7032-4600-bbd0-01a291aa3eb5
+function read_waveform(csvf::Vector{String}, fnumber::Integer; wmus::Float64, 
+	                   wsym::Bool)
+	
+	wvfm = DataFrame(CSV.File(csvf[fnumber], header=5, delim=enG.delim, decimal=enG.decimal))
+	shift_waveform!(wvfm, wmus, wsym)
 end
 
-# ╔═╡ 2fdad658-0b71-4d42-8591-9284fee3aeb6
-
+# ╔═╡ 86894686-5fdd-43ab-a491-e3015b6bb44d
 begin
-	tft = expo.(tdata, coef(fit)...);
+	fls7n5k1m = glob("../labdata/BOLD_062_A2_500kHz_700nm_100us/C1*.csv")
+	n7n5k1m = length(fls7n5k1m) 
+	
+	ffl7n5k1m = 200.0e+6
+	wvfm7n5k1m = read_waveform(fls7n5k1m,fn7n5k1m; wmus=wmus100mus, wsym=true)
+	first(wvfm7n5k1m,3)
+end
+
+# ╔═╡ 2f60d20b-62af-42aa-b149-230283f9914e
+begin
+	fls8n5k1m = glob("../labdata/BOLD062_A2_500kHz_730nm_100us/C1*.csv")
+	n8n5k1m = length(fls8n5k1m) 
+	
+	ffl8n5k1m = 200.0e+6
+	wvfm8n5k1m = read_waveform(fls8n5k1m,fn8n5k1m; wmus=wmus100mus, wsym=true)
+	first(wvfm8n5k1m,3)
+end
+
+# ╔═╡ 96dad766-398d-414c-ac66-dfaa76947ffc
+md"
+		sampling_rate(wvfm::DataFrame, wmus::Float64)
+**Fields**:
+  
+*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
+
+*wmus*  : width of time window in μs.
+
+**Returns**
+
+The sampling rate
+"
+
+# ╔═╡ b43916ba-0499-4d82-b81c-49aba21ee145
+function sampling_rate(wvfm::DataFrame, wmus::Float64) 
+	uconvert(GHz, (length(wvfm.Time) / (wmus*1.0e-6)) * Hz)
+end
+
+
+# ╔═╡ 5dfbb58a-1411-4264-9540-8cc26263910f
+md"
+		sampling_period(wvfm::DataFrame, wmus::Float64)
+  **Fields**:
+  
+*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
+
+*wmus*  : width of time window in μs.
+
+**Returns**
+
+The sampling period
+"
+
+# ╔═╡ ff872f5f-b10b-4065-8850-d81f9d6aece3
+function sampling_period(wvfm::DataFrame, wmus::Float64) 
+	uconvert(ns, 1.0 / sampling_rate(wvfm, wmus))
+end
+
+# ╔═╡ 9df485bd-266d-4d1e-a49c-f06dafd55e12
+begin
+	sr7n5k1m = sampling_rate(wvfm7n5k1m,wmus100mus)/GHz
+	sp7n5k1m = sampling_period(wvfm7n5k1m,wmus100mus)/ns
 	println("")
 end
 
-# ╔═╡ 5a0cc7d8-a3c3-45b9-8b91-9528e4938fb0
+# ╔═╡ f036d804-14ed-40eb-8ac9-91248df6a6f3
+md"
+- Files in directory = $n7n5k1m
+- sampling rate= $(round(sr7n5k1m, sigdigits=2)) GHz
+- sampling period = $(round(sp7n5k1m, sigdigits=2) )ns
+"
+
+
+# ╔═╡ 77b76835-f30c-424e-b4d8-05e380f2a524
 begin
-ps1 = scatter(tdata, ydata, markersize=1,
-		color = :black,
-	    legend=false,
-		fmt = :png)
-pp = plot(ps1, tdata, tft, lw=2,fmt = :png)
-xlabel!("t (ns)")
-ylabel!("I (a.u.)")
+	sr8n5k1m = sampling_rate(wvfm8n5k1m,wmus100mus)/GHz
+	sp8n5k1m = sampling_period(wvfm8n5k1m,wmus100mus)/ns
+	println("")
 end
 
-# ╔═╡ f1e6c6b6-49fa-44bb-bb9a-07986f6a1d13
-expo(0,3000.,500.)
+# ╔═╡ 399913df-af72-40db-b900-1605677bbfd0
+md"
+- Files in directory = $n8n5k1m
+- sampling rate= $(round(sr8n5k1m, sigdigits=2)) GHz
+- sampling period = $(round(sp8n5k1m, sigdigits=2) )ns
+"
 
-# ╔═╡ c54205d5-ea1a-4416-b4b0-3bdb168dae61
-fqe.converged
+# ╔═╡ 5ff2bb27-3db8-4b05-bd90-c73b493a9c76
+md"
+	thrx(wvfm::DataFrame; nsigma=1, waveform='filtered')
+Return the mean, std, and (+-) threshold at nsigma, for raw or filtered waveform
+"
 
-# ╔═╡ b83d4ff4-cc73-4cf7-abad-78da291eb404
-@info "fit coefficients" cfqe
-
-# ╔═╡ 13ad7221-0d2d-4a77-9258-9edace85fde0
-@info "coefficient errors (std)" sfqe
-
-# ╔═╡ f2b2cc4d-54ed-4f2f-80bc-bc3bf82bb2e8
-begin
-pp3 = scatter(t, yt,
-	          label="expo",
-			  markersize=2,
-			  color = :black,
-	          legend=false,
-		   	  fmt = :png)
-#pp2 = plot(pp1, x, yf, lw=2)
+# ╔═╡ f20b33b0-c0ec-4ee7-8273-6b738eb44dd7
+function thrx(wvfm::DataFrame; nsigma=1, waveform="filtered")
+	if waveform=="filtered"
+		ampl = "fAmpl"
+	else
+		ampl = "Ampl"
+	end
 	
-xlabel!("t")
-ylabel!("expo(t)")
+	meanfs = mean(wvfm[!, ampl])
+	stdfs = std(wvfm[!, ampl])
+	thrp = meanfs + stdfs * nsigma
+	thrn = meanfs - stdfs * nsigma
+	meanfs, stdfs, thrp, thrn
 end
+
+# ╔═╡ 1a5182c8-787d-4e45-91d3-ae8b523eda5d
+begin
+	wvfm6n5k1m = read_waveform(fls6n5k1m,fn6n5k1m; wmus=wmus100mus, wsym=true)
+	first(wvfm6n5k1m,3)
+
+	sr6n5k1m = sampling_rate(wvfm6n5k1m,wmus100mus)/GHz
+	sp6n5k1m = sampling_period(wvfm6n5k1m,wmus100mus)/ns
+	mean6n5k1m, std6n5k1m, thrp6n5k1m, thrn6n5k1m = thrx(wvfm6n5k1m; nsigma=3.0, waveform="raw");
+	println("")
+end
+
+# ╔═╡ 8a4386f6-b364-4e64-ba9a-5029260288c5
+md"
+- sampling rate = $(round(sr6n5k1m, sigdigits=2)) GHz
+- sampling period = $(round(sp6n5k1m, sigdigits=2)) ns
+  
+Unfiltered wvfm:
+- mean = $(round(mean6n5k1m, sigdigits=4))
+- std = $(round(std6n5k1m, sigdigits=4))
+"
+
+# ╔═╡ e1545631-d3fc-4647-9746-8aaab5982ba4
+fmean6n5k1m, fstd6n5k1m, fthrp6n5k1m, fthr6n5k1m = thrx(wvfm6n5k1m; nsigma=2.0, waveform="filtered")
+
+# ╔═╡ d41f7733-f109-4649-bd94-f1bad8abdbb3
+md"### Filter signal
+- Filter frequency (in Hz) = $ffl6n5k1m
+
+Filtered wvfm:
+- mean = $fmean6n5k1m
+- std = $fstd6n5k1m
+"
+
+# ╔═╡ c548e453-f5bc-40cc-a3d3-b3c0c72d6f9d
+md"
+	filter_signal_lowpass(wvfm::DataFrame, 
+	                      flh::Float64, fs::Float64, filtertype::String, 
+	                      n=4, ϵ=1.0)
+  **Fields**:
+  
+*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
+
+*flh*  : higher frequency accepted by the filter
+
+*fs*  : sampling frequency
+
+*filtertype*  : two possible filters: Butterworth or Chebyshev1
+
+*n* : filter order
+
+*ϵ* : ripple factor for Chebyshev1 filter
+
+**Returns**
+
+frequency response, filter (Butterworth, or Chebyshev) and filtered signal
+"
+
+# ╔═╡ b5e2dfb7-c325-4898-b45d-8f071f1958b6
+
+function filter_signal_lowpass(wvfm::DataFrame, 
+	                           flh::Float64, fs::Float64, filtertype::String, 
+	                           n=4, ϵ=1.0)
+
+	responsetype = Lowpass(flh; fs=fs)
+	
+	if filtertype == "Butterworth"
+		designmethod = Butterworth(n)
+	elseif filtertype == "Chebyshev1"
+		ripple = 10.0*log10(ϵ^2 + 1.0)
+		designmethod = Chebyshev1(n, ripple)
+	end
+	filter = digitalfilter(responsetype, designmethod)
+	H, w = freqresp(filter)	
+	H, filter, filt(filter, wvfm.Ampl)
+end
+
+# ╔═╡ c5c7a723-6975-4903-ae84-aee4a1bb5441
+md"
+	filter_signal_bandpass(wvfm::DataFrame, 
+	                       fll::Float64, flh::Float64, fs::Float64, 
+	                       filtertype::String, n=4, ϵ=1.0)
+
+  **Fields**:
+  
+*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
+
+*flh*  : lower frequency accepted by the filter
+
+*flh*  : higher frequency accepted by the filter
+
+*fs*  : sampling frequency
+
+*filtertype*  : two possible filters: Butterworth or Chebyshev1
+
+*n* : filter order
+
+*ϵ* : ripple factor for Chebyshev1 filter
+
+**Returns**
+
+frequency response, filter (Butterworth, or Chebyshev) and filtered signal
+"
+
+# ╔═╡ 1f950122-3c05-4d4c-85c2-1ed2094b1448
+
+function filter_signal_bandpass(wvfm::DataFrame, 
+	                            fll::Float64, flh::Float64, fs::Float64, 
+	                            filtertype::String, n=4, ϵ=1.0)
+
+	responsetype = Bandpass(fll, flh; fs=fs)
+	
+	if filtertype == "Butterworth"
+		designmethod = Butterworth(n)
+	elseif filtertype == "Chebyshev1"
+		ripple = 10.0*log10(ϵ^2 + 1.0)
+		designmethod = Chebyshev1(n, ripple)
+	end
+	filter = digitalfilter(responsetype, designmethod)
+	H, w = freqresp(filter)	
+	H, filter, filt(filter, wvfm.Ampl)
+end
+
+# ╔═╡ d686b4a3-03fd-4213-9b82-45fd395f96ee
+md"
+	filter_signal_lp!(wvfm::DataFrame, wmus::Float64; 
+                           filtertype::String, flhz::Float64, 
+                           n=4, ϵ=1.0)
+   **Fields**:
+  
+*wvfm*  : Waveform (a Data Frame with time/amplitude columns)
+
+*wmus*  : width of time window in μs.
+
+*filtertype*  : two possible filters: Butterworth or Chebyshev1
+
+*flhz*  : higer frequency accepted by the filter in Hz
+
+*n* : filter order
+
+*ϵ* : ripple factor for Chebyshev1 filter
+
+**Returns**
+
+A column with the filtered amplitude is added to the waveform
+"
+
+# ╔═╡ 35f0fda8-7e9a-4f5c-bbd3-979e8d04ebfa
+function filter_signal_lp!(wvfm::DataFrame, wmus::Float64; 
+                           filtertype::String, flhz::Float64, 
+                           n=4, ϵ=1.0)
+	fs = uconvert(Hz, sampling_rate(wvfm, wmus))/Hz
+	hcb, fltcb, fsgncb = filter_signal_lowpass(wvfm, flhz, fs, filtertype, n, ϵ)
+	wvfm[!, "fAmpl"] = fsgncb
+end
+
+
+# ╔═╡ 4c20fc26-a692-420f-8a15-f739d73d2100
+begin
+    filter_signal_lp!(wvfm6n5k1m, wmus100mus; filtertype="Butterworth", flhz=ffl6n5k1m, n=4)
+    first(wvfm6n5k1m,3)
+end
+
+# ╔═╡ d565ae50-ff90-430a-a186-c1a85686ccf8
+begin
+    filter_signal_lp!(wvfm7n5k1m, wmus100mus; filtertype="Butterworth", flhz=ffl7n5k1m, n=4)
+    first(wvfm7n5k1m,3)
+end
+
+# ╔═╡ 8c1b6c42-34a4-4398-a25b-e8a84ffa7e18
+begin
+    filter_signal_lp!(wvfm8n5k1m, wmus100mus; filtertype="Butterworth", flhz=ffl8n5k1m, n=4)
+    first(wvfm8n5k1m,3)
+end
+
+# ╔═╡ d8a84dea-adbb-48c5-809b-309236f3dfc5
+md"
+	filter_signal_bp!(wvfm::DataFrame, wmus::Float64; 
+                           filtertype:String, fihz::Float64, flhz::Float64, 
+                           n=4, ϵ=1)
+"
+
+# ╔═╡ 3d5ef2d8-1d1c-4f90-9178-f72ce4d67f51
+function filter_signal_bp!(wvfm::DataFrame, wmus::Float64; 
+                           filtertype::String, fihz::Float64, flhz::Float64, 
+                           n=4, ϵ=1)
+	fs = uconvert(Hz, sampling_rate(wvfm, wmus))/Hz
+	hcb, fltcb, fsgncb = filter_signal_bandpass(wvfm, fihz, flhz, fs, 
+		                                        filtertype, n, ϵ)
+	wvfm[!, "fAmpl"] = fsgncb
+end
+
+# ╔═╡ 647e0043-3389-43f2-bfd6-329d88fce931
+md"
+	plot_filtered_waveform(wvfm; window=false, waveform='filtered', wstart=-1, wend=-1, thrp=0, thrn=0)
+"
+
+# ╔═╡ 843d888f-1e8d-4875-b175-1bc0a98f3320
+function plot_filtered_waveform(wvfm; window=false, waveform="filtered", wstart=-1, wend=-1, thrp=0, thrn=0, scatter=true)
+	
+	if waveform=="filtered"
+		ampl = "fAmpl"
+	else
+		ampl = "Ampl"
+	end
+	
+	if window
+		plot(wvfm.Time[wstart:wend], wvfm[wstart:wend, ampl], lw=2, label=waveform, fmt = :png)
+		if scatter
+			scatter!(wvfm.Time[wstart:wend], wvfm[wstart:wend, ampl],  markersize=2,
+					  color = :black, label=false, fmt = :png)
+		end
+	else
+		plot(wvfm.Time, wvfm[!, ampl], lw=2, label=waveform, fmt = :png)
+		if scatter
+			scatter!(wvfm.Time, wvfm[!, ampl], markersize=2,
+					  color = :black, label=false, fmt = :png)
+		end
+	end
+	
+	hline!([thrp], label=false, fmt = :png)
+	hline!([thrn], label=false, fmt = :png)
+	xlabel!("Time (μs or index)")
+	ylabel!("Amplitude")
+end
+
+# ╔═╡ 26f91e54-53ca-4c47-9c1b-839e572b62eb
+begin
+    if zfltWvfm
+	    plot_filtered_waveform(wvfm6n5k1m; window=false, thrp=fthrp6n5k1m, thrn=fthr6n5k1m)
+	end
+end
+
+# ╔═╡ 733c7f3b-0996-401d-80db-180b6494351c
+begin
+    fmean7n5k1m, fstd7n5k1m, fthrp7n5k1m, fthr7n5k1m = thrx(wvfm7n5k1m; nsigma=2.0, waveform="filtered")
+    plot_filtered_waveform(wvfm7n5k1m; window=false, thrp=fthrp7n5k1m, thrn=fthr7n5k1m)
+end
+
+# ╔═╡ 471d1bc5-df15-4bd1-9dc0-ef77ffe624a5
+md"### Filter signal
+- Filter frequency (in Hz) = $ffl7n5k1m
+
+Filtered wvfm:
+- mean = $fmean7n5k1m
+- std = $fstd7n5k1m
+"
+
+# ╔═╡ 427c1404-242a-4b60-933e-0ac467483906
+begin
+    fmean8n5k1m, fstd8n5k1m, fthrp8n5k1m, fthr8n5k1m = thrx(wvfm8n5k1m; nsigma=2.0, waveform="filtered")
+    plot_filtered_waveform(wvfm8n5k1m; window=false, thrp=fthrp8n5k1m, thrn=fthr8n5k1m)
+end
+
+# ╔═╡ 3624a0fa-a96f-42de-8a09-8172aa52a342
+md"### Filter signal
+- Filter frequency (in Hz) = $ffl8n5k1m
+
+Filtered wvfm:
+- mean = $fmean8n5k1m
+- std = $fstd8n5k1m
+"
+
+# ╔═╡ 99abe607-0a0e-411a-8784-df5318be1db9
+md"
+	select_peaks(csvf, i0, il; fl=200.0MHz, nsigma=2.0, promsel=0.5, wsel=6.0)
+"
+
+# ╔═╡ c126abdc-a067-45fe-be68-817399f31e65
+md"
+	proms(csvf::Vector{String}, fi::Integer, fe::Integer; 
+               wmus::Float64, wsym::Bool, flhz::Float64, promsel::Float64, 
+               nsigma=2.0, filtertype='Butterworth')
+"
+
+# ╔═╡ 9d34622a-d7c4-4621-96e8-51e9b801a829
+md"
+	select_filtered_peaks(wvfm::DataFrame, thrp::Float64; 
+                               promsel::Number, wsel=0.0)
+"
+
+# ╔═╡ 58d706c0-44f5-4514-b87b-eaf1f1940448
+function select_filtered_peaks(wvfm::DataFrame, thrp::Float64; 
+                               promsel::Number, wsel=0.0)
+
+	wvfmFlt = filter(row -> row[:fAmpl] > thrp, wvfm)
+	pks, vals = findmaxima(wvfmFlt.fAmpl)
+	peaks2, proms = peakproms(pks, wvfmFlt.fAmpl; minprom=promsel)
+	
+	if length(peaks2) == 0
+		return Nothing 
+	end
+	
+	peaks2, widths, leftedge, rightedge = peakwidths(peaks2, wvfmFlt.fAmpl, proms; minwidth=wsel)
+
+	ys = [wvfmFlt.fAmpl[i] for i in peaks2]
+	xs = [wvfmFlt.Time[i] for i in peaks2]
+	npeaks = length(peaks2)
+	xbase = ones(npeaks,1)*[promsel]
+	
+	return wvfmFlt, SPeaks(peaks2, proms, widths, leftedge, rightedge, xs,ys, xbase, promsel)
+end
+
+# ╔═╡ f6902608-37a4-4c63-98d4-6ad7a704907c
+function select_peaks(csvf::Vector{String}, i0::Integer, il::Integer; 
+					  wmus::Float64, wsym::Bool, flhz::Float64, promsel::Number, 
+               		  nsigma=2.0, filtertype="Butterworth")
+	SPK = []
+	for fileNumber in i0:il
+		wvfm = read_waveform(csvf,fileNumber; wmus=wmus, wsym=wsym)
+		filter_signal_lp!(wvfm, wmus; filtertype=filtertype, flhz=flhz, n=4)
+		_, _, thrp, _ = thrx(wvfm; nsigma=nsigma, waveform="filtered")
+		result = select_filtered_peaks(wvfm, thrp; promsel = promsel, wsel=0.0)
+		if result != Nothing
+			_, speaks = result
+			push!(SPK,speaks)
+		end
+	end
+	SPK
+end
+
+# ╔═╡ 00c178f8-d4b9-4822-937a-f4e82da84f11
+function proms(csvf::Vector{String}, fi::Integer, fe::Integer; 
+               wmus::Float64, wsym::Bool, flhz::Float64, promsel::Number, 
+               nsigma=2.0, filtertype="Butterworth")
+	
+	spks0 = select_peaks(csvf, fi, fe; wmus=wmus, wsym=wsym, flhz=flhz,
+	                     promsel=promsel)
+	sP = reduce(vcat,[spks0[i].proms for i in 1:length(spks0)])
+	sW = reduce(vcat,[spks0[i].widths for i in 1:length(spks0)])
+	return sP, sW
+end
+
+# ╔═╡ 323336be-94ef-4de9-830b-3733625d30b4
+function runproms(promsel=0.5)
+	P6n5k1m, W6n5k1m = proms(fls6n5k1m, 1, n6n5k1m;  
+					 wmus=wmus100mus, wsym=true, flhz=ffl6n5k1m, promsel=0.5)
+	
+	hW6n5k1m = lfi.LaserLab.hist1d(W6n5k1m, 20, 5.0, 15.0)
+	hP6n5k1m = lfi.LaserLab.hist1d(P6n5k1m, 20, 0.0, 10.0)
+	lfi.LaserLab.hist1d(hP6n5k1m, "Prominence (promsel=$promsel)"), lfi.LaserLab.hist1d(hW6n5k1m, "Width")
+end
+
+# ╔═╡ f9943b88-e3ee-40f4-a0d6-27b355236cdd
+begin
+	if lrunproms
+		phP6n5k1m, phW6n5k1m = runproms()
+		plot(phP6n5k1m, phW6n5k1m)
+	end 
+end
+
+# ╔═╡ 4d4435c4-1b2d-418d-ba0c-8b6e05cd7ee5
+begin
+	P7n5k1m, W7n5k1m = proms(fls7n5k1m, 1, n7n5k1m;  
+	                 wmus=wmus100mus, wsym=true, flhz=ffl7n5k1m, promsel=1.5)
+	
+	hW7n5k1m = lfi.LaserLab.hist1d(W7n5k1m, 20, 5.0, 15.0)
+	hP7n5k1m = lfi.LaserLab.hist1d(P7n5k1m, 20, 0.0, 10.0)
+end
+
+# ╔═╡ 7eaac105-406c-43c1-acbb-9481708f1948
+lfi.LaserLab.hist1d(hP7n5k1m, "Prominence (promsel=0.5)")
+
+# ╔═╡ 07a50870-7241-4649-8db7-72dec6a95810
+lfi.LaserLab.hist1d(hW7n5k1m, "Width")
+
+# ╔═╡ 7225258a-ce96-4c53-b476-056a6e90660a
+begin
+	P8n5k1m, W8n5k1m = proms(fls8n5k1m, 1, n8n5k1m;  
+	                 wmus=wmus100mus, wsym=true, flhz=ffl8n5k1m, promsel=1.5)
+	
+	hW8n5k1m = lfi.LaserLab.hist1d(W8n5k1m, 20, 5.0, 15.0)
+	hP8n5k1m = lfi.LaserLab.hist1d(P8n5k1m, 20, 0.0, 10.0)
+end
+
+# ╔═╡ 7a391586-263d-4c53-b4c3-12f98a120905
+lfi.LaserLab.hist1d(hP8n5k1m, "Prominence (promsel=0.5)")
+
+# ╔═╡ 8545525d-a0ea-45cf-b6b7-d111d5244f4c
+lfi.LaserLab.hist1d(hW8n5k1m, "Width")
+
+# ╔═╡ a840300f-0724-44c8-ba08-d7b59491e0e4
+md"
+	plot_filtered_peaks(wvfmFlt, spks)
+"
+
+# ╔═╡ c1894849-5d29-4857-a715-9b91ffe8163d
+function plot_filtered_peaks(wvfmFlt, spks)
+	plot(wvfmFlt.fAmpl, lw=2, label=false)
+	scatter!(spks.peaks, spks.ys, label="peak")
+	scatter!(spks.leftedge, spks.xbase, label="leftedge")
+	scatter!(spks.rightedge, spks.xbase, label="rightedge")
+	hline!([spks.promsel], label=false)
+	xlabel!("peak index")
+	ylabel!("peak amplitude")
+end
+
+# ╔═╡ d0a2d2ef-b439-46cd-8ba6-a17469a2cc96
+begin
+	r6n5k1m = select_filtered_peaks(wvfm6n5k1m, fthrp6n5k1m; promsel = sprom6n5k1m, wsel=0.0);
+	if r6n5k1m != Nothing
+		wvflt6n5k1m, spk6n5k1m = r6n5k1m
+		plot_filtered_peaks(wvflt6n5k1m, spk6n5k1m)
+	end
+end
+
+# ╔═╡ afc314ec-4a3a-4b2e-9bb3-ddb8d3cff733
+begin
+	r7n5k1m = select_filtered_peaks(wvfm7n5k1m, fthrp7n5k1m; promsel = sprom7n5k1m, wsel=0.0);
+	if r7n5k1m != Nothing
+		wvflt7n5k1m, spk7n5k1m = r7n5k1m
+		plot_filtered_peaks(wvflt7n5k1m, spk7n5k1m)
+	end
+end
+
+# ╔═╡ d7f36e9c-76dd-4791-869b-7d4000a4a675
+begin
+	r8n5k1m = select_filtered_peaks(wvfm8n5k1m, fthrp8n5k1m; promsel = sprom8n5k1m, wsel=0.0);
+	if r8n5k1m != Nothing
+		wvflt8n5k1m, spk8n5k1m = r8n5k1m
+		plot_filtered_peaks(wvflt8n5k1m, spk8n5k1m)
+	end
+end
+
+# ╔═╡ 083a5ba2-7de3-4e51-962f-08289fe987ce
+md"
+	function subtract_laser(tv::Vector{Float64})
+"
+
+# ╔═╡ 773563de-8eb2-4ea4-87fc-86609e35370f
+function subtract_laser(tv::Vector{Float64}, ltus::Float64)
+	tv - ltus * floor.(tv/ltus)
+end
+
+# ╔═╡ c93d5830-1a1b-408b-8736-54deaa734aac
+begin
+	if lruntime
+	    spks6n5k1m = select_peaks(fls6n5k1m, 1, n6n5k1m; wmus=wmus100mus, wsym=true, flhz=ffl6n5k1m, promsel=sprom6n5k1m)
+	    t6n5k1m = reduce(vcat,[subtract_laser(spks6n5k1m[i].xs, tlus2) for i in 1:length(spks6n5k1m)])
+	    hp6n5k1m = lfi.LaserLab.hist1d(t6n5k1m, 20, 0.0, 2.0)
+		lfi.LaserLab.hist1d(hp6n5k1m, "times")
+	end
+end
+
+# ╔═╡ 96dcbbc0-96e8-4bf8-a724-49e267f503f7
+begin
+    spks7n5k1m = select_peaks(fls7n5k1m, 1, n7n5k1m; wmus=wmus100mus, wsym=true, flhz=ffl7n5k1m, promsel=sprom7n5k1m)
+    t7n5k1m = reduce(vcat,[subtract_laser(spks7n5k1m[i].xs, tlus2) for i in 1:length(spks7n5k1m)])
+    hp7n5k1m = lfi.LaserLab.hist1d(t7n5k1m, 20, 0.0, 2.0)
+end
+
+# ╔═╡ cb23f60e-0764-427e-b263-6fdf89af75e8
+lfi.LaserLab.hist1d(hp7n5k1m, "times")
+
+# ╔═╡ 7a1090f5-4190-4742-a683-566c8a8022be
+begin
+    spks8n5k1m = select_peaks(fls8n5k1m, 1, n8n5k1m; wmus=wmus100mus, wsym=true, flhz=ffl8n5k1m, promsel=sprom8n5k1m)
+    t8n5k1m = reduce(vcat,[subtract_laser(spks8n5k1m[i].xs, tlus2) for i in 1:length(spks8n5k1m)])
+    hp8n5k1m = lfi.LaserLab.hist1d(t8n5k1m, 20, 0.0, 2.0)
+end
+
+# ╔═╡ 6ba3294f-4dfb-431c-a8bf-cf7c1acb09f3
+lfi.LaserLab.hist1d(hp8n5k1m, "times")
+
+# ╔═╡ cfaf2b26-e39d-47b5-8e99-8d35dbd7b3ac
+md"
+		fourier_transform(wvfm1, ws)
+  	
+   Given waveform **wvfm1** and the data window **ws** in seconds, returns the sampling period, fourier transform amplitude and frequency
+"
+
+# ╔═╡ 13e729c1-15ff-4fcf-b3df-9247fda54109
+function fourier_transform(wvfm1, ws)
+	ts = sampling_period(wvfm1, ws)
+	tss = uconvert(s, ts)/s           # tss is the sampling period in seconds
+	F = fft(wvfm1.Ampl) |> fftshift   # fourier transform
+	freqs = fftfreq(length(wvfm1.Time), 1.0/tss) |> fftshift  # frequencies in Hz
+	ts, F, freqs
+end
+
+# ╔═╡ 52e6ee88-f49d-420e-9a99-9c8c54910362
+md"
+	plot_fft(wvfm1, ws; window=false, is=-1, il=-1)
+"
+
+# ╔═╡ 604081ba-c975-414a-a8b6-68a6c401172f
+function plot_fft(wvfm1, ws; window=false, is=-1, il=-1)
+	ts, F, freqs = fourier_transform(wvfm1, ws)
+	xl = Integer(length(freqs))
+	xi = Integer(2 + xl/2)
+	fmhz = freqs[xi:xl] * 1e-6      # frequencies in MHz
+	ampl = abs.(F)[xi:xl]
+	if window
+		scatter(fmhz[is:il], ampl[is:il],  markersize=2,
+				  color = :black,
+	    		  label=false,
+				  fmt = :png)
+	else
+		plot(fmhz, ampl)
+	end
+	
+	xlabel!("frequency (MHz)")
+	ylabel!("Amplitude")
+end
+
+# ╔═╡ 2aa64aa2-90fc-480a-b5a3-37ca6e06158c
+begin
+	if zplotWvfm
+		pfw6n5k1m = plot_filtered_waveform(wvfm6n5k1m; window=false, waveform="raw", thrp=thrp6n5k1m, thrn=thrn6n5k1m, scatter=false)
+		pfft6n5k1m =plot_fft(wvfm6n5k1m,wmus100mus)
+		plot(pfw6n5k1m, pfft6n5k1m)
+	end
+end
+
+# ╔═╡ e533df55-59d5-484a-85c8-936de7b6396a
+begin
+	mean7n5k1m, std7n5k1m, thrp7n5k1m, thrn7n5k1m = thrx(wvfm7n5k1m; nsigma=3.0, waveform="raw");
+	pfw7n5k1m = plot_filtered_waveform(wvfm7n5k1m; window=false, waveform="raw", thrp=thrp7n5k1m, thrn=thrn7n5k1m, scatter=false)
+	pfft7n5k1m =plot_fft(wvfm7n5k1m,wmus100mus)
+	plot(pfw7n5k1m, pfft7n5k1m)
+end
+
+# ╔═╡ 0059069f-cdb4-45d2-9dc7-306e4f82bb72
+md"
+Unfiltered wvfm:
+- mean = $(round(mean7n5k1m, sigdigits=4))
+- std = $(round(std7n5k1m, sigdigits=4))
+"
+
+# ╔═╡ 5c5b2e29-fb2b-4096-af0f-6fd348348067
+begin
+	mean8n5k1m, std8n5k1m, thrp8n5k1m, thrn8n5k1m = thrx(wvfm8n5k1m; nsigma=3.0, waveform="raw");
+	pfw8n5k1m = plot_filtered_waveform(wvfm8n5k1m; window=false, waveform="raw", thrp=thrp8n5k1m, thrn=thrn8n5k1m, scatter=false)
+	pfft8n5k1m =plot_fft(wvfm8n5k1m,wmus100mus)
+	plot(pfw8n5k1m, pfft8n5k1m)
+end
+
+# ╔═╡ 8bd32ac5-886a-490f-b849-657e8f9d90a8
+md"
+Unfiltered wvfm:
+- mean = $(round(mean8n5k1m, sigdigits=4))
+- std = $(round(std8n5k1m, sigdigits=4))
+"
+
+# ╔═╡ 1928ef8d-d7df-4b2b-9b9a-f958cacecaa3
+md"
+	plot_waveform(wvfm, mean, std, nsigma, nsigma2; sctter=false)
+"
+
+# ╔═╡ 17fffef0-699e-4aa2-8931-41afa2ef4da1
+function plot_waveform(wvfm, mean, std, nsigma, nsigma2; sct=false, trace=false)
+	if sct
+		p1 = scatter(wvfm.Time, wvfm.Ampl,  markersize=2,
+				  color = :black,
+	    		  label=false,
+				  fmt = :png)
+	elseif trace
+		p1 = plot(wvfm.Ampl, lw=2, label=false, fmt = :png)
+	else
+		p1 = plot(wvfm.Time, wvfm.Ampl, lw=2, label=false, fmt = :png)
+	end
+	hline!([mean - nsigma * std], label=false, fmt = :png)
+	hline!([mean + nsigma * std], label=false, fmt = :png)
+	hline!([mean - nsigma2 * std], label=false, fmt = :png)
+	hline!([mean + nsigma2 * std], label=false, fmt = :png)
+	xlabel!("t (μs)")
+	ylabel!("I (mV)")
+	p1
+end
+
+# ╔═╡ c056af02-693b-4837-ab7b-1c4c7b7a9ca5
+md"### glob_files
+	function glob_files(path)
+"
+
+# ╔═╡ 8d02c42c-452e-4ad3-9b27-95ac7ea5e210
+function glob_files(path)
+	sdr = string(path, "/rep*")
+	drs = glob(sdr) 
+	FLS = String[]
+	for dr in drs
+		fls   = string(dr, "/C1*.csv")
+		csf = glob(fls) 
+		append!(FLS, csf)
+	end
+	FLS
+end
+
+# ╔═╡ 380a7a82-0924-42b6-8698-7573b389e9ad
+function glob_files2(path; wvl="650nm")
+	sdr = string(path, "/", wvl,"*")
+	drs = glob(sdr) 
+	FLS = String[]
+	for dr in drs
+		fls   = string(dr, "/C1*.csv")
+		csf = glob(fls) 
+		append!(FLS, csf)
+	end
+	FLS
+end
+
+# ╔═╡ f62e8d24-10c6-42e9-a68e-f2d68f950ed1
+md"### fit_peaks
+	fit_peaks(htime; pa0=[100.0, 0.5], i0=1)
+"
+
+# ╔═╡ e45bd546-c5fc-4914-b237-3df5f473363d
+function fit_peaks(htime; pa0=[100.0, 0.5], i0=1)
+	expo(t, N, λ) = N*exp(-t/λ)
+	mexp(t, p) = p[1] * exp.(-t/p[2])
+	tdata = lfi.LaserLab.centers(htime)
+	vdata = htime.weights
+	il = length(tdata)
+	fit = curve_fit(mexp, tdata[i0:il], vdata[i0:il], pa0)
+	coef(fit), stderror(fit), expo.(tdata, coef(fit)...)
+end
+
+# ╔═╡ 8c825691-23f7-481a-b837-73e0f78893f5
+
+
+# ╔═╡ 5e6ea853-c7a2-44ce-acb5-628ed36f8180
+md"### plot_fit
+	plot_fit(htime, coeff, tft)
+"
+
+# ╔═╡ 8953d6fb-f9ad-4f95-b022-5ac95058dbf7
+function plot_fit(htime, coeff, tft; savefig=false, fn="")
+	tdata =lfi.LaserLab.centers(htime)
+	vdata =htime.weights
+	ps1 = scatter(tdata, vdata, yerr=sqrt.(vdata), markersize=2,
+				  color = :black,
+	    		  label="data",
+				  fmt = :png)
+	pp = plot(ps1, tdata, tft, lw=2, label="μ = $(round(coeff[2]*1000, sigdigits=2)) ns", fmt = :png)
+	xlabel!("t (μs)")
+	ylabel!("frequency")
+	if savefig
+		png(pp, fn)
+	end
+	return pp 
+end
+
+# ╔═╡ 8e0ff0be-584e-4106-8ce6-2b4a7a874079
+begin
+	if lrunfit
+		cofe6n5k1m, stder6n5k1m, tft6n5k1m = fit_peaks(hp6n5k1m; pa0=[100.0, 0.5], i0=1)
+		pp6n5k1m = plot_fit(hp6n5k1m, cofe6n5k1m, tft6n5k1m; savefig=true,
+		              fn="b62A2_500kHz_650nm_100mus_fit.png")
+		plot(pp6n5k1m)
+	end
+end
+
+# ╔═╡ 526d99d2-4571-4976-8a58-e2d88f79d834
+begin
+    cofe7n5k1m, stder7n5k1m, tft7n5k1m = fit_peaks(hp7n5k1m; pa0=[100.0, 0.5], i0=1)
+    pp7n5k1m = plot_fit(hp7n5k1m, cofe7n5k1m, tft7n5k1m; savefig=true,
+	              fn="b62A2_500kHz_700nm_100mus_fit.png")
+	plot(pp7n5k1m)
+end
+
+# ╔═╡ 3a950c36-11b0-4dd5-9656-705f76194fe5
+begin
+    cofe8n5k1m, stder8n5k1m, tft8n5k1m = fit_peaks(hp8n5k1m; pa0=[100.0, 0.5], i0=1)
+    pp8n5k1m = plot_fit(hp8n5k1m, cofe8n5k1m, tft8n5k1m; savefig=true,
+	              fn="b62A2_500kHz_730nm_100mus_fit.png")
+	plot(pp8n5k1m)
+end
+
+# ╔═╡ 6c95fd00-0023-4f00-b495-050ca098cfb6
+
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1071,7 +1156,6 @@ Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
 Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
@@ -1082,26 +1166,27 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+StatsFuns = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 UnitfulEquivalences = "da9c4bc3-91c8-4f02-8a40-6b990d2a7e0c"
 
 [compat]
-CSV = "~0.10.4"
+CSV = "~0.10.2"
 DSP = "~0.7.5"
 DataFrames = "~1.3.2"
-Distributions = "~0.25.53"
+Distributions = "~0.25.49"
 FFTW = "~1.4.6"
 Glob = "~1.3.0"
 Images = "~0.25.1"
 Interpolations = "~0.13.5"
-LaTeXStrings = "~1.3.0"
 LsqFit = "~0.12.1"
 Peaks = "~0.4.0"
 PhysicalConstants = "~0.2.1"
-Plots = "~1.27.4"
-PlutoUI = "~0.7.38"
+Plots = "~1.26.0"
+PlutoUI = "~0.7.35"
 QuadGK = "~2.4.2"
 StatsBase = "~0.33.16"
+StatsFuns = "~0.9.16"
 Unitful = "~1.11.0"
 UnitfulEquivalences = "~0.2.0"
 """
@@ -1142,9 +1227,9 @@ version = "0.2.0"
 
 [[deps.ArrayInterface]]
 deps = ["Compat", "IfElse", "LinearAlgebra", "Requires", "SparseArrays", "Static"]
-git-tree-sha1 = "8d4a07999261b4461daae67b2d1e12ae1a097741"
+git-tree-sha1 = "9f8186bc19cd1c129d367cb667215517cc03e144"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "5.0.6"
+version = "5.0.1"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -1157,9 +1242,9 @@ version = "1.0.1"
 
 [[deps.AxisArrays]]
 deps = ["Dates", "IntervalSets", "IterTools", "RangeArrays"]
-git-tree-sha1 = "cf6875678085aed97f52bfc493baaebeb6d40bcb"
+git-tree-sha1 = "d127d5e4d86c7680b20c35d40b503c74b9a39b5e"
 uuid = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
-version = "0.4.5"
+version = "0.4.4"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -1177,9 +1262,9 @@ version = "0.4.1"
 
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "873fb188a4b9d76549b81465b1f75c82aaf59238"
+git-tree-sha1 = "9519274b50500b8029973d241d32cfbf0b127d97"
 uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-version = "0.10.4"
+version = "0.10.2"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -1201,9 +1286,9 @@ version = "0.2.2"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "9950387274246d08af38f6eef8cb5480862a435f"
+git-tree-sha1 = "c9a6160317d1abe9c44b3beb367fd448117679ca"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.14.0"
+version = "1.13.0"
 
 [[deps.ChangesOfVariables]]
 deps = ["ChainRulesCore", "LinearAlgebra", "Test"]
@@ -1260,9 +1345,9 @@ version = "0.3.0"
 
 [[deps.Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "SHA", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "96b0bc6c52df76506efc8a441c6cf1adcb1babc4"
+git-tree-sha1 = "44c37b4636bc54afac5c574d2d02b625349d6582"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "3.42.0"
+version = "3.41.0"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1367,9 +1452,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[deps.Distributions]]
 deps = ["ChainRulesCore", "DensityInterface", "FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns", "Test"]
-git-tree-sha1 = "5a4168170ede913a2cd679e53c2123cb4b889795"
+git-tree-sha1 = "9d3c0c762d4666db9187f363a76b47f7346e673b"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.25.53"
+version = "0.25.49"
 
 [[deps.DocStringExtensions]]
 deps = ["LibGit2"]
@@ -1383,9 +1468,9 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[deps.DualNumbers]]
 deps = ["Calculus", "NaNMath", "SpecialFunctions"]
-git-tree-sha1 = "5837a837389fccf076445fce071c8ddaea35a566"
+git-tree-sha1 = "84f04fe68a3176a583b864e492578b9466d87f1e"
 uuid = "fa6b7ba4-c1ee-5f82-b5fc-ecf0adba8f74"
-version = "0.6.8"
+version = "0.6.6"
 
 [[deps.EarCut_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1394,16 +1479,15 @@ uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.2.3+0"
 
 [[deps.EllipsisNotation]]
-deps = ["ArrayInterface"]
-git-tree-sha1 = "d064b0340db45d48893e7604ec95e7a2dc9da904"
+git-tree-sha1 = "18ee049accec8763be17a933737c1dd0fdf8673a"
 uuid = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
-version = "1.5.0"
+version = "1.0.0"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "bad72f730e9e91c08d9427d5e8db95478a3c323d"
+git-tree-sha1 = "ae13fcbc7ab8f16b0856729b050ef0c446aa3492"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
-version = "2.4.8+0"
+version = "2.4.4+0"
 
 [[deps.FFMPEG]]
 deps = ["FFMPEG_jll"]
@@ -1443,15 +1527,15 @@ version = "1.13.0"
 
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates", "Mmap", "Printf", "Test", "UUIDs"]
-git-tree-sha1 = "129b104185df66e408edd6625d480b7f9e9823a0"
+git-tree-sha1 = "04d13bfa8ef11720c24e4d840c0033d145537df7"
 uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
-version = "0.9.18"
+version = "0.9.17"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Statistics"]
-git-tree-sha1 = "246621d23d1f43e3b9c368bf3b72b2331a27c286"
+git-tree-sha1 = "4c7d3757f3ecbcb9055870351078552b7d1dbd2d"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "0.13.2"
+version = "0.13.0"
 
 [[deps.FiniteDiff]]
 deps = ["ArrayInterface", "LinearAlgebra", "Requires", "SparseArrays", "StaticArrays"]
@@ -1507,15 +1591,15 @@ version = "3.3.6+0"
 
 [[deps.GR]]
 deps = ["Base64", "DelimitedFiles", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Printf", "Random", "RelocatableFolders", "Serialization", "Sockets", "Test", "UUIDs"]
-git-tree-sha1 = "af237c08bda486b74318c8070adb96efa6952530"
+git-tree-sha1 = "9f836fb62492f4b0f0d3b06f55983f2704ed0883"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.64.2"
+version = "0.64.0"
 
 [[deps.GR_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Pkg", "Qt5Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "cd6efcf9dc746b06709df14e462f0a3fe0786b1e"
+git-tree-sha1 = "a6c850d77ad5118ad3be4bd188919ce97fffac47"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.64.2+0"
+version = "0.64.0+0"
 
 [[deps.GeometryBasics]]
 deps = ["EarCut_jll", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
@@ -1756,15 +1840,15 @@ version = "0.13.5"
 
 [[deps.IntervalSets]]
 deps = ["Dates", "EllipsisNotation", "Statistics"]
-git-tree-sha1 = "bcf640979ee55b652f3b01650444eb7bbe3ea837"
+git-tree-sha1 = "3cc368af3f110a767ac786560045dceddfc16758"
 uuid = "8197267c-284f-5f27-9208-e0e47529a953"
-version = "0.5.4"
+version = "0.5.3"
 
 [[deps.InverseFunctions]]
 deps = ["Test"]
-git-tree-sha1 = "91b5dcf362c5add98049e6c29ee756910b03051d"
+git-tree-sha1 = "a7254c0acd8e62f1ac75ad24d5db43f5f19f3c65"
 uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
-version = "0.1.3"
+version = "0.1.2"
 
 [[deps.InvertedIndices]]
 git-tree-sha1 = "bee5f1ef5bf65df56bdd2e40447590b272a5471f"
@@ -1788,9 +1872,9 @@ version = "1.0.0"
 
 [[deps.JLD2]]
 deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "Pkg", "Printf", "Reexport", "TranscodingStreams", "UUIDs"]
-git-tree-sha1 = "81b9477b49402b47fbe7f7ae0b252077f53e4a08"
+git-tree-sha1 = "28b114b3279cdbac9a61c57b3e6548a572142b34"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.4.22"
+version = "0.4.21"
 
 [[deps.JLLWrappers]]
 deps = ["Preferences"]
@@ -1841,9 +1925,9 @@ version = "1.3.0"
 
 [[deps.Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
-git-tree-sha1 = "6f14549f7760d84b2db7a9b10b88cd3cc3025730"
+git-tree-sha1 = "a6552bfeab40de157a297d84e03ade4b8177677f"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.15.14"
+version = "0.15.12"
 
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
@@ -1922,9 +2006,9 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[deps.LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "58f25e56b706f95125dcb796f39e1fb01d913a71"
+git-tree-sha1 = "e5718a00af0ab9756305a0392832c8952c7426c1"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.10"
+version = "0.3.6"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -2020,9 +2104,9 @@ version = "0.3.7"
 
 [[deps.NearestNeighbors]]
 deps = ["Distances", "StaticArrays"]
-git-tree-sha1 = "ded92de95031d4a8c61dfb6ba9adb6f1d8016ddd"
+git-tree-sha1 = "16baacfdc8758bc374882566c9187e785e85c2f0"
 uuid = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
-version = "0.4.10"
+version = "0.4.9"
 
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore"]
@@ -2067,9 +2151,9 @@ uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "ab05aa4cc89736e95915b01e7279e61b1bfe33b8"
+git-tree-sha1 = "648107615c15d4e09f7eca16307bc821c1f718d8"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "1.1.14+0"
+version = "1.1.13+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
@@ -2102,9 +2186,9 @@ version = "8.44.0+0"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "e8185b83b9fc56eb6456200e873ce598ebc7f262"
+git-tree-sha1 = "7e2166042d1698b6072352c74cfd1fca2a968253"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.11.7"
+version = "0.11.6"
 
 [[deps.PNGFiles]]
 deps = ["Base64", "CEnum", "ImageCore", "IndirectArrays", "OffsetArrays", "libpng_jll"]
@@ -2126,9 +2210,9 @@ version = "0.12.3"
 
 [[deps.Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "621f4f3b4977325b9128d5fae7a8b4829a0c2222"
+git-tree-sha1 = "13468f237353112a01b2d6b32f3d0f80219944aa"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.2.4"
+version = "2.2.2"
 
 [[deps.Peaks]]
 deps = ["Compat"]
@@ -2166,21 +2250,21 @@ version = "2.0.1"
 
 [[deps.PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Statistics"]
-git-tree-sha1 = "bb16469fd5224100e422f0b027d26c5a25de1200"
+git-tree-sha1 = "6f1b25e8ea06279b5689263cc538f51331d7ca17"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.2.0"
+version = "1.1.3"
 
 [[deps.Plots]]
-deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "edec0846433f1c1941032385588fd57380b62b59"
+deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
+git-tree-sha1 = "23d109aad5d225e945c813c6ebef79104beda955"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.27.4"
+version = "1.26.0"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "670e559e5c8e191ded66fa9ea89c97f10376bb4c"
+git-tree-sha1 = "85bf3e4bd279e405f91489ce518dedb1e32119cb"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.38"
+version = "0.7.35"
 
 [[deps.Polynomials]]
 deps = ["LinearAlgebra", "MutableArithmetics", "RecipesBase"]
@@ -2190,15 +2274,15 @@ version = "3.0.0"
 
 [[deps.PooledArrays]]
 deps = ["DataAPI", "Future"]
-git-tree-sha1 = "28ef6c7ce353f0b35d0df0d5930e0d072c1f5b9b"
+git-tree-sha1 = "db3a23166af8aebf4db5ef87ac5b00d36eb771e2"
 uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
-version = "1.4.1"
+version = "1.4.0"
 
 [[deps.Preferences]]
 deps = ["TOML"]
-git-tree-sha1 = "d3538e7f8a790dc8903519090857ef8e1283eecd"
+git-tree-sha1 = "de893592a221142f3db370f48290e3a2ef39998f"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
-version = "1.2.5"
+version = "1.2.4"
 
 [[deps.PrettyTables]]
 deps = ["Crayons", "Formatting", "Markdown", "Reexport", "Tables"]
@@ -2212,9 +2296,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "d7a7aef8f8f2d537104f170139553b14dfe39fe9"
+git-tree-sha1 = "afadeba63d90ff223a6a48d2009434ecee2ec9e8"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.7.2"
+version = "1.7.1"
 
 [[deps.QOI]]
 deps = ["ColorTypes", "FileIO", "FixedPointNumbers"]
@@ -2236,9 +2320,9 @@ version = "2.4.2"
 
 [[deps.Quaternions]]
 deps = ["DualNumbers", "LinearAlgebra", "Random"]
-git-tree-sha1 = "522770af103809e8346aefa4b25c31fbec377ccf"
+git-tree-sha1 = "d0baaa6bcbac4369f1ecfb4a8c44b96ef3e5acb9"
 uuid = "94ee1d12-ae83-5a48-8b1c-48b8ff168ae0"
-version = "0.5.3"
+version = "0.5.1"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
@@ -2266,9 +2350,9 @@ version = "1.2.1"
 
 [[deps.RecipesPipeline]]
 deps = ["Dates", "NaNMath", "PlotUtils", "RecipesBase"]
-git-tree-sha1 = "dc1e451e15d90347a7decc4221842a022b011714"
+git-tree-sha1 = "995a812c6f7edea7527bb570f0ac39d0fb15663c"
 uuid = "01d81517-befc-4cb6-b9ec-a95719d0359c"
-version = "0.5.2"
+version = "0.5.1"
 
 [[deps.Reexport]]
 git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
@@ -2307,9 +2391,9 @@ version = "0.3.0+0"
 
 [[deps.Roots]]
 deps = ["CommonSolve", "Printf", "Setfield"]
-git-tree-sha1 = "6085b8ac184add45b586ed8d74468310948dcfe8"
+git-tree-sha1 = "0abe7fc220977da88ad86d339335a4517944fea2"
 uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
-version = "1.4.0"
+version = "1.3.14"
 
 [[deps.Rotations]]
 deps = ["LinearAlgebra", "Quaternions", "Random", "StaticArrays", "Statistics"]
@@ -2402,9 +2486,9 @@ version = "0.6.0"
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "4f6ec5d99a28e1a749559ef7dd518663c5eca3d5"
+git-tree-sha1 = "74fb527333e72ada2dd9ef77d98e4991fb185f04"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.4.3"
+version = "1.4.1"
 
 [[deps.Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -2424,9 +2508,9 @@ version = "0.33.16"
 
 [[deps.StatsFuns]]
 deps = ["ChainRulesCore", "HypergeometricFunctions", "InverseFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
-git-tree-sha1 = "72e6abd6fc9ef0fa62a159713c83b7637a14b2b8"
+git-tree-sha1 = "25405d7016a47cf2bd6cd91e66f4de437fd54a07"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
-version = "0.9.17"
+version = "0.9.16"
 
 [[deps.StructArrays]]
 deps = ["Adapt", "DataAPI", "StaticArrays", "Tables"]
@@ -2449,10 +2533,10 @@ uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
 version = "1.0.1"
 
 [[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "OrderedCollections", "TableTraits", "Test"]
-git-tree-sha1 = "5ce79ce186cc678bbb5c5681ca3379d1ddae11a1"
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "TableTraits", "Test"]
+git-tree-sha1 = "bb1064c9a84c52e277f1096cf41434b675cd368b"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.7.0"
+version = "1.6.1"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -2470,9 +2554,9 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.TiffImages]]
 deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "OffsetArrays", "PkgVersion", "ProgressMeter", "UUIDs"]
-git-tree-sha1 = "aaa19086bc282630d82f818456bc40b4d314307d"
+git-tree-sha1 = "991d34bbff0d9125d93ba15887d6594e8e84b305"
 uuid = "731e570b-9d59-4bfa-96dc-6df516fadf69"
-version = "0.5.4"
+version = "0.5.3"
 
 [[deps.TiledIteration]]
 deps = ["OffsetArrays"]
@@ -2540,9 +2624,9 @@ version = "1.25.0+0"
 
 [[deps.WeakRefStrings]]
 deps = ["DataAPI", "InlineStrings", "Parsers"]
-git-tree-sha1 = "b1be2855ed9ed8eac54e5caff2afcdb442d52c23"
+git-tree-sha1 = "c69f9da3ff2f4f02e811c3323c22e5dfcb584cfa"
 uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
-version = "1.4.2"
+version = "1.4.1"
 
 [[deps.WoodburyMatrices]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -2760,172 +2844,151 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╠═59062c8d-edbf-4966-a786-724f9438618c
-# ╠═547c0f35-243e-4038-bb66-65b627bda4b0
-# ╠═9d66c472-b742-49b3-9495-1c3be998108b
-# ╠═c3b89fa7-67f8-4cc3-b3ba-fcb304f44669
-# ╠═bd9eed27-fc29-41ff-bf12-ec0cd3881ea2
-# ╠═ca6f7233-a1d1-403d-9416-835a51d360db
-# ╠═ac5daa7a-b00b-4975-906d-f68e455c2b53
-# ╠═a8ffd5c7-2a6f-4955-8e9f-ea605a8cb24d
-# ╠═ea4b37e5-fc26-4ca3-8788-20dd4c57536c
-# ╠═c91bef90-362d-4bc7-8378-2f6dc55a20eb
-# ╠═96ae3a10-b116-4544-b282-59b1f58417bf
-# ╠═34b3d66e-3b39-43dc-922b-9ba6c15c1bac
-# ╠═5927e85d-f206-4d51-9b0c-6d2d70a0a0da
-# ╟─98bfd4d0-9257-4c2e-8256-29833c4b2850
-# ╠═cc7e6e63-7630-4500-a18b-92d254089a12
-# ╟─38f06b03-50b7-4254-b111-d9b15a39a910
-# ╠═b992f24e-ead5-4117-8744-1a81c16f13a7
-# ╟─a5bc9651-176f-41ed-8cc9-81c1accfc4db
-# ╠═977a2703-17c9-443f-a110-334e38377909
-# ╠═26decc7c-a3c2-41a3-8eec-5ed12296918f
-# ╠═ac1d5662-e8c9-48a0-a30f-dcf9ca15af15
-# ╠═ffa56bac-2f5c-4d1b-8e5a-7d3412393f14
-# ╠═dc1fd780-64d8-4113-b19f-9bb0733eed99
-# ╠═fedadec6-70a7-483f-9199-877ef60a5861
-# ╟─b01206a2-7b5e-4a7a-842b-354ab1ec5b0d
-# ╟─fcbff47c-d7ee-471e-b452-2360a142ac29
-# ╠═9042910c-802b-4a71-8863-5b64984b3a8c
-# ╟─d8c646d9-6c1a-4ca1-8f4a-a22bb1623132
-# ╟─c42f8de4-5790-4558-8e98-a16540c78885
-# ╟─bd2b9f50-672d-4cf2-806e-93c8b7d71918
-# ╠═73c8585e-6d3c-4119-a786-950244ceeeb2
-# ╠═6a44f96c-a264-48b9-83f3-bc64a607c730
-# ╠═b7715de1-59a9-460c-8c4e-535713f1e317
-# ╠═b80f21e4-331c-4677-84d4-77259c2422b4
-# ╠═c4f1bc99-f0b2-45eb-afd5-19483de2e8c8
-# ╠═725a2620-6e6d-4964-840a-ca318fe871db
-# ╠═f866230f-0cbe-4462-a3d7-0ef148a944c9
-# ╠═da025bce-a955-4f6a-916c-bac1e1f491dd
-# ╠═e6e50f4a-6da4-4b10-9b92-2c7436f57072
-# ╠═6056db12-a40c-4586-bb63-203fcd0c0cce
-# ╠═9503331e-e97f-4ba9-84aa-c1e11c2f59d1
-# ╠═f6d52515-c34a-4159-b4e7-625cba13763c
-# ╠═1e6c1d0b-8a3b-4cec-928f-a2e892fdbf5e
-# ╠═ea503006-18b6-47a1-8cb3-46d856dfe8b0
-# ╠═89f8c950-32bd-49d3-8a62-79e0040646ec
-# ╠═fa0c5865-1c22-4a9e-b393-b8f5875ff841
-# ╠═15ef23fa-1633-4954-a927-1d289d5573ec
-# ╠═d7c66368-4769-4d50-b20f-9ea4ed6eee5a
-# ╠═2838b7e5-752b-4cb6-bec5-f48d122e859c
-# ╠═c4cb9e33-4362-40f9-baba-ac822cbedc64
-# ╟─7e150a69-0070-4371-b5c0-02b7ad70d813
-# ╠═16cdbadf-4deb-4a66-8ab7-84437a4fe3d4
-# ╟─4a0e30fe-398e-4d80-86a2-bfc384cbc6e6
-# ╠═9cc3dfcb-b95d-4086-a228-ed4753f6ca0d
-# ╟─591f9fcb-7ad1-400e-af0a-29686a4914ec
-# ╠═9cc092e9-40d2-4c5a-9b55-4e2adccb3382
-# ╠═d75a8426-c97b-422e-8c69-3f3ce94c5370
-# ╟─a7d330cf-5093-490f-adc8-e482e3084806
-# ╟─280a17c4-6d5e-4ff3-a5ab-dbbcb7199bb2
-# ╟─a230e061-b6ab-49d4-bdad-730d75e20e9c
-# ╠═6d5e295c-1c57-4a92-aee2-3ffcbb3306df
-# ╠═80447dc7-1103-4019-bc64-283d4a9368a0
-# ╠═08ec5b69-946f-407e-ac8d-bf8814cc0121
-# ╠═2fdad658-0b71-4d42-8591-9284fee3aeb6
-# ╠═5a0cc7d8-a3c3-45b9-8b91-9528e4938fb0
-# ╟─58b227ac-627f-49ba-bc58-75039c65733b
-# ╠═4223f9f8-8ee6-4ea9-a7bc-6379c81c48c0
-# ╟─fabba61a-f28d-4535-b0e3-e94f5098bb0a
-# ╟─7a1fcff4-6948-4333-b971-8fbf31c7d3ee
-# ╠═a917927d-d471-4465-abd1-30d959af0b45
-# ╠═93b78d1a-ee07-4d66-b5a4-c7a109a24f81
-# ╟─aa4283d7-37d4-4aaf-a5b7-b515466e545d
-# ╟─19b7d7fb-adab-4f29-82af-d059525921ee
-# ╠═102a2054-2fd5-406e-8bb4-20ecb47c278f
-# ╟─e97474ef-145f-45c8-96f6-213acf4a3b41
-# ╟─106f7063-719e-4eff-857d-3566d6e6d4c8
-# ╟─177762d5-b9f2-449b-abba-256f3d4318ad
-# ╟─4e4ab4e5-bacc-4c58-8000-10602a1f8465
-# ╟─e35f8650-dc2e-46f3-9220-26754e8860e0
-# ╟─13827ddc-bebd-44d5-929f-f4ac6f43b093
-# ╟─2a07dd38-bac4-410c-8135-5c4e6f851df6
-# ╟─a3703591-17d4-4049-8c1b-21a4c8329ffd
-# ╟─ebe4e491-1c61-45cb-a559-64fa3f5fbb9d
-# ╟─d6d6dc94-5b99-4de6-a5c3-ab2be2b49d32
-# ╠═b0112287-c957-4ce3-ba24-9c47c8128b2d
-# ╟─417fecfd-b316-4e63-8e68-303d4c568434
-# ╟─bbd09112-d6cd-4f0f-9a87-7b85be983e09
-# ╟─8c405cc2-e8b5-4125-b21d-f7a22f94fb59
-# ╟─ebe77978-7d7f-407d-9a73-4be3568265ef
-# ╟─e7e7b1ca-b27f-406c-9df0-5ffea702719f
-# ╟─f48eb494-f9f5-4e4f-9fc0-ffa20312155a
-# ╟─4eeabd93-cd82-4051-b2d0-bee3db1723e4
-# ╟─fc5b2f60-2c04-4835-a222-9971189ac54e
-# ╟─e40a68c6-5885-49d1-9259-fdd3be09fee4
-# ╟─f79fb47b-b4f7-442a-927f-0c186e673b80
-# ╠═8da11b18-5934-4207-941b-795969173f21
-# ╟─ce47be17-7773-4797-beb7-202d3c02555a
-# ╟─498d145b-ce5f-46a5-b77e-31f412e04eb9
-# ╟─0d4a0651-4ce4-497e-8764-2bcbbef83cf1
-# ╟─d437cc55-8c19-4d0b-86d8-760da3956895
-# ╟─7dedd16b-4279-4f50-8120-d9ef394f3e13
-# ╟─649fa1b3-0dd2-487d-9bdf-7db97a0ec178
-# ╟─92a5b436-1d8e-4436-8dda-8b1d3518bdea
-# ╟─c5b0405a-a991-45a5-aa04-d09020b0c7f0
-# ╟─8d4516fd-8838-4e5f-a61d-9dc1f65b31ad
-# ╟─4a1cf5fc-b44f-4b19-ac8e-d610da0a17cb
-# ╟─03e15d19-ea63-413e-8ec5-4d50e28558ac
-# ╟─39a7f7b4-058b-4283-b35c-4409ea9e478a
-# ╟─52aeae45-0dfc-48f2-a362-20d1add0ff7f
-# ╟─abe34c91-9824-45e4-8865-7b3f73ff8758
-# ╟─960ba1ef-495d-4bb2-8aff-73cb68ae440e
-# ╟─9d97d16a-8f90-4ff7-ac0b-ee610c20ee32
-# ╟─8815a3e2-e559-4857-b20e-14aa5f91d341
-# ╟─89aa75b3-2263-450e-9f2e-cd7c875a7919
-# ╟─b5045344-fb52-4b2e-88b9-1c1d4d1d50f6
-# ╟─f6fefa8e-8490-4c0d-b707-c9a95011cbb1
-# ╟─3555a982-9879-460f-babf-6f31c11c6f7f
-# ╟─954d503d-19f2-4575-84d7-2d1722a28a7f
-# ╟─41eb41f7-bc6e-4dce-8d39-68142fd329db
-# ╟─bc6ba394-d1b8-4c1b-8a01-c23bcd29178c
-# ╟─7140a27e-4cde-4c7d-a794-9a624e540677
-# ╠═b0bf01be-6a53-4c42-9d9a-752bf4652986
-# ╟─0ee9bd36-7192-4922-abaf-7d7d08605915
-# ╠═d5ef9a03-f716-454b-a5de-0c67ee935679
-# ╠═df1ff4c2-8c84-455a-9cc4-7fdc34e2cb83
-# ╠═6396d4af-e668-4a73-b8be-b73b8b41267c
-# ╠═f38318dd-f7bb-4bf1-9bc9-d1f7ed8a8397
-# ╠═356b7b35-6794-40d0-8c88-b8e066f086a6
-# ╠═6445e2c6-4dcc-44dd-bdda-564e4c9b3911
-# ╠═7e0b0616-5dd0-44d3-beab-4fa32521d3ff
-# ╠═b49c15a7-d9de-4942-b09c-7f2ed9b4550e
-# ╠═f615fc39-bfd9-45ce-84fe-a28921bde525
-# ╠═d49e7e9b-6487-407b-aef7-2884461879a0
-# ╠═43e8a5f1-512c-46b7-91f6-89d3c7e81368
-# ╟─ae5f17d2-3c31-4a9c-85e4-f2f22625d86b
-# ╠═c3952378-79bb-4605-8ffb-828c1e3e3321
-# ╟─0f7ff8a4-43e4-4829-a4b4-78594664cee2
-# ╟─131f4e45-85f5-43bc-8c32-d59f8803bfd6
-# ╠═a4066207-4c50-4360-b43f-218d5355ff3e
-# ╟─218fc76e-1060-40ff-a52f-d884441380e2
-# ╟─58b61eac-e1de-48f3-a37b-ecc1f8d5f8ab
-# ╠═320f9c75-5047-4a4c-890b-ffdc70767634
-# ╠═b97cd0a9-ee46-4520-a408-f60150bbea74
-# ╠═b96961fd-6a9a-40bb-b582-2b3586f56edb
-# ╠═eba3554f-ae6f-4a3d-8131-43ffa2743977
-# ╠═f57ca807-9b3a-4f77-9607-74ee3a411990
-# ╠═7a6a3b8a-8b1c-41d5-ab25-7d294f1bee3d
-# ╠═92698c05-edf3-4b9e-a10a-1da9ed0dc82a
-# ╠═0dd448d1-9952-438c-9284-e0c320c955aa
-# ╠═f8b61a8e-2679-48cd-842c-17d6e6ee760e
-# ╠═bfc6e346-3525-47d7-a436-ffa02dab11b9
-# ╠═2ff6f551-2662-43a5-9776-70951ff40364
-# ╠═ec3cd40c-6a52-48fd-a3ce-9e091250e981
-# ╠═525b0316-8374-4882-aa5b-84f2bf33c5c3
-# ╠═840fa50e-bf0f-42f9-8e7f-ec3cc4bdb9af
-# ╠═5738e27c-5307-4623-bd43-67f66b7b97d2
-# ╠═14360d77-340e-488d-bed0-00f408ef1dd4
-# ╠═685fd840-64b1-427d-83f3-217664ea9798
-# ╠═8ecc8206-275b-4d55-9b01-e82e7f2df5dc
-# ╠═aac7a640-97fe-46c0-89b3-7e76978baf0d
-# ╠═89ef5f08-7a1e-42a5-8fcf-b7efa63a8a68
-# ╠═f1e6c6b6-49fa-44bb-bb9a-07986f6a1d13
-# ╠═426f8190-7865-4bd1-bc23-0adb5fc1892c
-# ╠═c54205d5-ea1a-4416-b4b0-3bdb168dae61
-# ╠═b83d4ff4-cc73-4cf7-abad-78da291eb404
-# ╠═13ad7221-0d2d-4a77-9258-9edace85fde0
-# ╠═f2b2cc4d-54ed-4f2f-80bc-bc3bf82bb2e8
+# ╟─b4f98dfc-9e44-11ec-3621-4526f6f187bd
+# ╠═52d4f953-98d1-4016-b2b3-7c234b012189
+# ╟─91726783-795a-4da6-9ca7-2d176ba328ca
+# ╟─1e429641-5615-4c2f-b466-a5e1d5cbc297
+# ╟─860a66e0-9fdb-4537-865e-bf70e7fa289a
+# ╟─1665009d-f4a8-4d3e-bc9a-3cca8c26c213
+# ╟─c9e85963-fe90-48c4-8e20-fcc92c31ce99
+# ╠═f3fea484-8430-47ab-986b-7b170bef4ba6
+# ╠═9e58009d-0244-49db-801e-362bcb895eb0
+# ╟─aedcf3c2-7d51-466c-a88e-2c681679b8b0
+# ╟─a6cd504a-1afc-4be0-81d2-0de827650526
+# ╠═252430c1-c039-4d85-a961-fa3aa51c9c69
+# ╠═38d57ccd-d0d3-44b2-9ad0-9e0ac33910c6
+# ╠═d904688d-c65a-450b-934d-d7486b93398e
+# ╟─01355b47-de67-4104-a6bc-3d773b156bae
+# ╟─46929efd-6ffd-40b5-996f-5b10be042ba5
+# ╠═693c2f21-58b8-4f62-b70a-4494d17b44d6
+# ╠═511c6d72-4bc4-49fb-8a37-667b48c965b8
+# ╠═35fdb24c-b197-4c2f-84c6-bbd805c38965
+# ╠═ffdac4df-dd39-4203-875d-c698007fc0c5
+# ╠═f66fc1e0-9616-446e-a8d1-e69c0371efb8
+# ╠═25bf0bf8-5832-4546-986c-51ea7656016d
+# ╠═1a5182c8-787d-4e45-91d3-ae8b523eda5d
+# ╠═8a4386f6-b364-4e64-ba9a-5029260288c5
+# ╟─d41e8b61-0744-44cf-bcac-b515b4ce0f2e
+# ╠═80bda090-3035-4f72-a38d-67707dd68d7b
+# ╠═2aa64aa2-90fc-480a-b5a3-37ca6e06158c
+# ╟─d41f7733-f109-4649-bd94-f1bad8abdbb3
+# ╠═4c20fc26-a692-420f-8a15-f739d73d2100
+# ╠═e1545631-d3fc-4647-9746-8aaab5982ba4
+# ╠═94dc00a5-9f73-4f83-a8bb-44cd912286ac
+# ╠═ca6f17dc-f288-40c5-b0fb-63f37be4f4e3
+# ╠═26f91e54-53ca-4c47-9c1b-839e572b62eb
+# ╟─097ee9e5-fec4-45ae-9cd3-cb8c890165b0
+# ╠═ccfb00c6-018c-4efa-b4ba-a087ac408c87
+# ╟─d2bd231b-7bf9-4c12-91f2-699f43d62cdd
+# ╠═d0a2d2ef-b439-46cd-8ba6-a17469a2cc96
+# ╟─0c08fd16-9dfd-4f8f-a090-437190fd1da5
+# ╠═f520d7dc-8ac1-4d0b-a492-e5f96b016ac8
+# ╠═323336be-94ef-4de9-830b-3733625d30b4
+# ╠═f9943b88-e3ee-40f4-a0d6-27b355236cdd
+# ╟─31d7b91d-15ae-4e8a-af46-160b64e16094
+# ╠═63405781-f8d4-4e5d-86e9-e17843ca5305
+# ╠═c93d5830-1a1b-408b-8736-54deaa734aac
+# ╠═e180cf32-a993-493b-a6d3-c9939d95f367
+# ╟─408c18b0-f031-4480-b521-b0329ad28011
+# ╠═622eb976-55e7-46e4-a635-33163f452512
+# ╠═8e0ff0be-584e-4106-8ce6-2b4a7a874079
+# ╟─19a7cafb-237a-4d17-bfc8-dd3d82b9a869
+# ╟─114201ce-abf4-4501-a7e4-2606f98f4343
+# ╠═5959c636-6269-48a1-84fa-ea5087cdbed8
+# ╠═86894686-5fdd-43ab-a491-e3015b6bb44d
+# ╟─f036d804-14ed-40eb-8ac9-91248df6a6f3
+# ╠═9df485bd-266d-4d1e-a49c-f06dafd55e12
+# ╟─0059069f-cdb4-45d2-9dc7-306e4f82bb72
+# ╠═e533df55-59d5-484a-85c8-936de7b6396a
+# ╟─471d1bc5-df15-4bd1-9dc0-ef77ffe624a5
+# ╠═d565ae50-ff90-430a-a186-c1a85686ccf8
+# ╠═733c7f3b-0996-401d-80db-180b6494351c
+# ╟─8bc4629f-ef4a-4fb6-b2e7-5d5ac79426fd
+# ╠═a23cd563-70c1-4fe0-a625-f300b00e2e96
+# ╟─f4886783-9d88-4971-9505-6bb20e3239c5
+# ╠═afc314ec-4a3a-4b2e-9bb3-ddb8d3cff733
+# ╟─abdc25e1-153d-4f17-9acc-14f2ef8c0f46
+# ╠═4d4435c4-1b2d-418d-ba0c-8b6e05cd7ee5
+# ╠═7eaac105-406c-43c1-acbb-9481708f1948
+# ╠═07a50870-7241-4649-8db7-72dec6a95810
+# ╟─5a72de44-72ef-408f-940b-e6015cc72fe0
+# ╠═96dcbbc0-96e8-4bf8-a724-49e267f503f7
+# ╠═cb23f60e-0764-427e-b263-6fdf89af75e8
+# ╟─0cb56f60-43b1-4580-a63f-6acccac77b80
+# ╠═526d99d2-4571-4976-8a58-e2d88f79d834
+# ╟─e57edd48-7db8-4a7e-afd9-eaebcbbc4338
+# ╟─54a713f6-f70d-4379-97a9-af8ef6327e80
+# ╠═eb5c2173-e53a-4b3f-aa77-29779fb9a437
+# ╠═2f60d20b-62af-42aa-b149-230283f9914e
+# ╟─399913df-af72-40db-b900-1605677bbfd0
+# ╠═77b76835-f30c-424e-b4d8-05e380f2a524
+# ╟─8bd32ac5-886a-490f-b849-657e8f9d90a8
+# ╠═5c5b2e29-fb2b-4096-af0f-6fd348348067
+# ╟─3624a0fa-a96f-42de-8a09-8172aa52a342
+# ╠═8c1b6c42-34a4-4398-a25b-e8a84ffa7e18
+# ╠═427c1404-242a-4b60-933e-0ac467483906
+# ╟─efb34903-19d2-48b8-8e7d-bbdd4e212e56
+# ╠═d3a5a79e-c181-4cd3-bd9f-7893cbdfb229
+# ╟─73d26e78-d026-4c0a-83d1-a097705492fb
+# ╠═d7f36e9c-76dd-4791-869b-7d4000a4a675
+# ╟─b27beaa2-d8a7-425d-843d-9fdcb8992de3
+# ╠═7225258a-ce96-4c53-b476-056a6e90660a
+# ╠═7a391586-263d-4c53-b4c3-12f98a120905
+# ╠═8545525d-a0ea-45cf-b6b7-d111d5244f4c
+# ╟─2d735473-8afa-4b6c-a832-e3b6e4f15067
+# ╠═7a1090f5-4190-4742-a683-566c8a8022be
+# ╠═6ba3294f-4dfb-431c-a8bf-cf7c1acb09f3
+# ╟─2b191d8d-12a3-49af-93ac-b4510aa19bf4
+# ╠═3a950c36-11b0-4dd5-9656-705f76194fe5
+# ╟─fde49db9-165b-4b55-928b-b0d3f2610a31
+# ╠═500c0b3b-fc21-45a7-b03d-07c413a947c9
+# ╠═79c95b20-7b71-414f-b5d6-41e4cfe373ca
+# ╟─50e2ec32-be70-444a-9c80-38770ce5da7e
+# ╠═6be64cc8-a357-477c-ae0e-cb0405de4f4b
+# ╟─fe91ac2c-b95a-4d5e-a2fe-f09f43297d4d
+# ╠═e5bf7e93-f089-4b77-a2e0-d014bdc309e1
+# ╟─0eded161-9ad3-475e-a6d2-d8068f15bad5
+# ╠═e673cdda-7032-4600-bbd0-01a291aa3eb5
+# ╟─96dad766-398d-414c-ac66-dfaa76947ffc
+# ╠═b43916ba-0499-4d82-b81c-49aba21ee145
+# ╟─5dfbb58a-1411-4264-9540-8cc26263910f
+# ╠═ff872f5f-b10b-4065-8850-d81f9d6aece3
+# ╟─5ff2bb27-3db8-4b05-bd90-c73b493a9c76
+# ╠═f20b33b0-c0ec-4ee7-8273-6b738eb44dd7
+# ╟─c548e453-f5bc-40cc-a3d3-b3c0c72d6f9d
+# ╠═b5e2dfb7-c325-4898-b45d-8f071f1958b6
+# ╟─c5c7a723-6975-4903-ae84-aee4a1bb5441
+# ╠═1f950122-3c05-4d4c-85c2-1ed2094b1448
+# ╟─d686b4a3-03fd-4213-9b82-45fd395f96ee
+# ╠═35f0fda8-7e9a-4f5c-bbd3-979e8d04ebfa
+# ╠═d8a84dea-adbb-48c5-809b-309236f3dfc5
+# ╠═3d5ef2d8-1d1c-4f90-9178-f72ce4d67f51
+# ╠═647e0043-3389-43f2-bfd6-329d88fce931
+# ╠═843d888f-1e8d-4875-b175-1bc0a98f3320
+# ╠═99abe607-0a0e-411a-8784-df5318be1db9
+# ╠═f6902608-37a4-4c63-98d4-6ad7a704907c
+# ╠═c126abdc-a067-45fe-be68-817399f31e65
+# ╠═00c178f8-d4b9-4822-937a-f4e82da84f11
+# ╠═9d34622a-d7c4-4621-96e8-51e9b801a829
+# ╠═58d706c0-44f5-4514-b87b-eaf1f1940448
+# ╟─a840300f-0724-44c8-ba08-d7b59491e0e4
+# ╠═c1894849-5d29-4857-a715-9b91ffe8163d
+# ╟─083a5ba2-7de3-4e51-962f-08289fe987ce
+# ╠═773563de-8eb2-4ea4-87fc-86609e35370f
+# ╠═cfaf2b26-e39d-47b5-8e99-8d35dbd7b3ac
+# ╠═13e729c1-15ff-4fcf-b3df-9247fda54109
+# ╠═52e6ee88-f49d-420e-9a99-9c8c54910362
+# ╠═604081ba-c975-414a-a8b6-68a6c401172f
+# ╠═1928ef8d-d7df-4b2b-9b9a-f958cacecaa3
+# ╠═17fffef0-699e-4aa2-8931-41afa2ef4da1
+# ╠═c056af02-693b-4837-ab7b-1c4c7b7a9ca5
+# ╠═8d02c42c-452e-4ad3-9b27-95ac7ea5e210
+# ╠═380a7a82-0924-42b6-8698-7573b389e9ad
+# ╠═f62e8d24-10c6-42e9-a68e-f2d68f950ed1
+# ╠═e45bd546-c5fc-4914-b237-3df5f473363d
+# ╠═8c825691-23f7-481a-b837-73e0f78893f5
+# ╠═5e6ea853-c7a2-44ce-acb5-628ed36f8180
+# ╠═8953d6fb-f9ad-4f95-b022-5ac95058dbf7
+# ╠═6c95fd00-0023-4f00-b495-050ca098cfb6
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
