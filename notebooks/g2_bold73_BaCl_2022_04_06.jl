@@ -391,6 +391,51 @@ if zrepx
 	plot!(collect(1:10), repx[6]["stot"], lw=2, label="rep10 S")
 end
 
+# ╔═╡ b017b44e-9860-4f21-9b99-5a0cdf1b265c
+function get_signal_image(files::Vector{String}, whichf::String, whichr::String)
+	ffimg = select_image(files, whichf, whichr, "Imag", "1");
+	imgdf = DataFrame(CSV.File(ffimg, header=false,delim="\t"));
+	imgm  = dftomat(imgdf)
+	
+	ffdrk = select_image(files, whichf, whichr, "Dark", "1");
+	drkdf = DataFrame(CSV.File(ffdrk, header=false,delim="\t"));
+	drkm  = dftomat(drkdf)
+	
+	ffdrk2 = select_image(files, whichf, whichr, "Dark", "2");
+	drkdf2 = DataFrame(CSV.File(ffdrk2, header=false,delim="\t"));
+	sdrk   = drkdf .- drkdf2
+	sdrkm  = dftomat(sdrk)
+	
+	simgdf = imgdf .- (drkdf .+ drkdf2) ./2.0
+	simgm  = dftomat(simgdf)
+	
+	simgm
+end
+
+# ╔═╡ 02464496-4c60-4e5f-a3af-0e5c2bb0b937
+function recoedge(files::Vector{String}; rep::String="5", frange=2:11)
+	STOT = Vector{Float64}()
+	NTOT = Vector{Int64}()
+	
+	for flt in string.(collect(frange))
+		simgm = get_signal_image(files, flt, rep)
+		simgmn = simgm ./maximum(simgm)
+		gimg = Gray.(simgmn)
+		simgmn_edge = lfi.LaserLab.sujoy(gimg, four_connectivity=true)
+		simg_edge = binarize(simgmn_edge, Otsu())
+		stot, ntot = sum_edge(simgm, simg_edgem)
+		push!(STOT, stot)
+		push!(NTOT, ntot)
+	end
+	STOT,NTOT
+end
+
+# ╔═╡ ff5ef074-e4d2-4ad0-a93a-2c8aae422105
+st5, nt5 = recoedge(files; rep="5", frange=2:11)
+
+# ╔═╡ b67c0165-6c9e-43f7-b898-e70c533cc03d
+plot(collect(1:10), st5, lw=2, label="rep5 S")
+
 # ╔═╡ fca14add-ed54-449b-82a3-bffd03f88cdd
 function plot_images(imgm, drkm, sdrkm, simgm)
 	imghm = heatmap(imgm, fill_z=imgm, title=string("rep=", whichr, " filt=", whichf, " Img" ), titlefontsize=10)
@@ -469,6 +514,8 @@ end
 # ╠═87369d14-7318-417c-bc33-6a1bc807c0ee
 # ╠═43fd3321-83ce-4a9b-8632-74dd3cd68ddd
 # ╠═b776cef6-90d6-4897-bd6e-b81a3a58b416
+# ╠═ff5ef074-e4d2-4ad0-a93a-2c8aae422105
+# ╠═b67c0165-6c9e-43f7-b898-e70c533cc03d
 # ╠═01aeef0d-12e1-4e32-974f-f5405a661d95
 # ╠═8feb58fd-3cb7-4860-bc22-52bcee93d40a
 # ╠═18a0121f-b0a5-46e5-8178-9bc800476b65
@@ -481,8 +528,10 @@ end
 # ╠═edabab28-72bb-43f2-b90b-7b6ba939f2eb
 # ╠═d8caa384-6cc8-4a96-93ee-3504a95c5214
 # ╠═b8af0d87-f9e1-4ea7-9fa0-1c675233a8d3
+# ╠═02464496-4c60-4e5f-a3af-0e5c2bb0b937
 # ╠═f41cf5c7-d208-40f9-a4ee-5e992f73ca36
 # ╠═5dc25eb7-7841-4c04-aa5e-7d63acc5a312
+# ╠═b017b44e-9860-4f21-9b99-5a0cdf1b265c
 # ╠═fca14add-ed54-449b-82a3-bffd03f88cdd
 # ╠═4480a6a1-3299-43b9-b871-0b9f525577e5
 # ╠═454cab5c-e715-46bd-a799-0e9e2e9a7f67
