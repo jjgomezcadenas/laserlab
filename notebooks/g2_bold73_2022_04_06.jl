@@ -206,7 +206,14 @@ if zcomp
 	plot!(collect(1:10), fdf1.r6, lw=2, label=string(xn1[2],whichxr))
 	plot!(collect(1:10), fdf2.r5, lw=2, label=string(xn1[1],whichxr))
 	plot!(collect(1:10), fdf2.r6, lw=2, label=string(xn1[2],whichxr))
+	
 end
+
+# ╔═╡ 7eaaa7a9-2a5b-4ed6-b3b8-1a03e0fb8081
+if zcomp
+	pngn = joinpath(sroot, "G2comp.png")
+	png(pngn)
+	end
 
 # ╔═╡ cec73687-de04-46e6-a73e-a4d1d3beafc5
 md"# Functions"
@@ -457,6 +464,7 @@ end
 # ╠═8740f867-109f-47c1-9e90-57ece3b83886
 # ╠═2d8b888a-9cf8-4c53-9f6b-d61f2d2b7514
 # ╠═41cf396d-01ba-4e09-9ac9-bdf0a713de9e
+# ╠═7eaaa7a9-2a5b-4ed6-b3b8-1a03e0fb8081
 # ╠═cec73687-de04-46e6-a73e-a4d1d3beafc5
 # ╠═3f08fd90-ac06-4c29-a66c-cdb782f0717b
 # ╠═6fdaa0d2-b6af-40ca-b8e2-5cb8176bbadb
