@@ -4,6 +4,72 @@ using Images
 using Statistics
 using ImageBinarization
 
+function getbolddirs(bdir)
+	fdrs = Glob.glob("*", bdir)
+	[split(f,"/")[end] for f in fdrs]
+end
+
+
+function findpattern(nxfiles, pattern, spl="_", pos=1)
+	REPS = []
+	for f in nxfiles
+		fsx = split(f, spl)
+		fa = findall(x->x==pattern, fsx)
+		if length(fa) > 0
+			indx = fa[1] + pos
+			push!(REPS, fsx[indx])
+		end
+	end
+	unique(REPS)
+end
+
+
+function select_image_name(flt::String, rn::String, itype::String, idtype::String,
+                           sflt="Filter",
+                           srn="rep",
+                           sexp="_ExpoT_10s_")
+
+    if itype == "Dark"
+        string(sflt, "_", flt, sexp, idtype, "_Dark.csv")
+    else
+        string(sflt, "_", flt, "_", srn, "_", rn, sexp, "Imag_1.csv")
+    end
+
+end
+
+
+function get_image_name(inames::Vector{String}, imgn::String)
+	names = [split(f,"/")[end] for f in inames]
+	indx = findall([occursin(imgn, name) for name in names])[1]
+	inames[indx]
+end
+
+
+function get_image(ffimg::String)
+	imgdf = DataFrame(CSV.File(ffimg, header=false,delim="\t"));
+	dftomat(imgdf)
+end
+
+
+function select_image(xfiles::Vector{String}, wfn::String, wr::String, wid::String, wfd::String)
+	imgn = select_image_name(wfn, wr, wid, wfd)
+	ximg = get_image_name(xfiles, imgn)
+	get_image(ximg)
+end
+
+
+function get_corrected_image(files::Vector{String}, whichf::String, whichr::String)
+	imgm = select_image(files, whichf, whichr, "Imag", " ")
+	drkmb = select_image(files, whichf, whichr, "Dark", "before")
+	drkma = select_image(files, whichf, whichr, "Dark", "after")
+
+	imgc = imgm .- drkma
+	rdark = drkmb .- drkma
+
+	(image=imgm, dark=drkma, cimage=imgc, cdark=rdark)
+end
+
+
 """
     select_image(inames::Vector{String}, fnumber::String, repetition::String,
                  itype::String="Imag",  expo::String="_ExpoT_1000000ms_")
@@ -17,32 +83,32 @@ Selects an image to be read from a vector holding the names of files with data.
 - `itype::String`: type of image, either Imag (with laser on) or Dark (with laser off)
 - `expo::String`: A string describing the exposure 
 """
-function select_image(inames::Vector{String}, fnumber::String, repetition::String,
-                      itype::String="Imag", expo::String="_ExpoT_1000000ms_")
+# function select_image(inames::Vector{String}, fnumber::String, repetition::String,
+#                       itype::String="Imag", expo::String="_ExpoT_1000000ms_")
 
-    names = [split(f,"/")[end] for f in inames]
+#     names = [split(f,"/")[end] for f in inames]
 
-    if repetition == "0"
-        fhead = string("Filter_", fnumber, expo)
-    else
-        fhead = string("Filter_", fnumber, "_rep_", repetition, expo)
-    end
+#     if repetition == "0"
+#         fhead = string("Filter_", fnumber, expo)
+#     else
+#         fhead = string("Filter_", fnumber, "_rep_", repetition, expo)
+#     end
     
     
-    if itype == "Dark"
-        ftail = string("Dark_1.dat")
-    elseif itype == "Dark2" 
-        ftail = string("Dark_2.dat")
-    elseif itype == "Imag" 
-        ftail = string("Imag_1.dat")
-    else
-        @error "itype = $itype not implemented"
-    end
+#     if itype == "Dark"
+#         ftail = string("Dark_1.dat")
+#     elseif itype == "Dark2" 
+#         ftail = string("Dark_2.dat")
+#     elseif itype == "Imag" 
+#         ftail = string("Imag_1.dat")
+#     else
+#         @error "itype = $itype not implemented"
+#     end
 
-    ff = string(fhead, ftail)
-    indx = findall([occursin(ff, name) for name in names])[1]
-    inames[indx]
-end
+#     ff = string(fhead, ftail)
+#     indx = findall([occursin(ff, name) for name in names])[1]
+#     inames[indx]
+# end
 
 """
     get_images(files::Vector{String}, whichf::String, whichr::String)
@@ -115,7 +181,7 @@ function signal_around_maximum(img::Matrix{Float64}, dark::Matrix{Float64}; nsig
 
     cutoff::Float64 = mean(dark) + nsigma * std(dark)
 
-    println("mean dark =", mean(dark), " std dark = ", std(dark), " cutoff =", cutoff)
+    #println("mean dark =", mean(dark), " std dark = ", std(dark), " cutoff =", cutoff)
 
 	mxx::Float64, indxt = findmax(img)
     sx::Int = size(img)[1]
@@ -123,8 +189,8 @@ function signal_around_maximum(img::Matrix{Float64}, dark::Matrix{Float64}; nsig
     kx::Int = indxt[1]
     ky::Int = indxt[2]
 
-    println("max =", mxx)
-    println("sx =", sx, " sy = ", sy, " kx = ", kx, " ky = ", ky)
+    #println("max =", mxx)
+    #println("sx =", sx, " sy = ", sy, " kx = ", kx, " ky = ", ky)
 
     ik::Int = 0
     for ii in kx:sx
@@ -147,8 +213,8 @@ function signal_around_maximum(img::Matrix{Float64}, dark::Matrix{Float64}; nsig
     ixr::Int = min(sx, ik)
     iyr::Int = min(sy, jk)
 
-    println("ik = ", ik, " jk = ", jk)
-    println("ixr = ", ixr, " iyr = ", iyr)
+    #println("ik = ", ik, " jk = ", jk)
+    #println("ixr = ", ixr, " iyr = ", iyr)
 
 	for ii in kx:-1:1
         if img[ii,ky] > cutoff
@@ -169,8 +235,8 @@ function signal_around_maximum(img::Matrix{Float64}, dark::Matrix{Float64}; nsig
 	ixl = max(1, ik)
 	iyl = max(1, jk)
 
-    println("ik = ", ik, " jk = ", jk)
-    println("ixl = ", ixl, " iyl = ", iyl)
+    #println("ik = ", ik, " jk = ", jk)
+    #println("ixl = ", ixl, " iyl = ", iyl)
 
 	img2 = Array{Float64}(undef, ixr - ixl + 1, iyr - iyl + 1)
 	
@@ -180,7 +246,7 @@ function signal_around_maximum(img::Matrix{Float64}, dark::Matrix{Float64}; nsig
 		end
 	end
 
-    println("size of img2 =", size(img2))
+    #println("size of img2 =", size(img2))
 
 	(max=mxx, imax=kx, jmax=ky, img=img2) 
 end
