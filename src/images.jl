@@ -10,7 +10,7 @@ function getbolddirs(bdir)
 end
 
 
-function findpattern(nxfiles, pattern, spl="_", pos=1)
+function findpattern(nxfiles::Vector{String}, pattern::String, spl="_", pos=1)
 	REPS = []
 	for f in nxfiles
 		fsx = split(f, spl)

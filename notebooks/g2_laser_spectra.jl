@@ -126,7 +126,7 @@ begin
 	proot ="/Users/jj/JuliaProjects/LaserLab/labdata"
 	sroot = "/Users/jj/JuliaProjects/LaserLab/data/G2Sl"
 	dmtype = ["Imag","Dark"]
-	xbold  = ["G2_BOLD_073_A2"]
+	xbold  = ["G2_BOLD_078_A2","G2_BOLD_073_A2", ]
 	pfiles ="*.csv"
 	
 	md""" Select series : $(@bind wb Select(xbold))"""
@@ -184,7 +184,7 @@ md""" Select Img/dark: $(@bind wid Select(dmtype))"""
 # ╔═╡ e62942fa-27ff-483b-bc73-b47d7074a365
 begin
 	if wid == "Dark"
-		xfd = findpattern(nxfiles, "Dark.csv", "_", -1)
+		xfd = lfi.LaserLab.findpattern(nxfiles, "Dark.csv", "_", -1)
 		md""" Select dark measurement: $(@bind wfd Select(xfd))"""
 	else
 		wfd = " "
@@ -277,7 +277,7 @@ md"""
 """
 
 # ╔═╡ 9463ffd7-ab4f-4b54-a750-a76c670ee9bb
-md""" Check to compute sepctrum for this rep: $(@bind zrec CheckBox())"""
+md""" Check to compute spectrum for this rep: $(@bind zrec CheckBox())"""
 
 # ╔═╡ e12869d8-7607-4573-9b7c-499f2ba069a7
 if zrec
@@ -343,9 +343,9 @@ md""" Check to load solution fluo spectra: $(@bind zfluo CheckBox())"""
 
 # ╔═╡ 46783dcf-d452-4ae3-a8eb-efe2bfe9c1bd
 if zfluo
-
-	dffluo = lfi.LaserLab.load_df_from_csv(sroot, "Fluo_ACN_emi_340nm.csv", lfi.LaserLab.spG)
-	plot(dffluo.W, dffluo[!,"5E_5"], lw=2, label="G2 solution")
+	dffluo = lfi.LaserLab.load_df_from_csv(sroot, "Fluo_ACN_G2_G2Ba_340nm.csv", lfi.LaserLab.spG)
+	plot(dffluo.W, dffluo[!,"G2340"], lw=2, label="G2 solution")
+	plot!(dffluo.W, dffluo[!,"G2Ba340"], lw=2, label="G2Ba solution")
 	xlabel!("wavelength (nm)")
 	ylabel!("counts")
 end
@@ -476,7 +476,7 @@ end
 # ╟─04564c50-c59a-4fe7-8f70-e702dd0b8701
 # ╠═e77e7680-74d8-4f4d-ac8c-e55498d1a9cd
 # ╟─9da70d55-28b9-4c12-ba6a-c560832a5194
-# ╟─6502fdee-cd60-4d32-ac77-c42c845b12ba
+# ╠═6502fdee-cd60-4d32-ac77-c42c845b12ba
 # ╟─22e6d658-098d-480d-bbb1-d3831eada9c6
 # ╟─8adcb337-f6ee-423e-bf7f-0391f943ba32
 # ╟─ba4d56d7-70ee-4032-bc0c-7445f27571a9
@@ -486,22 +486,22 @@ end
 # ╟─21c86a2b-ff51-4431-91f6-d6185e5f00ae
 # ╟─8c9fc82f-280d-48a5-8a7b-9af061c4952b
 # ╠═6cbfbd75-1885-406a-81ba-f99b94f78824
-# ╟─e0a87f8e-f9f4-4863-a591-1947b3ebab94
-# ╟─e62942fa-27ff-483b-bc73-b47d7074a365
+# ╠═e0a87f8e-f9f4-4863-a591-1947b3ebab94
+# ╠═e62942fa-27ff-483b-bc73-b47d7074a365
 # ╟─39c39437-1810-4c80-9576-e6522ef26442
-# ╟─945b1c82-dc26-4966-902b-c6d4042f69ac
-# ╟─5c226cb8-0dca-4ebd-bb35-1d51639a7eb0
-# ╟─1a59c1a9-1905-4afe-af42-c85515c421a7
-# ╟─2ab028ee-1f9f-4493-a3fe-59602a493716
-# ╟─934e9039-a774-4d10-bd6d-3e793c471d84
-# ╟─591e3e72-402f-491a-b8d5-5c02a92b1d1d
-# ╟─a05cea87-9d3f-4f84-82ba-fdf38b247d46
-# ╟─9c264015-b26c-42e8-8e97-e091c4eab8d1
+# ╠═945b1c82-dc26-4966-902b-c6d4042f69ac
+# ╠═5c226cb8-0dca-4ebd-bb35-1d51639a7eb0
+# ╠═1a59c1a9-1905-4afe-af42-c85515c421a7
+# ╠═2ab028ee-1f9f-4493-a3fe-59602a493716
+# ╠═934e9039-a774-4d10-bd6d-3e793c471d84
+# ╠═591e3e72-402f-491a-b8d5-5c02a92b1d1d
+# ╠═a05cea87-9d3f-4f84-82ba-fdf38b247d46
+# ╠═9c264015-b26c-42e8-8e97-e091c4eab8d1
 # ╟─b4237359-1f1a-4ae1-932d-5d9d7e14bba4
 # ╟─805196f0-2a11-4409-a18d-7620ad0f0190
 # ╟─b776cef6-90d6-4897-bd6e-b81a3a58b416
 # ╟─01aeef0d-12e1-4e32-974f-f5405a661d95
-# ╟─9463ffd7-ab4f-4b54-a750-a76c670ee9bb
+# ╠═9463ffd7-ab4f-4b54-a750-a76c670ee9bb
 # ╟─e12869d8-7607-4573-9b7c-499f2ba069a7
 # ╟─f7d8c603-92ea-49d1-81bb-538945fac0b3
 # ╟─cc85ccd8-692d-400e-b67a-de7164d7ec8f
@@ -519,6 +519,6 @@ end
 # ╟─41cf396d-01ba-4e09-9ac9-bdf0a713de9e
 # ╟─7eaaa7a9-2a5b-4ed6-b3b8-1a03e0fb8081
 # ╟─599f682e-976c-49cf-b00a-3099136d80fd
-# ╟─46783dcf-d452-4ae3-a8eb-efe2bfe9c1bd
+# ╠═46783dcf-d452-4ae3-a8eb-efe2bfe9c1bd
 # ╠═cec73687-de04-46e6-a73e-a4d1d3beafc5
 # ╠═454cab5c-e715-46bd-a799-0e9e2e9a7f67
