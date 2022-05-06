@@ -4,35 +4,34 @@ using Images
 using Statistics
 using ImageBinarization
 
-function getbolddirs(bdir)
-	fdrs = Glob.glob("*", bdir)
-	[split(f,"/")[end] for f in fdrs]
+
+mutable struct Setup
+    cmdir::String
+    series::String
+    measurement::String
+    point::String
+    filter::String
+    rep::String
+    imgid::String 
+    texpsec::Float64 
+    darktype::String 
+    sfilter::String 
+    srep::String 
+    img::String 
+    dark::String 
+    exp::String 
+    fext::String 
+    pext::String 
 end
 
+function select_image_name(setup::Setup, imgid="Dark")
 
-function findpattern(nxfiles::Vector{String}, pattern::String, spl="_", pos=1)
-	REPS = []
-	for f in nxfiles
-		fsx = split(f, spl)
-		fa = findall(x->x==pattern, fsx)
-		if length(fa) > 0
-			indx = fa[1] + pos
-			push!(REPS, fsx[indx])
-		end
-	end
-	unique(REPS)
-end
-
-
-function select_image_name(flt::String, rn::String, itype::String, idtype::String,
-                           sflt="Filter",
-                           srn="rep",
-                           sexp="_ExpoT_10s_")
-
-    if itype == "Dark"
-        string(sflt, "_", flt, sexp, idtype, "_Dark.csv")
+    if imgid == "Dark"
+        string(setup.sfilter, "_" , setup.filter, "_" , setup.exp, "_", setup.darktype, 
+               "_", setup.dark,  setup.fext)
     else
-        string(sflt, "_", flt, "_", srn, "_", rn, sexp, "Imag_1.csv")
+        string(setup.sfilter, "_", setup.filter, "_", setup.srep, "_", setup.rep, "_", setup.exp, 
+               "_", setup.img,  setup.fext)
     end
 
 end
@@ -46,103 +45,151 @@ end
 
 
 function get_image(ffimg::String)
-	imgdf = DataFrame(CSV.File(ffimg, header=false,delim="\t"));
-	dftomat(imgdf)
+	imgdf = DataFrame(CSV.File(ffimg, header=false,delim="\t"))
+	img   = dftomat(imgdf)
+    imgn = img ./maximum(img)
+    (img = img, imgn = imgn)
 end
 
 
-function select_image(xfiles::Vector{String}, wfn::String, wr::String, wid::String, wfd::String)
-	imgn = select_image_name(wfn, wr, wid, wfd)
+
+function select_image(xfiles::Vector{String}, setup::Setup, imgid::String) 
+	imgn = select_image_name(setup, imgid)
+    #println("imgn = ", imgn)
 	ximg = get_image_name(xfiles, imgn)
+    #println("ximg = ", ximg)
 	get_image(ximg)
 end
 
 
-function get_corrected_image(files::Vector{String}, whichf::String, whichr::String)
-	imgm = select_image(files, whichf, whichr, "Imag", " ")
-	drkmb = select_image(files, whichf, whichr, "Dark", "before")
-	drkma = select_image(files, whichf, whichr, "Dark", "after")
-
-	imgc = imgm .- drkma
-	rdark = drkmb .- drkma
-
-	(image=imgm, dark=drkma, cimage=imgc, cdark=rdark)
+function get_corrected_image(files::Vector{String}, setup::Setup) 
+	imgm = select_image(files, setup, "Imag")
+	drkm = select_image(files, setup, "Dark")
+	
+	img = imgm.img .- drkm.img
+	imgn = img ./maximum(img)
+    (img = img, imgn = imgn, dark=drkm.img)
 end
 
 
-"""
-    select_image(inames::Vector{String}, fnumber::String, repetition::String,
-                 itype::String="Imag",  expo::String="_ExpoT_1000000ms_")
+function spectrum_max(xfiles::Vector{String}, setup::Setup,  
+                      xfn::Vector{String}, filtnm::NamedTuple, adctopes::Float64; nsigma::Float64=3.0)
+	ZMX = Vector{Float64}()
+	ZSM = Vector{Float64}()
+	ZI = Vector{Float64}()
+	ZJ = Vector{Float64}()
+	
+    fold = setup.filter
+	for fltr in xfn
+        setup.filter = fltr 
+        #println("in spectrum_max: setup point = ", setup.point)
+		cimgz = get_corrected_image(xfiles, setup)
+		imgmz, imgp = signal_around_maximum(cimgz.img, cimgz.dark; nsigma=nsigma)
+		push!(ZMX,imgp.max)
+		push!(ZSM,sum(imgmz.img))
+		push!(ZI,imgp.imax)
+		push!(ZJ,sum(imgp.jmax))
 
-Selects an image to be read from a vector holding the names of files with data. 
+        #println(" for filter ",fltr, " sum = ", sum(imgmz.img))
+	end
+    setup.filter = fold
+	DataFrame("fltn" => xfn, "cflt" => filtnm.center, "lflt" => filtnm.left, "rflt" => filtnm.right, "wflt" => filtnm.width,
+		      "sum"=> ZSM, "sumpes"=> adctopes *(ZSM ./filtnm.width), "max"=> ZMX, "imax" => ZI, "jmax" => ZJ)	
+end
 
-# Fields
-- `inames::Vector{String}`: Names of files (tipically obtained with glob)
-- `fnumber::String`: filter number (by convention from 2 to 11)
-- `repetition::String`: repetition number (1,2,3): files with repetitions of the same measurement.
-- `itype::String`: type of image, either Imag (with laser on) or Dark (with laser off)
-- `expo::String`: A string describing the exposure 
-"""
-# function select_image(inames::Vector{String}, fnumber::String, repetition::String,
-#                       itype::String="Imag", expo::String="_ExpoT_1000000ms_")
 
-#     names = [split(f,"/")[end] for f in inames]
+function spectrum_max_allpoints!(setup::Setup, 
+                                xpt::Vector{String}, xfn::Vector{String}, 
+                                filtnm::NamedTuple, adctopes::Float64; nsigma::Float64=3.0, odir, etype="csv")
+    pold = setup.point 
+    for pt in xpt
+        setup.point = pt
+        xpath = joinpath(setup.cmdir,setup.series,setup.measurement, setup.point)
+        dfiles = string("*",setup.fext)
+	    xfiles = Glob.glob(dfiles, xpath)
+        #println("in spectrum_max_allpoints: xpath = ", xpath)
+        sdf = spectrum_max(xfiles, setup, xfn, filtnm, adctopes; nsigma=nsigma)
+        sdfnm = get_outpath(setup, etype)
+        sdff = joinpath(odir, sdfnm)
+	    println("Writing point to  =", sdff)
+	    CSV.write(sdff, sdf)
+    end
+    setup.point = pold 
+end
 
-#     if repetition == "0"
-#         fhead = string("Filter_", fnumber, expo)
-#     else
-#         fhead = string("Filter_", fnumber, "_rep_", repetition, expo)
-#     end
+
+function spectrum_sum(xfiles::Vector{String}, setup::Setup, 
+                      xfn::Vector{String}, filtnm::NamedTuple, adctopes::Float64)
     
-    
-#     if itype == "Dark"
-#         ftail = string("Dark_1.dat")
-#     elseif itype == "Dark2" 
-#         ftail = string("Dark_2.dat")
-#     elseif itype == "Imag" 
-#         ftail = string("Imag_1.dat")
-#     else
-#         @error "itype = $itype not implemented"
-#     end
+    ZSM = Vector{Float64}()
 
-#     ff = string(fhead, ftail)
-#     indx = findall([occursin(ff, name) for name in names])[1]
-#     inames[indx]
+    #println("in spectrum_sum: setup = ", setup)
+    for fltr in xfn
+        setup.filter = fltr
+        cimgz = get_corrected_image(xfiles, setup)
+        push!(ZSM,sum(cimgz.img))
+    end
+
+    #println("in spectrum_sum (after): setup = ", setup)
+    DataFrame("fltn" => xfn, "cflt" => filtnm.center, "lflt" => filtnm.left, "rflt" => filtnm.right, "wflt" => filtnm.width,
+    "sum"=> ZSM, "sumpes"=> adctopes *(ZSM ./filtnm.width))	
+end
+
+
+
+function get_outpath(setup::Setup, etype="csv")
+    
+    if etype == "csv"
+	    sdfnm = string(setup.series, "_", setup.measurement, "_", 
+                   setup.point,  "_", setup.srep,  "_", setup.rep, setup.fext)
+    else
+        sdfnm = string(setup.series, "_", setup.measurement, "_", 
+                   setup.point,  "_", setup.srep,        "_", setup.rep, setup.pext)
+    end
+end
+
+
+# function write_spectrum!(sdf::DataFrame, setup::Setup; odir, etype="csv")
+    
+#     if etype == "csv"
+# 	    sdfnm = string(setup.series, "_", setup.measurement, "_", 
+#                    setup.point,  "_", setup.srep,        "_", setup.rep, setup.fext)
+#     else
+#         sdfnm = string(setup.series, "_", setup.measurement, "_", 
+#                    setup.point,  "_", setup.srep,        "_", setup.rep, setup.pext)
+#     end
+                  
+# 	sdff = joinpath(odir, sdfnm)
+# 	#println("Writing point to  =", sdff)
+# 	CSV.write(sdff, sdf)
+
 # end
 
-"""
-    get_images(files::Vector{String}, whichf::String, whichr::String)
+function read_spectrum(setup::Setup, csvdir)
+    
+    
+	sdfnm = string(setup.series, "_", setup.measurement, "_", 
+                   setup.point,  "_", setup.srep,        "_", setup.rep, setup.fext)
+    
+                  
+	sdff = joinpath(csvdir, sdfnm)
+	#println("reading file =", sdff)
 
-For a filter number and a repetition number returns 3 images: laser on, laser off, and subctracted.  
-
-# Fields
-- `files::Vector{String}}`: Names of files (tipically obtained with glob)
-- `whichf::String`: filter number (by convention from 2 to 11)
-- `whichr::String`: repetition number (1,2,3): files with repetitions of the same measurement.
-
-"""
-function get_images(files::Vector{String}, whichf::String, whichr::String)
-	ffimg = select_image(files, whichf, whichr, "Imag");
-	imgdf = DataFrame(CSV.File(ffimg, header=false,delim="\t"));
-	imgm  = dftomat(imgdf)
+    load_df_from_csv(csvdir, sdfnm, enG)
 	
-	ffdrk = select_image(files, whichf, whichr, "Dark");
-	drkdf = DataFrame(CSV.File(ffdrk, header=false,delim="\t"));
-	drkm  = dftomat(drkdf)
-
-    ffdrk2 = select_image(files, whichf, whichr, "Dark2");
-	drkdf2 = DataFrame(CSV.File(ffdrk2, header=false,delim="\t"));
-	drkm2  = dftomat(drkdf2)
-
-	simgdf = imgdf .- drkdf
-	simgm  = dftomat(simgdf)
-
-    sdarkdf = drkdf .- drkdf2
-	sdark  = dftomat(sdarkdf)
-	
-	(image=imgm, dark=drkm, cimage=simgm, cdark=sdark)
 end
 
+
+function spectrum_fromfile_allpoints(setup::Setup, xpt::Vector{String}, csvdir)
+    dfdict = Dict()
+    for pt in xpt
+        setup.point = pt
+        df = read_spectrum(setup, csvdir)
+        dfdict[pt] = df
+    end
+
+    dfdict
+end
 
 """
     dftomat(img::DataFrame)
@@ -177,11 +224,11 @@ Finds the maximum of the image, then adds signal in a window defined by xwindow
 - `nsigma::Int64`: number of sigmas for noise cutoff
 
 """
-function signal_around_maximum(img::Matrix{Float64}, dark::Matrix{Float64}; nsigma::Int64=2)
+function signal_around_maximum(img::Matrix{Float64}, dimg::Matrix{Float64}; nsigma::Float64=2.0)
 
-    cutoff::Float64 = mean(dark) + nsigma * std(dark)
+    cutoff::Float64 =  nsigma * std(dimg)
 
-    #println("mean dark =", mean(dark), " std dark = ", std(dark), " cutoff =", cutoff)
+    #println("mean dimg =", mean(dimg), " std  = ", std(dimg), " cutoff =", cutoff)
 
 	mxx::Float64, indxt = findmax(img)
     sx::Int = size(img)[1]
@@ -191,6 +238,14 @@ function signal_around_maximum(img::Matrix{Float64}, dark::Matrix{Float64}; nsig
 
     #println("max =", mxx)
     #println("sx =", sx, " sy = ", sy, " kx = ", kx, " ky = ", ky)
+
+    if mxx < cutoff
+        #println("max =", mxx, " less than cutoff! ", cutoff, " taking max")
+        img2 = Array{Float64}(undef,1, 1)
+        img2[1,1] = mxx 
+        imgn = 1.0
+        return (img = img2, imgn = imgn), (max=mxx, imax=kx, jmax=ky)
+    end
 
     ik::Int = 0
     for ii in kx:sx
@@ -248,8 +303,14 @@ function signal_around_maximum(img::Matrix{Float64}, dark::Matrix{Float64}; nsig
 
     #println("size of img2 =", size(img2))
 
-	(max=mxx, imax=kx, jmax=ky, img=img2) 
+    imgn = img2 ./maximum(img2)
+    (img = img2, imgn = imgn), (max=mxx, imax=kx, jmax=ky)
+
 end
+
+
+
+
 
 
 """

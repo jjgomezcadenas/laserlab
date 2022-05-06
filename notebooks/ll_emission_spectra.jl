@@ -14,7 +14,7 @@ macro bind(def, element)
     end
 end
 
-# ╔═╡ 8a67d331-35ae-44d6-942c-a61db4e7afa4
+# ╔═╡ 709c81d5-c4ab-431a-801d-d09f98206ee4
 begin
 	using PlutoUI
 	using CSV
@@ -31,13 +31,17 @@ begin
 	using LsqFit
 	using Statistics
 	using StatsBase
+	using Unitful 
+	using UnitfulEquivalences 
+	using PhysicalConstants
+	using Peaks
+	using FFTW
+	using DSP
 	import Glob
+
 end
 
-# ╔═╡ 65beba5e-776d-40d5-96a6-d0a2f3a9a4ea
-#using Pkg; Pkg.activate("/Users/jj/JuliaProjects/LaserLab/")
-
-# ╔═╡ d1b57350-bd9d-11ec-21f4-3d7a8656a31c
+# ╔═╡ d28e62ec-ca2d-11ec-258f-21ef0d38a491
 import Unitful:
     nm, μm, mm, cm, m, km,
     mg, g, kg,
@@ -47,7 +51,7 @@ import Unitful:
 	μW, mW, W,
     A, N, mol, mmol, V, L, M
 
-# ╔═╡ 53943a33-9cf3-4c9f-add5-278fdc3bc0fe
+# ╔═╡ a8e42825-5612-44c8-9789-556e28cdb523
 function ingredients(path::String)
 	# this is from the Julia source code (evalfile in base/loading.jl)
 	# but with the modification that it returns the module instead of the last object
@@ -62,411 +66,133 @@ function ingredients(path::String)
 	m
 end
 
-
-# ╔═╡ b829dbf6-486e-4bd1-914c-54fe6d389b9c
+# ╔═╡ 84c2c8c3-41db-4e95-a7c5-7dfbae67e0f1
 lfi = ingredients("../src/LaserLab.jl")
 
+# ╔═╡ c6afb3df-cd45-461a-8a9b-69013f2807b6
+PlutoUI.TableOfContents(title="Fluorescent spectra in solution", indent=true)
 
-# ╔═╡ 7aafa82d-4fe3-4bdc-a14c-ec48a7178260
-PlutoUI.TableOfContents(title="G2 Laser Analysis", indent=true)
-
-# ╔═╡ 92a0f8ec-9a1a-414b-8d8f-b96d496164a3
+# ╔═╡ ce4c153a-0b18-48eb-ab2c-924b3d2090dc
 md"""
-# Data
+## Select Fluorescence spectrum
 """
 
-# ╔═╡ af6ab2c4-5f03-41ae-9672-033b3916ae1e
-md"""
-Filter width(s) in nm
-"""
-
-# ╔═╡ aa4edf06-e3d0-44ad-92ce-49cec750b817
-wfnm = [10.0, 24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0, 10.0]
-
-# ╔═╡ 595a19db-ef4e-415f-a29e-ee9ce055b55a
-md"""
-Filter central value in nm
-"""
-
-# ╔═╡ 044027cd-f816-4a4a-abfc-0da8682b270a
-xfnm=[420.0,438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0,810.0]
-
-# ╔═╡ b86e6ae7-678b-4564-a97b-375c6414c861
-xfnm .- 0.5*wfnm
-
-# ╔═╡ e29a8698-6676-42a3-b8e2-b1f1f72ed650
-xfnm .+ 0.5*wfnm
-
-# ╔═╡ 335d9287-90ff-4398-8b26-d9e41bd1e3c4
-load("../notebooks/img/filters.png")
-
-# ╔═╡ 13ecb88f-c1d3-46bb-b1ce-0a5f170fd3de
-md"""
-Exposure time in seconds
-"""
-
-# ╔═╡ 0413846f-c988-4663-b37f-c7fde224d8a5
-texps = 10.0 
-
-# ╔═╡ 04564c50-c59a-4fe7-8f70-e702dd0b8701
-md"""
-Laser power in μW
-"""
-
-# ╔═╡ e77e7680-74d8-4f4d-ac8c-e55498d1a9cd
-pmuw = 134.0
-
-# ╔═╡ 9da70d55-28b9-4c12-ba6a-c560832a5194
-md"""
-# Select working directory
-"""
-
-# ╔═╡ 6502fdee-cd60-4d32-ac77-c42c845b12ba
+# ╔═╡ 27510639-96b6-4119-bc8a-9a7f476759ec
 begin
-	proot ="/Users/jj/JuliaProjects/LaserLab/labdata"
-	sroot = "/Users/jj/JuliaProjects/LaserLab/data/G2Sl"
-	pngroot = "/Users/jj/JuliaProjects/LaserLab/data/G2Sl/png"
-	dmtype = ["Imag","Dark"]
-	xbold  = ["ANN_205_BOLD_077_D1", "G2_BOLD_078_A2","G2_BOLD_073_A2", ]
-	pfiles ="*.csv"
+	sroot  = "/Users/jj/JuliaProjects/LaserLab/data/"
+	sdirs = ["ANN205","G2Sl", "RuSl", "IrSl"]
+	ffiles = Dict("ANN205"=>"ANN205_ACN.csv",
+	               "G2Sl"=>"Fluo_ACN_G2_G2Ba_340nm.csv",
+	               "RuSl" =>"RuSl_emission_MeOH_375.csv",
+				   "IrSl" =>"IrSl_emission_MeOH_375.csv")
 	
-	md""" Select series : $(@bind wb Select(xbold))"""
+	ecsv ="*.csv"
+	epng ="*.png"
+	
+	md""" Select series : $(@bind fdir Select(sdirs))"""
 	
 end
 
-# ╔═╡ 22e6d658-098d-480d-bbb1-d3831eada9c6
+# ╔═╡ 4340c121-4fde-48c4-aca8-57a09502ed7f
 begin
-	xmeas = joinpath(proot,wb)
-	xnmeas = lfi.LaserLab.getbolddirs(xmeas)
-end
-
-# ╔═╡ 8adcb337-f6ee-423e-bf7f-0391f943ba32
-md""" Select measurement : $(@bind wm Select(xnmeas))"""
-
-# ╔═╡ ba4d56d7-70ee-4032-bc0c-7445f27571a9
-begin
-	xp = joinpath(xmeas,wm)
-	xnp = lfi.LaserLab.getbolddirs(xp)
-end
-
-# ╔═╡ a641da7f-1a23-4cdb-b747-1344d1ff0179
-md""" Select point : $(@bind wp Select(xnp))"""
-
-# ╔═╡ 325dedd2-7079-4a95-9286-b91306cec8c8
-xpath = joinpath(xp,wp);
-
-# ╔═╡ 4f47264c-2cb4-45f1-93ad-793ca74da08e
-md"""
-working directory = $xpath
-"""
-
-# ╔═╡ 21c86a2b-ff51-4431-91f6-d6185e5f00ae
-md"""
-# Select Image 
-"""
-
-# ╔═╡ 8c9fc82f-280d-48a5-8a7b-9af061c4952b
-begin
-	xfiles = Glob.glob(pfiles, xpath)
-	nxfiles = [split(f,"/")[end] for f in xfiles]
-	rn = lfi.LaserLab.findpattern(nxfiles, "rep")
-	md""" Select repetition number: $(@bind wr Select(rn))"""
-end
-
-# ╔═╡ 6cbfbd75-1885-406a-81ba-f99b94f78824
-begin
-	xfn = lfi.LaserLab.findpattern(nxfiles, "Filter")
-	md""" Select filter: $(@bind wfn Select(xfn))"""
-end
-
-# ╔═╡ e0a87f8e-f9f4-4863-a591-1947b3ebab94
-md""" Select Img/dark: $(@bind wid Select(dmtype))""" 
-
-# ╔═╡ e62942fa-27ff-483b-bc73-b47d7074a365
-begin
-	if wid == "Dark"
-		xfd = lfi.LaserLab.findpattern(nxfiles, "Dark.csv", "_", -1)
-		md""" Select dark measurement: $(@bind wfd Select(xfd))"""
-	else
-		wfd = " "
-	end
-	wbs = string(wb)
-	wms = string(wm)
-	wps = string(wp)
-	wrs = string(wr)
-	wfs = string(wfn)
-	wids = string(wid)
-	wfds = string(wfd)
-end
-
-# ╔═╡ 39c39437-1810-4c80-9576-e6522ef26442
-begin
+	path = joinpath(sroot, fdir )
+	dffluo = lfi.LaserLab.load_df_from_csv(path, ffiles[fdir], lfi.LaserLab.spG);
 	md"""
-	- Series = $wbs
-	- Measurement = $wms
-	- Point = $wps
-	- Filter = $wfs
-	- Repetition = $wrs
-	- Img/Dark = $wids
-	- Dark Before/after (nothing if Imag) = $wfds
+	Plotting data
 	"""
 end
 
-# ╔═╡ 945b1c82-dc26-4966-902b-c6d4042f69ac
-nxfiles;
-
-# ╔═╡ 5c226cb8-0dca-4ebd-bb35-1d51639a7eb0
-xfiles;
-
-# ╔═╡ 1a59c1a9-1905-4afe-af42-c85515c421a7
-img = lfi.LaserLab.select_image(xfiles, wfs, wrs, wids, wfds);
-
-# ╔═╡ 2ab028ee-1f9f-4493-a3fe-59602a493716
-begin
-imgmn2 = img ./maximum(img)
-gimg2 = Gray.(imgmn2)
-end
-
-# ╔═╡ 934e9039-a774-4d10-bd6d-3e793c471d84
+# ╔═╡ d2bda356-104e-42c1-a039-e001f62ab3b1
 md"""
-# Select corrected image from filter and repetition
+## Plot four spectra
+
+Spectra below correspond to chemical compounds + Sl (silatrane) to anchor to quartz substrate. Measurements correspond to fluorescence in solution. 
+
+From left to right and top to bottom:
+
+1. ANN205 (A205Sl) free and chelated
+2. G2Sl free and chelated
+3. RuSl
+4. IrSl
+
 """
 
-# ╔═╡ 591e3e72-402f-491a-b8d5-5c02a92b1d1d
-cimg = lfi.LaserLab.get_corrected_image(xfiles, wfs, wrs);
+# ╔═╡ 9129176d-e5e4-4631-8f02-9a9f49d71680
+let
+	path1 = joinpath(sroot, sdirs[1])
+	df1 = lfi.LaserLab.load_df_from_csv(path1, ffiles[sdirs[1]], lfi.LaserLab.spG)
+	plt1 = plot(df1[!, "W"], df1[!, "AAN205_370nm"], lw=2, label="AAN205 370nm", 
+		       xtickfontsize=8,ytickfontsize=8)
+	plot!(df1[!,"W"], df1[!, "AAN205_Ba_370nm"], lw=2, label="AAN205Ba 370nm", 
+		      	 xtickfontsize=8,ytickfontsize=8)
+	xlabel!("λ (nm)")
+	ylabel!("A.u.")
+	
+	path2 = joinpath(sroot, sdirs[2])
+	df2 = lfi.LaserLab.load_df_from_csv(path2, ffiles[sdirs[2]], lfi.LaserLab.spG)
+	plt2 = plot(df2[!, "W"], df2[!, "G2340"], lw=2, label="G2Sl 340nm", 
+		       xtickfontsize=8,ytickfontsize=8)
+	plot!(df2[!,"W"], df2[!, "G2Ba340"], lw=2, label="G2BaSl 340nm", 
+		      	 xtickfontsize=8,ytickfontsize=8)
+	xlabel!("λ (nm)")
+	ylabel!("A.u.")
 
-# ╔═╡ a05cea87-9d3f-4f84-82ba-fdf38b247d46
-begin
-	imgmn = cimg.cimage ./maximum(cimg.cimage)
-	gimg = Gray.(imgmn);
-	imgmxn = cimg.image ./maximum(cimg.image)
-	gimgx = Gray.(imgmxn)
-	mosaicview(gimg, gimgx; nrow = 1)
+	path3 = joinpath(sroot, sdirs[3])
+	df3 = lfi.LaserLab.load_df_from_csv(path3, ffiles[sdirs[3]], lfi.LaserLab.spG)
+	plt3 = plot(df3[!, "W"], df3[!, "RuSL_1E-5_emi_375"], lw=2, label="RuSl 375nm ", 
+		       xtickfontsize=8,ytickfontsize=8)
+	xlabel!("λ (nm)")
+	ylabel!("A.u.")
+	
+	path4 = joinpath(sroot, sdirs[4])
+	df4 = lfi.LaserLab.load_df_from_csv(path4, ffiles[sdirs[4]], lfi.LaserLab.spG)
+	plt4 = plot(df4[!, "W"], df4[!, "IrSL_1E-5_emi_375"], lw=2, label="IrSl 375 nm", 
+		       xtickfontsize=8,ytickfontsize=8)
+	xlabel!("λ (nm)")
+	ylabel!("A.u.")
+
+	
+	pall = plot(size=(750,750), plt1, plt2, plt3, plt4, layout=(2,2), titlefontsize=8)
 end
 
-# ╔═╡ 9c264015-b26c-42e8-8e97-e091c4eab8d1
-imgmxnt = lfi.LaserLab.signal_around_maximum(cimg.cimage, cimg.cdark; nsigma=3);
-
-# ╔═╡ b4237359-1f1a-4ae1-932d-5d9d7e14bba4
-begin
-	imgmxntn = imgmxnt.img ./maximum(imgmxnt.img)
-	gimgnt = Gray.(imgmxntn)
-end
-
-# ╔═╡ 805196f0-2a11-4409-a18d-7620ad0f0190
-begin
-	stot = sum(imgmxnt.img)
+# ╔═╡ 54e9a24f-31af-42fe-b91d-79212a37165a
 md"""
-- Size of the image =$(size(imgmxnt.img))
-- Total sum around the peak = $(round(stot, sigdigits=3))
-"""
-end
-
-# ╔═╡ b776cef6-90d6-4897-bd6e-b81a3a58b416
-md"""
-- Filter = $wfs
-- repetition = $wrs
-- **signal**
-- value of max = $(imgmxnt.max)
-- position of max: i = $(imgmxnt.imax)  j = $(imgmxnt.jmax)
-- Total light in spot (DC subtracted) = $(round(stot, sigdigits=3))
-"""
-
-# ╔═╡ 01aeef0d-12e1-4e32-974f-f5405a661d95
-md"""
-# Reconstruct spectra for a given repetition
+## Functions
 """
 
-# ╔═╡ 9463ffd7-ab4f-4b54-a750-a76c670ee9bb
-md""" Check to compute spectrum for this rep: $(@bind zrec CheckBox())"""
+# ╔═╡ f59d9f47-b485-47a6-84fd-969594e44064
+function plot_spectrum_free_ba(df; lblW, lblfree, lblba)
+	plt = plot(df[!, lblW], df[!, lblfree], lw=2, label=lblfree, 
+		       xtickfontsize=8,ytickfontsize=8)
 
-# ╔═╡ e12869d8-7607-4573-9b7c-499f2ba069a7
-if zrec
-	xfi = sort([parse(Int64, string(x)) for x in xfn])
-	xfs = string.(xfi)
-	ZMX = Vector{Float64}()
-	ZSM = Vector{Float64}()
-	for fltr in xfs
-		cimgz = lfi.LaserLab.get_corrected_image(xfiles, fltr, wrs)
-		imgmz = lfi.LaserLab.signal_around_maximum(cimgz.cimage, cimgz.cdark; nsigma=3)
-		#println("filter =",fltr, " max val=", imgmz.max, " max i = ", imgmz.imax, " max j = ",imgmz.jmax, " sum = ", sum(imgmz.img))
-		push!(ZMX,imgmz.max)
-		push!(ZSM,sum(imgmz.img))
+	if lblba != ""
+		plot!(df[!, lblW], df[!, lblba], lw=2, label=lblba, 
+		      	 xtickfontsize=8,ytickfontsize=8)
 	end
-end
-
-# ╔═╡ cc85ccd8-692d-400e-b67a-de7164d7ec8f
-md""" Check to save sepctrum for this rep: $(@bind zwrite CheckBox())"""
-
-# ╔═╡ b64a4570-f8f0-4370-89ce-1fa1b21d089f
-if zwrite && zrec
-	sdf = DataFrame("filters" => xfnm, "sum"=> ZSM, "max"=> ZMX)
-	sdfnm = string(wbs,"_",wms,"_",wps,"_rep_",wrs,".csv")
-	sdff = joinpath(sroot, sdfnm)
-	CSV.write(sdff, sdf)
-
-	md"""
-	- File to write = $sdfnm
-	- Full path = $sdff
-	"""
-end
-
-# ╔═╡ 634ed7f2-b95b-46f2-b5fd-f681751da423
-md""" Check to plot reps and avg for point: $(@bind zrpavg CheckBox())"""
-
-# ╔═╡ 1f76ac8b-3ef7-4dbc-bf84-03ec1453b961
-md""" Check to save average for point: $(@bind zwavg CheckBox())"""
-
-# ╔═╡ ab5ca517-7a95-41be-9887-48bc94dd793e
-md""" Check to plot All points for selected measurement: $(@bind zpoint CheckBox())"""
-
-# ╔═╡ e8fe5321-56c6-4fca-8fdd-ed7bff5ff428
-if zpoint
-	sdfmpy = string(wbs,"_",wms,"_avg.png")
-	pngny = joinpath(pngroot, sdfmpy)
-	println(pngny)
-	png(pngny)
-end
-
-# ╔═╡ 8740f867-109f-47c1-9e90-57ece3b83886
-md"""
-# Results
-"""
-
-# ╔═╡ c59ee355-abf4-488e-8e95-59e21299baf2
-md""" Select point : $(@bind sp Select(xnp))"""
-
-# ╔═╡ bdbc198a-8b46-4054-a714-af1e95113e80
-md""" Check to plot G2/G2Ba for selected point: $(@bind zcomp CheckBox())"""
-
-# ╔═╡ 599f682e-976c-49cf-b00a-3099136d80fd
-md""" Check to load solution fluo spectra: $(@bind zfluo CheckBox())"""
-
-# ╔═╡ 46783dcf-d452-4ae3-a8eb-efe2bfe9c1bd
-if zfluo
-	dffluo = lfi.LaserLab.load_df_from_csv(sroot, "Fluo_ACN_G2_G2Ba_340nm.csv", lfi.LaserLab.spG)
-	pxf = plot(dffluo.W, dffluo[!,"G2340"], lw=2, label="G2 solution")
-	plot!(dffluo.W, dffluo[!,"G2Ba340"], lw=2, label="G2Ba solution")
-	xlabel!("wavelength (nm)")
-	ylabel!("counts")
-end
-
-# ╔═╡ 81ae3021-3065-4976-9074-158b1400cd76
-if zcomp
-	let
-	sdfmpx = string("Fluo_ACN_G2_G2Ba_340nm.png")
-	pngn = joinpath(pngroot, sdfmpx)
-	println(pngn)
-	png(pxf,pngn)
-	end
-end
-
-# ╔═╡ cec73687-de04-46e6-a73e-a4d1d3beafc5
-md"# Functions"
-
-# ╔═╡ 454cab5c-e715-46bd-a799-0e9e2e9a7f67
-function img_title(label::String, wbs::String, wms::String, wps::String, wrs::String)
-	string(label, "Series: ", wbs, "Meas: ", wms, " Point: ", wps, " Rep: ", wrs)
-end
-
-# ╔═╡ f7d8c603-92ea-49d1-81bb-538945fac0b3
-if zrec
+	xlabel!("λ (nm)")
+	ylabel!("A.u.")
+	#yticks!([2e+5,4e+5,6e+5])
+    #xticks!([0,400,600,800])
 	
-	tit = img_title("", wbs, wms, wps, wrs)
-	psm = plot(xfnm, ZSM, lw=2, label=string("rep ",wrs), title=tit, titlefontsize=10)
-	ssm = scatter!(xfnm, ZSM, legend=false)
-	xlabel!("wavelength (nm)")
-	ylabel!("counts")
-	#pmx = plot(xfnm, ZMX, lw=2, label=string("rep ",wrs))
-	#xlabel!("wavelength (nm)")
-	#ylabel!("counts")
-	#plot(psm, pmx)
+	#xtickfontsize=18,ytickfontsize=18,xlabel="wavelength",xguidefontsize=18,yscale=:log10,ylabel="flux",yguidefontsize=18,legendfontsize=18) here
+
+	plt
 end
 
-# ╔═╡ 2b12326f-166a-4439-9e46-239bcd7e55cf
-if zrpavg
-	sdfnmr1 = string(wbs,"_",wms,"_",wps,"_rep_1.csv")
-	avgdf = lfi.LaserLab.load_df_from_csv(sroot, sdfnmr1, lfi.LaserLab.enG)
-	plot(avgdf.filters, avgdf.sum, lw=2, label="rep 1")
-	#scatter!(avgdf.filters, avgdf.sum, legend=false)
-	
-	for rep in rn[2:end]
-		sdfnmr = string(wbs,"_",wms,"_",wps,"_rep_", rep,".csv")
-		dfx = lfi.LaserLab.load_df_from_csv(sroot, sdfnmr, lfi.LaserLab.enG)
-		
-		plot!(dfx.filters, dfx.sum, lw=2, label=string("rep ", rep))
-		#scatter!(dfx.filters, dfx.sum, legend=false)
-		
-		avgdf .+= dfx
-	end
-	avgdf ./= length(rn) 
-	tita = img_title("", wbs, wms, wps,  "avg")
-	plot!(xfnm, avgdf.sum, lw=2, label="average reps ", title=tita, titlefontsize=10)
-	scatter!(xfnm, avgdf.sum, label="average reps ")
-	xlabel!("wavelength (nm)")
-	ylabel!("counts")
-end
+# ╔═╡ ed6c3cfb-870d-4350-adb2-b3002a3740f7
+if fdir == "ANN205"
+	plot_spectrum_free_ba(dffluo, lblW="W", lblfree="AAN205_370nm", 
+	                           lblba="AAN205_Ba_370nm")
+elseif fdir == "G2Sl"
+	plot_spectrum_free_ba(dffluo, lblW="W", lblfree="G2340", 
+	                           lblba="G2Ba340")
+elseif fdir == "RuSl"
+	plot_spectrum_free_ba(dffluo, lblW="W", lblfree="RuSL_1E-5_emi_375", 
+	                           lblba="")
+elseif fdir == "IrSl"
+	plot_spectrum_free_ba(dffluo, lblW="W", lblfree="IrSL_1E-5_emi_375", 
+	                           lblba="")
 
-# ╔═╡ be5a950b-47b2-402c-8d24-57a0826e53e8
-if zwavg
-	sdfav = DataFrame("filters" => xfnm, "sum"=> avgdf.sum, "max"=> avgdf.max)
-	sdfnmav = string(wbs,"_",wms,"_",wps,"_avg.csv")
-	sdffav = joinpath(sroot, sdfnmav)
-	CSV.write(sdffav, sdfav)
-
-	md"""
-	- File to write = $sdfnmav
-	- Full path = $sdffav
-	"""
-end
-
-# ╔═╡ 84a44685-1651-47e9-bfdf-2b21a537fa93
-if zpoint
-	titb = img_title("", wbs, wms, "all",  "avg")
-	for xp in xnp
-		sdfnpt = string(wbs,"_",wms,"_",xp,"_avg.csv")
-		dfpnt = lfi.LaserLab.load_df_from_csv(sroot, sdfnpt, lfi.LaserLab.enG)
-		if xp=="Point1"
-			plot(dfpnt.filters, dfpnt.sum, lw=2, label=xp, title=titb, titlefontsize=10)
-		else
-			plot!(dfpnt.filters, dfpnt.sum, lw=2, label=xp)
-		end
-		scatter!(dfpnt.filters, dfpnt.sum, label=xp)
-		
-	end
-	xlabel!("wavelength (nm)")
-	ylabel!("counts")
-end
-
-# ╔═╡ 41cf396d-01ba-4e09-9ac9-bdf0a713de9e
-if zcomp
-	xxp = string(sp)
-	
-	sdfmpt = string(wbs,"_",xnmeas[1],"_",xxp,"_avg.csv")
-	dfmpt = lfi.LaserLab.load_df_from_csv(sroot, sdfmpt, lfi.LaserLab.enG)
-	titd = img_title("", wbs, " G2/G2Ba ", xxp,  "avg")
-	
-	pxm = plot(dfmpt.filters, dfmpt.sum, lw=2, label=xnmeas[1], title=titd, titlefontsize=10)
-	scatter!(dfmpt.filters, dfmpt.sum, label=xnmeas[1])
-
-	sdfmpt2 = string(wbs,"_",xnmeas[2],"_",xxp,"_avg.csv")
-	dfmpt2 = lfi.LaserLab.load_df_from_csv(sroot, sdfmpt2, lfi.LaserLab.enG)
-	
-	plot!(dfmpt2.filters, dfmpt2.sum, lw=2, label=xnmeas[2])
-	scatter!(dfmpt2.filters, dfmpt2.sum, label=xnmeas[2])
-	xlabel!("wavelength (nm)")
-	ylabel!("counts")
-	
-end
-
-# ╔═╡ 7eaaa7a9-2a5b-4ed6-b3b8-1a03e0fb8081
-if zcomp
-	let
-		sdfmpx = string(wbs,"_","G2-G2Ba","_",xxp,"_avg.png")
-		pngn = joinpath(pngroot, sdfmpx)
-		println(pngn)
-		png(pxm,pngn)
-	end
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -474,7 +200,9 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
 ImageBinarization = "cbc4b850-ae4b-5111-9e64-df94c024a13d"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
@@ -482,6 +210,8 @@ InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 LsqFit = "2fda8390-95c7-5789-9bda-21331edee243"
 Markdown = "d6f4376e-aef5-505a-96c1-9c027394607a"
+Peaks = "18e31ff7-3703-566c-8e60-38913d67486b"
+PhysicalConstants = "5ad8b20f-a522-5ce9-bfc9-ddf1d5bda6ab"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
@@ -489,21 +219,27 @@ QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+UnitfulEquivalences = "da9c4bc3-91c8-4f02-8a40-6b990d2a7e0c"
 
 [compat]
 CSV = "~0.10.4"
 Colors = "~0.12.8"
+DSP = "~0.7.5"
 DataFrames = "~1.3.3"
+FFTW = "~1.4.6"
 Glob = "~1.3.0"
 ImageBinarization = "~0.2.8"
 Images = "~0.25.2"
 Interpolations = "~0.13.6"
 LsqFit = "~0.12.1"
+Peaks = "~0.4.0"
+PhysicalConstants = "~0.2.1"
 Plots = "~1.28.0"
 PlutoUI = "~0.7.38"
 QuadGK = "~2.4.2"
 StatsBase = "~0.33.16"
 Unitful = "~1.11.0"
+UnitfulEquivalences = "~0.2.0"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -647,6 +383,11 @@ git-tree-sha1 = "417b0ed7b8b838aa6ca0a87aadf1bb9eb111ce40"
 uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
 version = "0.12.8"
 
+[[deps.CommonSolve]]
+git-tree-sha1 = "68a0743f578349ada8bc911a5cbd5a2ef6ed6d1f"
+uuid = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
+version = "0.2.0"
+
 [[deps.CommonSubexpressions]]
 deps = ["MacroTools", "Test"]
 git-tree-sha1 = "7b8a93dba8af7e3b42fecabf646260105ac373f7"
@@ -695,6 +436,12 @@ version = "4.1.1"
 git-tree-sha1 = "1a3f97f907e6dd8983b744d2642651bb162a3f7a"
 uuid = "dc8bdbbb-1ca9-579f-8c36-e416f6a65cce"
 version = "1.0.2"
+
+[[deps.DSP]]
+deps = ["Compat", "FFTW", "IterTools", "LinearAlgebra", "Polynomials", "Random", "Reexport", "SpecialFunctions", "Statistics"]
+git-tree-sha1 = "3e03979d16275ed5d9078d50327332c546e24e68"
+uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
+version = "0.7.5"
 
 [[deps.DataAPI]]
 git-tree-sha1 = "fb5f5316dd3fd4c5e7c30a24d50643b73e37cd40"
@@ -1366,6 +1113,12 @@ version = "1.0.3"
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 
+[[deps.Measurements]]
+deps = ["Calculus", "LinearAlgebra", "Printf", "RecipesBase", "Requires"]
+git-tree-sha1 = "88cd033eb781c698e75ae0b680e5cef1553f0856"
+uuid = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
+version = "2.7.1"
+
 [[deps.Measures]]
 git-tree-sha1 = "e498ddeee6f9fdb4551ce855a46f54dbd900245f"
 uuid = "442fdcdd-2543-5da2-b0f3-8c86c306513e"
@@ -1530,6 +1283,18 @@ git-tree-sha1 = "1285416549ccfcdf0c50d4997a94331e88d68413"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.3.1"
 
+[[deps.Peaks]]
+deps = ["Compat"]
+git-tree-sha1 = "79e1f108ef46e9393bc670440c5f3ec78d23eb78"
+uuid = "18e31ff7-3703-566c-8e60-38913d67486b"
+version = "0.4.0"
+
+[[deps.PhysicalConstants]]
+deps = ["Measurements", "Roots", "Unitful"]
+git-tree-sha1 = "2bc26b693b5cbc823c54b33ea88a9209d27e2db7"
+uuid = "5ad8b20f-a522-5ce9-bfc9-ddf1d5bda6ab"
+version = "0.2.1"
+
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "b4f5d02549a10e20780a24fce72bea96b6329e29"
@@ -1693,6 +1458,12 @@ git-tree-sha1 = "68db32dff12bb6127bac73c209881191bf0efbb7"
 uuid = "f50d1b31-88e8-58de-be2c-1cc44531875f"
 version = "0.3.0+0"
 
+[[deps.Roots]]
+deps = ["CommonSolve", "Printf", "Setfield"]
+git-tree-sha1 = "838b60ee62bebc794864c880a47e331e00c47505"
+uuid = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
+version = "1.4.1"
+
 [[deps.Rotations]]
 deps = ["LinearAlgebra", "Quaternions", "Random", "StaticArrays", "Statistics"]
 git-tree-sha1 = "3177100077c68060d63dd71aec209373c3ec339b"
@@ -1716,6 +1487,12 @@ version = "1.3.12"
 
 [[deps.Serialization]]
 uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+
+[[deps.Setfield]]
+deps = ["ConstructionBase", "Future", "MacroTools", "Requires"]
+git-tree-sha1 = "38d88503f695eb0301479bc9b0d4320b378bafe5"
+uuid = "efcf1570-3423-57d1-acb7-fd33fddbac46"
+version = "0.8.2"
 
 [[deps.SharedArrays]]
 deps = ["Distributed", "Mmap", "Random", "Serialization"]
@@ -1896,6 +1673,12 @@ deps = ["ConstructionBase", "Dates", "LinearAlgebra", "Random"]
 git-tree-sha1 = "b649200e887a487468b71821e2644382699f1b0f"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
 version = "1.11.0"
+
+[[deps.UnitfulEquivalences]]
+deps = ["Unitful"]
+git-tree-sha1 = "76fc2f7fdc87531a1018eb7d647df7c29daf36b7"
+uuid = "da9c4bc3-91c8-4f02-8a40-6b990d2a7e0c"
+version = "0.2.0"
 
 [[deps.Unzip]]
 git-tree-sha1 = "34db80951901073501137bdbc3d5a8e7bbd06670"
@@ -2136,71 +1919,18 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╠═8a67d331-35ae-44d6-942c-a61db4e7afa4
-# ╠═65beba5e-776d-40d5-96a6-d0a2f3a9a4ea
-# ╠═d1b57350-bd9d-11ec-21f4-3d7a8656a31c
-# ╟─53943a33-9cf3-4c9f-add5-278fdc3bc0fe
-# ╠═b829dbf6-486e-4bd1-914c-54fe6d389b9c
-# ╠═7aafa82d-4fe3-4bdc-a14c-ec48a7178260
-# ╟─92a0f8ec-9a1a-414b-8d8f-b96d496164a3
-# ╟─af6ab2c4-5f03-41ae-9672-033b3916ae1e
-# ╠═aa4edf06-e3d0-44ad-92ce-49cec750b817
-# ╟─595a19db-ef4e-415f-a29e-ee9ce055b55a
-# ╠═044027cd-f816-4a4a-abfc-0da8682b270a
-# ╠═b86e6ae7-678b-4564-a97b-375c6414c861
-# ╠═e29a8698-6676-42a3-b8e2-b1f1f72ed650
-# ╠═335d9287-90ff-4398-8b26-d9e41bd1e3c4
-# ╟─13ecb88f-c1d3-46bb-b1ce-0a5f170fd3de
-# ╠═0413846f-c988-4663-b37f-c7fde224d8a5
-# ╟─04564c50-c59a-4fe7-8f70-e702dd0b8701
-# ╠═e77e7680-74d8-4f4d-ac8c-e55498d1a9cd
-# ╟─9da70d55-28b9-4c12-ba6a-c560832a5194
-# ╠═6502fdee-cd60-4d32-ac77-c42c845b12ba
-# ╟─22e6d658-098d-480d-bbb1-d3831eada9c6
-# ╟─8adcb337-f6ee-423e-bf7f-0391f943ba32
-# ╟─ba4d56d7-70ee-4032-bc0c-7445f27571a9
-# ╟─a641da7f-1a23-4cdb-b747-1344d1ff0179
-# ╟─325dedd2-7079-4a95-9286-b91306cec8c8
-# ╟─4f47264c-2cb4-45f1-93ad-793ca74da08e
-# ╟─21c86a2b-ff51-4431-91f6-d6185e5f00ae
-# ╟─8c9fc82f-280d-48a5-8a7b-9af061c4952b
-# ╠═6cbfbd75-1885-406a-81ba-f99b94f78824
-# ╠═e0a87f8e-f9f4-4863-a591-1947b3ebab94
-# ╠═e62942fa-27ff-483b-bc73-b47d7074a365
-# ╟─39c39437-1810-4c80-9576-e6522ef26442
-# ╠═945b1c82-dc26-4966-902b-c6d4042f69ac
-# ╠═5c226cb8-0dca-4ebd-bb35-1d51639a7eb0
-# ╠═1a59c1a9-1905-4afe-af42-c85515c421a7
-# ╠═2ab028ee-1f9f-4493-a3fe-59602a493716
-# ╠═934e9039-a774-4d10-bd6d-3e793c471d84
-# ╠═591e3e72-402f-491a-b8d5-5c02a92b1d1d
-# ╠═a05cea87-9d3f-4f84-82ba-fdf38b247d46
-# ╠═9c264015-b26c-42e8-8e97-e091c4eab8d1
-# ╟─b4237359-1f1a-4ae1-932d-5d9d7e14bba4
-# ╟─805196f0-2a11-4409-a18d-7620ad0f0190
-# ╟─b776cef6-90d6-4897-bd6e-b81a3a58b416
-# ╟─01aeef0d-12e1-4e32-974f-f5405a661d95
-# ╠═9463ffd7-ab4f-4b54-a750-a76c670ee9bb
-# ╟─e12869d8-7607-4573-9b7c-499f2ba069a7
-# ╟─f7d8c603-92ea-49d1-81bb-538945fac0b3
-# ╟─cc85ccd8-692d-400e-b67a-de7164d7ec8f
-# ╟─b64a4570-f8f0-4370-89ce-1fa1b21d089f
-# ╟─634ed7f2-b95b-46f2-b5fd-f681751da423
-# ╟─2b12326f-166a-4439-9e46-239bcd7e55cf
-# ╟─1f76ac8b-3ef7-4dbc-bf84-03ec1453b961
-# ╟─be5a950b-47b2-402c-8d24-57a0826e53e8
-# ╟─ab5ca517-7a95-41be-9887-48bc94dd793e
-# ╠═84a44685-1651-47e9-bfdf-2b21a537fa93
-# ╠═e8fe5321-56c6-4fca-8fdd-ed7bff5ff428
-# ╟─8740f867-109f-47c1-9e90-57ece3b83886
-# ╟─c59ee355-abf4-488e-8e95-59e21299baf2
-# ╟─bdbc198a-8b46-4054-a714-af1e95113e80
-# ╠═41cf396d-01ba-4e09-9ac9-bdf0a713de9e
-# ╠═7eaaa7a9-2a5b-4ed6-b3b8-1a03e0fb8081
-# ╟─599f682e-976c-49cf-b00a-3099136d80fd
-# ╠═46783dcf-d452-4ae3-a8eb-efe2bfe9c1bd
-# ╠═81ae3021-3065-4976-9074-158b1400cd76
-# ╠═cec73687-de04-46e6-a73e-a4d1d3beafc5
-# ╠═454cab5c-e715-46bd-a799-0e9e2e9a7f67
+# ╟─709c81d5-c4ab-431a-801d-d09f98206ee4
+# ╟─d28e62ec-ca2d-11ec-258f-21ef0d38a491
+# ╟─a8e42825-5612-44c8-9789-556e28cdb523
+# ╟─84c2c8c3-41db-4e95-a7c5-7dfbae67e0f1
+# ╟─c6afb3df-cd45-461a-8a9b-69013f2807b6
+# ╟─ce4c153a-0b18-48eb-ab2c-924b3d2090dc
+# ╠═27510639-96b6-4119-bc8a-9a7f476759ec
+# ╠═4340c121-4fde-48c4-aca8-57a09502ed7f
+# ╠═ed6c3cfb-870d-4350-adb2-b3002a3740f7
+# ╟─d2bda356-104e-42c1-a039-e001f62ab3b1
+# ╠═9129176d-e5e4-4631-8f02-9a9f49d71680
+# ╠═54e9a24f-31af-42fe-b91d-79212a37165a
+# ╠═f59d9f47-b485-47a6-84fd-969594e44064
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

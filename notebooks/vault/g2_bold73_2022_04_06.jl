@@ -15,7 +15,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 65beba5e-776d-40d5-96a6-d0a2f3a9a4ea
-using Pkg; Pkg.activate("/Users/jj/JuliaProjects/LaserLab/")
+#using Pkg; Pkg.activate("/Users/jj/JuliaProjects/LaserLab/")
 
 # ╔═╡ 8a67d331-35ae-44d6-942c-a61db4e7afa4
 begin

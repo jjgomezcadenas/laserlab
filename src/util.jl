@@ -1,4 +1,5 @@
 using DataFrames
+import Glob 
 
 ## Use abstract type to select range conditions
 ## Method inspired by https://www.juliabloggers.com/julia-dispatching-enum-versus-type/
@@ -8,6 +9,25 @@ struct ClosedBound <: ValueBound end
 struct LeftClosed  <: ValueBound end
 struct RightClosed <: ValueBound end
 
+
+function getbolddirs(bdir::AbstractString)
+	fdrs = Glob.glob("*", bdir)
+	[split(f,"/")[end] for f in fdrs]
+end
+
+
+function findpattern(nxfiles::Vector{String}, pattern::String, spl="_", pos=1)
+	REPS = []
+	for f in nxfiles
+		fsx = split(f, spl)
+		fa = findall(x->x==pattern, fsx)
+		if length(fa) > 0
+			indx = fa[1] + pos
+			push!(REPS, fsx[indx])
+		end
+	end
+	unique(REPS)
+end
 
 function range_bound(xmin::Real, xmax::Real, ::Type{OpenBound  })
 	x -> (x >  xmin) & (x <  xmax)
