@@ -4,7 +4,45 @@ using StatsBase
 import Base.length
 # histograms
 
+"""Define an histogram"""
+struct Histo1d
+	edges::Vector{Float64}
+	weights::Vector{Float64}
+	centers::Vector{Float64}
+end
 
+
+"""Take an object of type Hisgoram and return a Histo1d"""
+get_histo1d(h::Histogram) = Histo1d(edges(h), h.weights, centers(h))
+
+
+"""Returns a Histo1d struct""" 
+h1d(x::Vector{Float64}, bins::Vector{Float64}, norm=false) = get_histo1d(hist1d(x, bins, norm))
+
+
+"""Return a Histo1d struct"""
+function h1d(x::Vector{T}, nbins::Integer, xmin::T=typemin(T), xmax::T=typemax(T), norm=false) where T
+    get_histo1d(hist1d(x, nbins, xmin, xmax, norm))
+end
+
+"""plot a h1d histogram"""
+function plot_h1d(h::Histo1d, xs::String;
+                  markersize::Int64=3, fwl::Bool=false,
+                  label::String="", legend::Bool=false)
+
+    xg = h.centers
+    yg = h.weights
+    p  = scatter(xg, yg, yerr=sqrt.(abs.(yg)),
+                 markersize=markersize, label=label, legend=legend)
+    if fwl
+        p = plot!(p, xg, yg, yerr=sqrt.(abs.(yg)), fmt=:png,
+                  linewidth=1, label=label, legend=legend)
+    end
+
+    xlabel!(xs)
+    ylabel!("frequency")
+    return p
+end
 
 """
     digitize(x, bins)

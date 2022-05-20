@@ -189,29 +189,6 @@ begin
 	end
 end
 
-# ╔═╡ 31f7fbcb-0361-4e46-a687-5cc1a3b5d4ce
-fwvfm.time[1733]
-
-# ╔═╡ 563ca292-24d9-4358-8c31-04e1267e7c37
-fpeaks.xs
-
-# ╔═╡ 2592c338-40a1-42da-8a1b-b6d5352b5543
-fpeaks.ys
-
-# ╔═╡ a4ed3140-fd53-4cc6-9fcf-88683abbdda2
-fpeaks.peaks
-
-# ╔═╡ 9a97a223-5323-40a2-aac5-eee4d46b2aab
-fpeaks.leftedge
-
-# ╔═╡ 5c11564b-ba5c-49b4-b23e-6bef4fb242c1
-function subtract_laser(tv::Vector{Float64}, ltus::Float64)
-	tv - ltus * floor.(tv/ltus)
-end
-
-# ╔═╡ d557f2b0-7ccf-45c7-a93b-5bf499cfafad
-subtract_laser(fpeaks.xs, tl/1.0μs)
-
 # ╔═╡ bd6faf80-4f68-44a0-9ad6-319a2b4f2316
 md"## Optimizing prominence cut"
 
@@ -263,19 +240,53 @@ md""" Click to compute time histos: $(@bind ztimes CheckBox(default=false))"""
 # ╔═╡ 01c601a6-1531-41df-b011-614c0b70d476
 tl/1.0μs
 
-# ╔═╡ 55deba27-0dc9-4de0-b020-e782430cc55c
-x = [10,100,4,5,3,10,20,500,1,2,3]
-
-# ╔═╡ 5a08ae47-80da-4ed2-a342-fe05f0466e40
-x[x .>3]
-
-# ╔═╡ 4594cc43-bb6e-423a-a7b6-9fabe65c02eb
-findall(z->z>3, x)
+# ╔═╡ 931aad69-ae0f-4168-8245-619590a046a2
+md""" Select  prominence cut: $(@bind pcut NumberField(0.5:10.0, default=2.5))"""
 
 # ╔═╡ 268f59b5-5b40-4ba0-a064-edb534bb3bab
 md"""
 # Functions
 """
+
+# ╔═╡ 5c11564b-ba5c-49b4-b23e-6bef4fb242c1
+function subtract_laser(tv::Vector{Float64}, ltus::Float64)
+	tv - ltus * floor.(tv/ltus)
+end
+
+# ╔═╡ d557f2b0-7ccf-45c7-a93b-5bf499cfafad
+subtract_laser(fpeaks.xs, tl/1.0μs)
+
+# ╔═╡ 4c222697-e58c-4199-8114-38bc5a457cbb
+function tfit(htime, pa0, i0, l0, ffun, mffun)
+	
+	tdata = htime.centers
+	vdata = htime.weights
+	
+	fitb = curve_fit(mffun, tdata[i0:l0], vdata[i0:l0], pa0)
+
+	fit = curve_fit(mffun, tdata[i0:l0], vdata[i0:l0], pa0)
+	coef(fit), stderror(fit), ffun.(tdata, coef(fit)...)
+end
+
+# ╔═╡ 2e4d3f1b-bf12-4729-adcb-8ffb95902ec6
+function tfit_bkg(htime; pa0=[100.0, 0.5], i0=10, l0=20)
+	
+	ffun(t, a,b) = a + b * t
+	mffun(t, p) = p[1] .+ t .* p[2]
+
+	tfit(htime, pa0, i0, l0, ffun, mffun)
+end
+
+# ╔═╡ 0d61f471-d272-4dfb-9cf9-45e08d7b1c82
+function tfit_sgn(htime; cbkg, pa0=[100.0, 0.5], i0=10, l0=20)
+	
+	bkg(t) = cbkg[1] + cbkg[2] * t
+	
+	ffun(t, N1, λ) = N1 * exp(-t/λ)  +  bkg(t)
+	mffun(t, p) = p[1] * exp.(-t/p[2]) +  bkg.(t)
+
+	tfit(htime, pa0, i0, l0, ffun, mffun)
+end
 
 # ╔═╡ 368cd59a-e9e2-436f-872b-92ef5bb8c1d8
 function fit_peaks(htime; pa0=[100.0, 0.5], i0=1, il=-1)
@@ -319,40 +330,32 @@ begin
 end
 
 # ╔═╡ 8436f3b4-43eb-40bd-afa4-ad3dd87310ea
-pmtdf = lfi.LaserLab.load_df_from_csv(csvdir, string(sflt,".csv"), lfi.LaserLab.enG)
+pmtdf = lfi.LaserLab.load_df_from_csv(csvdir, string(sflt,".csv"), lfi.LaserLab.enG);
 
 # ╔═╡ 3e2d1b5f-de3a-4149-a90f-cf56a2c5a244
-pmtFpr = filter(row -> row[:pr] > 2.5, pmtdf);
+pmtFpr = filter(row -> row[:pr] > pcut, pmtdf);
 
-# ╔═╡ d6bce551-f730-4d6d-ae14-fdd2730d68bb
+# ╔═╡ 12d461dd-1e80-4aab-90f4-8fd58344ee73
 begin
-	htpr = lfi.LaserLab.hist1d(pmtFpr.ts, 20, 0.0, tl/1.0μs)
-	lfi.LaserLab.hist1d(htpr, "times")
+	hpr = lfi.LaserLab.h1d(pmtdf.pr, 20, 0.0, 10.0)
+	phpr = lfi.LaserLab.plot_h1d(hpr, "prom")
+	htpr = lfi.LaserLab.h1d(pmtFpr.ts, 20, 0.0, tl/1.0μs)
+	phtpr = lfi.LaserLab.plot_h1d(htpr, "times")
+	hws = lfi.LaserLab.h1d(pmtFpr.ws, 20, 5.0, 10.0)
+	phws = lfi.LaserLab.plot_h1d(hws, "width")
+	hvs = lfi.LaserLab.h1d(pmtFpr.vs, 20, 0.0, 20.0)
+	phvs = lfi.LaserLab.plot_h1d(hvs, "voltage")
+	Nothing	
 end
 
-# ╔═╡ cb3612d3-8376-456c-95df-a57fa492b35e
+# ╔═╡ 39f8b749-3c41-4bff-9140-22c0be92e8dc
 begin
-	hws = lfi.LaserLab.hist1d(pmtFpr.ws, 20, 5.0, 10.0)
-	lfi.LaserLab.hist1d(hws, "width")
+	hprx = lfi.LaserLab.h1d(pmtdf.pr, 20, 0.0, 10.0)
+	phprx = lfi.LaserLab.plot_h1d(hpr, "prom")
 end
 
-# ╔═╡ 66eea7b2-6ce2-46ab-aad9-c53951215f27
-begin
-	hvs = lfi.LaserLab.hist1d(pmtFpr.vs, 20, 0.0, 20.0)
-	lfi.LaserLab.hist1d(hvs, "voltage")
-end
-
-# ╔═╡ 356ed0ec-b08e-4f82-8df2-3363c5297e3b
-pmtFpr[!,"txs"] = pmtFpr[!, "ts"] .- 200.0
-
-# ╔═╡ 1ddddc13-1f9c-4eeb-8695-187b3044dffa
-begin
-	htx = lfi.LaserLab.hist1d(pmtFpr.txs, 20, 0.0, tl/1.0μs)
-	lfi.LaserLab.hist1d(htx, "times")
-end
-
-# ╔═╡ 6756692a-75c9-4d4f-b99c-1cb2536ddc6e
-pmtFpr[!, "ts"]
+# ╔═╡ a3843632-e13c-47df-a7c7-72b4d841dbad
+plot(phpr, phtpr, phws, phvs, size=(750,750), layout=(2,2),titlefontsize=8)
 
 # ╔═╡ fc65ca7f-aac8-49e5-8c13-2c47fb6a4a83
 function runsel(csvf::Vector{String}, fi::Integer, fe::Integer;
@@ -383,116 +386,15 @@ md"""
 ## Histogram functions
 """
 
-# ╔═╡ 77f1adeb-73c1-40c0-8690-222656939e11
-mutable struct Histo1d
-	edges::Vector{Float64}
-	weights::Vector{Float64}
-	centers::Vector{Float64}
-end
-
-# ╔═╡ 8b34877d-19af-4a8b-9435-80dccd137173
-function get_histo1d(h::Histogram)
-	function centers(edges::Vector{<:Real})
-    	edges[1:end-1] + .-(@view(edges[2:end]), @view(edges[1:end-1])) / 2
-	end	
-	function edges(h::Histogram, index::Int64=1)
-    	collect(h.edges[index])
-	end
-	centers(h::Histogram) = centers(edges(h))
-	
-	Histo1d(edges(h), h.weights, centers(h))
-end
-
-# ╔═╡ 22044fd8-7114-4b06-9615-33516e89a2de
-h1tpr = get_histo1d(htpr)
-
-# ╔═╡ dfe9c98f-2255-4716-85f6-6a49542129d3
-plot_histo1d(h1tpr, "time")
-
-# ╔═╡ 830961ce-098f-405a-abe8-978254a8856d
-function h1d(x::Vector{<:Real}, bins::Vector{<:Real}, norm=false)
-    h = fit(Histogram, x, bins)
-    if norm
-        h = StatsBase.normalize(h, mode=:density)
-    end
-    return get_histo1d(h)
-end
-
-# ╔═╡ 63e736f4-ef09-44c5-9ee0-4a0d43eb4196
-function h1d(x::Vector{T}, nbins::Integer,
-            xmin::T=typemin(T), xmax::T=typemax(T), norm=false) where T
-
-	function in_range(x::Vector{<:Real}, xmin::Real, xmax::Real,
-				  interval::Type{<:ValueBound}=OpenBound)
-		mask = broadcast(range_bound(xmin, xmax, interval), x)
-	    return x[mask]
-	end
-	
-    xx   = in_range(x, xmin, xmax)
-    bins = collect(LinRange(xmin, xmax, nbins + 1))
-    h    = h1d(xx, bins, norm)
-	
-    return h
-end
-
-# ╔═╡ 0b64c05c-9011-492d-8090-0be9e6cb6b6d
-function h1d_unitweight(h::Histo1d)
-	w = ones(length(h.weights))
-	Histo1d(h.edges, w, h.centers)
-end
-
-# ╔═╡ 9b3bc0bc-cf41-464b-8680-e82ffe763f8a
-function h1d_constant_weight(h::Histo1d, wt::Float64)
-	w = ones(length(h.weights))
-	Histo1d(h.edges, wt .* w, h.centers)
-end
-
-# ╔═╡ e0875169-06bb-4931-96be-3649a606af5d
-h1uw = h1d_constant_weight(h1tpr, -200.0)
-
-# ╔═╡ 51f3eeb6-bdde-46c4-959e-483c9d09b1dc
-plot_histo1d(h1uw, "time")
-
 # ╔═╡ 70217e57-b672-4f17-9d4e-ab27e9a47057
 function add_h1d(h1::Histo1d, h2::Histo1d)
 	Histo1d(h1.edges, h1.weights + h2.weights, h1.centers)
 end
 
-# ╔═╡ d9bdc91d-0e1e-4ea5-b348-88ed298927e7
-h1tx = add_h1d(h1tpr, h1uw)
-
-# ╔═╡ 5540befa-8636-46f1-baf0-1327503ec399
-plot_histo1d(h1tx, "time")
-
 # ╔═╡ ec2cd649-7293-426c-ad9f-7ace1bf53f45
 md"""
 ## Plotting functions
 """
-
-# ╔═╡ f0006eb0-48a4-4285-a674-3958699ad821
-function plot_h1d(h::Histo1d, xs::String;
-                      markersize::Int64=3, fwl::Bool=false,
-                      label::String="", legend::Bool=false)
-
-    xg = h.centers
-    yg = h.weights
-    p  = scatter(xg, yg, yerr=sqrt.(abs.(yg)),
-                 markersize=markersize, label=label, legend=legend)
-    if fwl
-        p = plot!(p, xg, yg, yerr=sqrt.(abs.(yg)), fmt=:png,
-                  linewidth=1, label=label, legend=legend)
-    end
-    
-    xlabel!(xs)
-    ylabel!("frequency")
-    return p
-end
-
-# ╔═╡ 39f8b749-3c41-4bff-9140-22c0be92e8dc
-begin
-	hpr = h1d(pmtdf.pr, 20, 0.0, 10.0)
-	phpr = plot_h1d(hpr, "prom")
-end
 
 # ╔═╡ 11ee36e8-2eca-4577-93eb-207d1efa4cbb
 function plot_fit(htime, coeff, tft; savefig=false, fn="")
@@ -514,11 +416,26 @@ end
 # ╔═╡ 3e9b0679-decd-40b0-81a7-94853101ac85
 begin
 	pngpath = joinpath(pngdir, string(sflt,".png"))
-    coefx, stderx, tft = fit_peaks(h1tx; pa0=[100.0, 0.5], i0=1, il=8)
-    ptime = plot_fit(h1tx, coefx, tft; savefig=true,
-	              fn=pngpath)
+    coefx, stderx, tftx = tfit_bkg(htpr; pa0=[10.0, 0.5], i0=17, l0=20)
+    ptime = plot_fit(htpr, coefx, tftx; savefig=false,
+	                 fn=pngpath)
 	plot(ptime)
 end
+
+# ╔═╡ dc3b9b68-4478-4f53-875d-3ecb6449edb8
+coefx
+
+# ╔═╡ 37ba3d41-8816-470d-9536-8133bcd05cfd
+begin
+	coefy, stdery, tfty = tfit_sgn(htpr; cbkg=coefx, pa0=[10.0, 0.5], i0=1, l0=19)
+    ptime2 = plot_fit(htpr, coefy, tfty; savefig=true,
+	                 fn=pngpath)
+	plot(ptime2)
+end
+
+
+# ╔═╡ c6e5ed98-aecd-4bba-9911-e3ecbc57bfd2
+coefy
 
 # ╔═╡ Cell order:
 # ╠═74bc6fb9-8b52-46bf-b9cc-4a63883c5196
@@ -545,12 +462,6 @@ end
 # ╠═cb696494-5030-4568-a65b-aad9cbc01cf1
 # ╠═99e8afb0-f38e-4b79-88d2-6e43828b6e2b
 # ╠═5d2cce97-ad00-46be-b086-8c4a35cdb008
-# ╠═31f7fbcb-0361-4e46-a687-5cc1a3b5d4ce
-# ╠═563ca292-24d9-4358-8c31-04e1267e7c37
-# ╠═2592c338-40a1-42da-8a1b-b6d5352b5543
-# ╠═a4ed3140-fd53-4cc6-9fcf-88683abbdda2
-# ╠═9a97a223-5323-40a2-aac5-eee4d46b2aab
-# ╠═5c11564b-ba5c-49b4-b23e-6bef4fb242c1
 # ╠═d557f2b0-7ccf-45c7-a93b-5bf499cfafad
 # ╠═bd6faf80-4f68-44a0-9ad6-319a2b4f2316
 # ╠═551cd586-e702-41fb-989c-5139632e29b6
@@ -565,36 +476,24 @@ end
 # ╠═799cb553-5093-4efc-91c6-5dc4161e6961
 # ╠═8436f3b4-43eb-40bd-afa4-ad3dd87310ea
 # ╠═39f8b749-3c41-4bff-9140-22c0be92e8dc
+# ╠═931aad69-ae0f-4168-8245-619590a046a2
 # ╠═3e2d1b5f-de3a-4149-a90f-cf56a2c5a244
-# ╠═d6bce551-f730-4d6d-ae14-fdd2730d68bb
-# ╠═cb3612d3-8376-456c-95df-a57fa492b35e
-# ╠═66eea7b2-6ce2-46ab-aad9-c53951215f27
-# ╠═356ed0ec-b08e-4f82-8df2-3363c5297e3b
-# ╠═1ddddc13-1f9c-4eeb-8695-187b3044dffa
-# ╠═6756692a-75c9-4d4f-b99c-1cb2536ddc6e
-# ╠═22044fd8-7114-4b06-9615-33516e89a2de
-# ╠═dfe9c98f-2255-4716-85f6-6a49542129d3
-# ╠═e0875169-06bb-4931-96be-3649a606af5d
-# ╠═55deba27-0dc9-4de0-b020-e782430cc55c
-# ╠═5a08ae47-80da-4ed2-a342-fe05f0466e40
-# ╠═4594cc43-bb6e-423a-a7b6-9fabe65c02eb
-# ╠═51f3eeb6-bdde-46c4-959e-483c9d09b1dc
-# ╠═d9bdc91d-0e1e-4ea5-b348-88ed298927e7
-# ╠═5540befa-8636-46f1-baf0-1327503ec399
+# ╠═12d461dd-1e80-4aab-90f4-8fd58344ee73
+# ╠═a3843632-e13c-47df-a7c7-72b4d841dbad
 # ╠═3e9b0679-decd-40b0-81a7-94853101ac85
+# ╠═37ba3d41-8816-470d-9536-8133bcd05cfd
+# ╠═dc3b9b68-4478-4f53-875d-3ecb6449edb8
+# ╠═c6e5ed98-aecd-4bba-9911-e3ecbc57bfd2
 # ╠═268f59b5-5b40-4ba0-a064-edb534bb3bab
+# ╠═5c11564b-ba5c-49b4-b23e-6bef4fb242c1
+# ╠═2e4d3f1b-bf12-4729-adcb-8ffb95902ec6
+# ╠═0d61f471-d272-4dfb-9cf9-45e08d7b1c82
+# ╠═4c222697-e58c-4199-8114-38bc5a457cbb
 # ╠═368cd59a-e9e2-436f-872b-92ef5bb8c1d8
 # ╠═7fa04ed2-113a-4166-9f29-eef98393ab6d
 # ╠═e44d66e8-bac5-4ec0-9c94-aa0dbbe05d06
 # ╠═fc65ca7f-aac8-49e5-8c13-2c47fb6a4a83
 # ╠═e3b0ed46-122e-44d3-9a9a-01a69e032421
-# ╠═77f1adeb-73c1-40c0-8690-222656939e11
-# ╠═8b34877d-19af-4a8b-9435-80dccd137173
-# ╠═830961ce-098f-405a-abe8-978254a8856d
-# ╠═63e736f4-ef09-44c5-9ee0-4a0d43eb4196
-# ╠═0b64c05c-9011-492d-8090-0be9e6cb6b6d
-# ╠═9b3bc0bc-cf41-464b-8680-e82ffe763f8a
 # ╠═70217e57-b672-4f17-9d4e-ab27e9a47057
 # ╠═ec2cd649-7293-426c-ad9f-7ace1bf53f45
-# ╠═f0006eb0-48a4-4285-a674-3958699ad821
 # ╠═11ee36e8-2eca-4577-93eb-207d1efa4cbb
