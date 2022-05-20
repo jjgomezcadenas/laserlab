@@ -27,8 +27,12 @@ end
 function select_image_name(setup::Setup, imgid="Dark")
 
     if imgid == "Dark"
-        string(setup.sfilter, "_" , setup.filter, "_" , setup.exp, "_", setup.darktype, 
-               "_", setup.dark,  setup.fext)
+        if setup.darktype == "before"
+            string(setup.sfilter, "_" , setup.filter, "_" , setup.exp, "_", setup.darktype, 
+                                  "_", setup.dark,  setup.fext)
+        else
+            string(setup.sfilter, "_" , setup.filter, "_" , setup.exp, "_", setup.dark,  setup.fext)
+        end
     else
         string(setup.sfilter, "_", setup.filter, "_", setup.srep, "_", setup.rep, "_", setup.exp, 
                "_", setup.img,  setup.fext)
@@ -55,7 +59,7 @@ end
 
 function select_image(xfiles::Vector{String}, setup::Setup, imgid::String) 
 	imgn = select_image_name(setup, imgid)
-    #println("imgn = ", imgn)
+    println("imgn = ", imgn)
 	ximg = get_image_name(xfiles, imgn)
     #println("ximg = ", ximg)
 	get_image(ximg)

@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.3
+# v0.19.4
 
 using Markdown
 using InteractiveUtils
@@ -133,15 +133,22 @@ md"""
 
 # ╔═╡ 0b4d2c08-a677-492c-b5da-982d3d5096fc
 begin
-	cmdir ="/Users/jj/JuliaProjects/LaserLab/labdata/CMOS"
-	odir  = "/Users/jj/JuliaProjects/LaserLab/data/CMOS"
-	dfiles ="*.csv"
-	dplots ="*.png"
-	dmtype = ["Imag","Dark"]
+	cmdir   = "/Users/jj/JuliaProjects/LaserLab/labdata/CMOS"
+	odir    = "/Users/jj/JuliaProjects/LaserLab/data/CMOS"
+	dfiles  = "*.csv"
+	dplots  = "*.png"
+	dmtype  = ["Imag","Dark"]
+	rep     = "1"  # always take repetition number 1 if there is more than 1
+	drkpnt  = "Dark"
+	imgp    = "ExpoT_10s_Imag_1"
+	darkp   = "ExpoT_10s_dark"
 	md"""
 	CMOS dir = $cmdir
 	"""
 end
+
+# ╔═╡ 3ae7315b-2056-4e3f-9d41-b6e0292f30e3
+#sexp ="IrSL_BOLD_068_A1"
 
 # ╔═╡ e87f48e3-5e5a-44d5-83de-c520e522e33a
 let
@@ -149,107 +156,6 @@ let
 	dirs = lfi.LaserLab.getbolddirs(cmdir)
 	md""" Select experiment : $(@bind sexp Select(dirs))"""
 end
-
-# ╔═╡ a759ecf7-7373-46bf-ab15-df39cbfa6814
-begin
-	namex = split(sexp,"_")
-	csvdir = joinpath(odir, string(namex[1], namex[2]),"csv")
-	pngdir = joinpath(odir, string(namex[1], namex[2]),"png")
-	md"""
-	- csv dir = $csvdir
-	- png dir = $pngdir
-	"""
-end
-
-# ╔═╡ 1924796e-1cb9-47ad-bfb6-f01e544bdbc1
-namex
-
-# ╔═╡ 50ea2ecc-970f-4630-8c7e-acf5e69cc4c9
-let
-	path = joinpath(cmdir,sexp)
-	dirs = lfi.LaserLab.getbolddirs(path)
-	md""" Select run : $(@bind srun Select(dirs))"""
-end
-
-# ╔═╡ 4a1c449f-2656-4f05-9bea-783a3c7a4d30
-begin
-	ppath = joinpath(cmdir,sexp,srun)
-	pdirs = lfi.LaserLab.getbolddirs(ppath)
-	spdirs = sort(parse.(Int64, [split(pd, "Point")[2] for pd in pdirs]))
-	sspdirs = [string("Point", string(i)) for i in spdirs]
-	md""" Select point : $(@bind spoint Select(sspdirs))"""
-end
-
-# ╔═╡ df94ef34-08c9-4711-ae16-b024cf84b82a
-md"""
-## Define repetition, filter and image type
-"""
-
-# ╔═╡ 479f8f86-372c-4b91-9f73-e57a85d3d194
-begin
-	xpath = joinpath(cmdir,sexp,srun, spoint)
-	xfiles = Glob.glob(dfiles, xpath)
-	nxfiles = string.([split(f,"/")[end] for f in xfiles])
-	rn = lfi.LaserLab.findpattern(nxfiles, "rep")
-	md""" Select repetition number: $(@bind srn Select(rn))"""
-end
-
-# ╔═╡ 05bfacd2-047e-4491-a168-96120d394a83
-typeof(xfiles)
-
-# ╔═╡ 0b162778-31bd-4066-a576-4066acf0c370
-typeof(nxfiles)
-
-# ╔═╡ f13173e1-088c-4f5c-ae6a-f9aebcd6bc57
-begin
-	xfa = lfi.LaserLab.findpattern(nxfiles, "Filter")
-	xfb = sort(parse.(Int64, xfa))
-	xfn = string.(xfb)
-	md""" Select filter: $(@bind sfn Select(xfn))"""
-end
-
-# ╔═╡ b19277b6-bdbc-46ce-ab18-d50e08fae24a
-md""" Select Img/dark: $(@bind wid Select(dmtype))"""
-
-# ╔═╡ d762313e-1466-4724-9c35-dd89e657a11c
-begin
-	setup = lfi.LaserLab.Setup(cmdir,
-		                       string(sexp), string(srun), string(spoint),        
-		                       string(sfn),  string(srn),  string(wid), texp,
-							   "before", "Filter", "rep", "Imag_1", "Dark",
-                               string("ExpoT_",string(Int64(texp)),"s"),
-							   ".csv", ".png")
-	
-	pngpath = joinpath(pngdir,lfi.LaserLab.get_outpath(setup, "png"))
-	md"""
-	Setup
-	- root dir = $(setup.cmdir)
-	- Series = $(setup.series)
-	- Measurement = $(setup.measurement)
-	- Point = $(setup.point)
-	- Filter = $(setup.filter)
-	- Repetition = $(setup.rep)
-	- Img/Dark = $(setup.imgid)
-	- Time exposition = $(setup.texpsec)
-
-	Grammar
-	
-	- stype = $(setup.darktype)
-	- Filter = $(setup.sfilter)
-	- Repetition = $(setup.srep)
-	- Img = $(setup.img)
-	- Dark = $(setup.dark)
-	- Time exposition = $(setup.exp)
-	- File extensions = $(setup.fext)
-	- png extensions = $(setup.pext)
-
-	Paths
-	- png = $pngdir
-	"""
-end
-
-# ╔═╡ 2e7d4d21-69be-45e8-8d30-440c215ffd3e
-setup
 
 # ╔═╡ 7e185082-f3bf-4d95-9d5d-57101f47a684
 md"""
@@ -259,10 +165,202 @@ md"""
 - Image in the right corrected (dark current subtracted)
 """
 
+# ╔═╡ e9e8e58a-e1db-49f1-8429-420271fb1852
+md"""
+## Comparison between spectrum computed around maximum and using the full camera. 
+
+- Notice the umphysical shoulder when using the full camera
+"""
+
+# ╔═╡ af081fae-01f0-44ce-9f40-9cb5d3f28695
+filtnm
+
+# ╔═╡ a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
+md"""
+# Analysis for al points
+"""
+
+# ╔═╡ 1794afb6-6ef0-46d6-b182-d54362b9a07d
+md""" Check to carry analysis for all points: $(@bind zrec CheckBox())"""
+
+# ╔═╡ 82ddd81b-8aea-4711-97d9-a645121786f8
+md""" Check to read and plot data for all points: $(@bind zread CheckBox())"""
+
+# ╔═╡ c1b2cf36-d72e-4348-911e-8e44f1834ae4
+md"""
+# Functions
+"""
+
+# ╔═╡ f2714261-7bb0-47d7-8aac-c16bb5d1f891
+struct Setup
+    cmdir::String
+    series::String
+    measurement::String
+    point::String
+    filter::String
+    rep::String 
+end
+
+
+# ╔═╡ 78de6bcd-4173-40e3-b500-499568289ba1
+function fixdark(nxdrk)
+	splt = split(nxdrk[1],"_")
+	str = string(splt[3],"_")
+	for i in 4:length(splt) -1
+		str = string(str, splt[i],"_")
+	end
+	string(str, splt[end])
+end
+
+# ╔═╡ 0d5a7021-6072-464e-836e-f05b1e178b80
+function create_dir!(dir)
+	if isdir(dir) == false
+		mkdir(dir)
+	end
+end
+
+# ╔═╡ a759ecf7-7373-46bf-ab15-df39cbfa6814
+function output_dirs!(sexp)
+	namex = split(sexp,"_")
+	create_dir!(joinpath(odir, sexp))
+	csvdir = joinpath(odir, sexp,"csv")
+	pngdir = joinpath(odir, sexp, "png")
+	create_dir!(csvdir)
+	create_dir!(pngdir)
+	csvdir, pngdir
+end
+
+# ╔═╡ 161b12b6-88a0-4d4d-bfc5-01310534cbdc
+begin 
+	csvdir, pngdir = output_dirs!(sexp)
+	md"""
+	### Output dirs
+	- csv dir = $csvdir
+	- png dir = $pngdir
+	"""
+end
+
+# ╔═╡ 46b1d54e-4ebf-45a2-b137-9690b7a51d38
+function select_files(cmdir,sexp,srun, spoint, dfiles="*.csv")
+	path = joinpath(cmdir,sexp,srun, spoint)
+	readdir(path)
+	xfiles = Glob.glob(dfiles, path)
+	nxfiles = string.([split(f,"/")[end] for f in xfiles])
+	xfiles, nxfiles
+end
+
+
+# ╔═╡ 2498aa42-2c24-47e3-bf5b-647377af0dbc
+function select_run(cmdir, sexp)
+	namex = split(sexp,"_")
+	path = joinpath(cmdir,sexp)
+	readdir(path)
+	lfi.LaserLab.getbolddirs(path)
+end
+
+# ╔═╡ 50ea2ecc-970f-4630-8c7e-acf5e69cc4c9
+let
+	dirs = select_run(cmdir, sexp)
+	md""" Select run : $(@bind srun Select(dirs))"""
+end
+
+# ╔═╡ afeb42ca-b462-4320-b364-98a0b4730e33
+function select_point(cmdir, sexp, srun)
+	path = joinpath(cmdir,sexp,srun)
+	readdir(path)
+	pdirs = lfi.LaserLab.getbolddirs(path)
+	points = [split(pd, "Point")[2] for pd in pdirs if pd != "Dark"]
+	spdirs = sort(parse.(Int64, points))
+	[string("Point", string(i)) for i in spdirs]
+end
+
+# ╔═╡ d389f99a-14c2-408f-ad7b-838e00225357
+begin
+	sspdirs = select_point(cmdir, sexp, srun)
+	md""" Select point : $(@bind spoint Select(sspdirs))"""
+end
+
+# ╔═╡ 479f8f86-372c-4b91-9f73-e57a85d3d194
+begin
+	xfiles, nxfiles  = select_files(cmdir,sexp,srun, spoint)
+	xfdrk, nxdrk     = select_files(cmdir,sexp,srun, drkpnt)
+end
+
+# ╔═╡ f13173e1-088c-4f5c-ae6a-f9aebcd6bc57
+begin
+	xfa = lfi.LaserLab.findpattern(nxfiles, "Filter")
+	xfb = sort(parse.(Int64, xfa))
+	xfn = string.(xfb)
+	md""" Select filter: $(@bind sfn Select(xfn))"""
+end
+
+# ╔═╡ 8dbf64ec-5854-44b1-ac73-7cd0363a1c6d
+begin 
+	
+	md"""
+	### Setup
+	- run = $srun
+	- experiment = $sexp
+	- point = $spoint
+	- filter = $sfn
+	"""
+end
+
+# ╔═╡ 54bd1f6c-2b10-47a1-838f-b428fe6b7635
+xfn
+
+# ╔═╡ b857231c-f06c-426d-8f2c-5f8007134714
+fixdark(nxdrk)
+
+# ╔═╡ d762313e-1466-4724-9c35-dd89e657a11c
+begin
+	setup = Setup(cmdir, string(sexp), string(srun), string(spoint),        
+		              string(sfn), string(rep))
+	
+	#pngpath = joinpath(pngdir,lfi.LaserLab.get_outpath(setup, "png"))
+	md"""
+	Setup
+	- root dir = $(setup.cmdir)
+	- Series = $(setup.series)
+	- Measurement = $(setup.measurement)
+	- Point = $(setup.point)
+	- Filter = $(setup.filter)
+	- Repetition = $(setup.rep)
+	
+
+	"""
+end
+
+# ╔═╡ a90c8edc-1405-4a8c-aacf-53cd130910ae
+setup
+
+# ╔═╡ f9ea012f-9aae-4a8b-89d9-0f86802bb14f
+function select_image(xfiles::Vector{String}, xfdrk::Vector{String}, 
+	                  nxdrk::Vector{String}, setup::Setup) 
+	
+	imgn =string("Filter_",setup.filter,"_rep_", setup.rep, "_ExpoT_10s_Imag_1.csv")
+	idrk =string("Filter_",setup.filter, "_", fixdark(nxdrk) )
+    #println("imgn = ", imgn)
+	#println("idrk = ", idrk)
+	ximg = lfi.LaserLab.get_image_name(xfiles, imgn)
+	xdrk = lfi.LaserLab.get_image_name(xfdrk, idrk)
+    #println("ximg = ", ximg)
+	#println("xdrk = ", xdrk)
+	lfi.LaserLab.get_image(ximg), lfi.LaserLab.get_image(xdrk)
+end
+
+# ╔═╡ 58f3c3ac-698b-4381-bdcb-ca8a9cadc8d8
+function get_corrected_image(imgm::NamedTuple{(:img, :imgn)}, 
+	                         drkm::NamedTuple{(:img, :imgn)}) 
+	img = imgm.img .- drkm.img
+	imgn = img ./maximum(img)
+    (img = img, imgn = imgn, dark=drkm.img)
+end
+
 # ╔═╡ 4760fdb6-5a0b-4ba2-89b7-0cc7f764d68e
 begin
-	image = lfi.LaserLab.select_image(xfiles, setup, setup.imgid)
-	cimg = lfi.LaserLab.get_corrected_image(xfiles, setup)
+	image, dimage = select_image(xfiles, xfdrk, nxdrk,setup)
+	cimg = get_corrected_image(image, dimage)
 	mosaicview(Gray.(image.imgn), Gray.(cimg.imgn); nrow = 1)
 end
 
@@ -276,7 +374,7 @@ end
 
 # ╔═╡ cdf03376-4450-4b71-a820-33564d1ed71d
 begin
-	imgmax, imgpos = lfi.LaserLab.signal_around_maximum(cimg.img, cimg.dark; nsigma=nsigma)
+	imgmax, imgpos = lfi.LaserLab.signal_around_maximum(cimg.img, cimg.dark; nsigma=4.0)
 	Gray.(imgmax.imgn)
 end
 
@@ -299,16 +397,44 @@ md"""
 """
 end
 
-# ╔═╡ e9e8e58a-e1db-49f1-8429-420271fb1852
-md"""
-## Comparison between spectrum computed around maximum and using the full camera. 
+# ╔═╡ a62b6fd5-959c-421a-a160-c420dae4ca99
+function spectrum_max(setup::Setup,  
+                      xfn::Vector{String}, filtnm::NamedTuple, adctopes::Float64;
+					  nsigma::Float64=3.0, drkpnt="Dark")
+	
+	ZMX = Vector{Float64}()
+	ZSM = Vector{Float64}()
+	ZI = Vector{Float64}()
+	ZJ = Vector{Float64}()
 
-- Notice the umphysical shoulder when using the full camera
-"""
+	xfiles, _    = select_files(setup.cmdir,setup.series,
+			                  setup.measurement, setup.point)
+	xfdrk, nxdrk = select_files(setup.cmdir,setup.series,
+			                  setup.measurement, drkpnt)
+	for fltr in xfn
+		setupf = Setup(setup.cmdir, setup.series, setup.measurement,
+			           setup.point, fltr, setup.rep)
+
+		imgm, drkm = select_image(xfiles, xfdrk, nxdrk, setupf)
+		cimgz = get_corrected_image(imgm, drkm)
+		
+		imgmz, imgp = lfi.LaserLab.signal_around_maximum(cimgz.img, 
+			                                             cimgz.dark; nsigma=nsigma)
+		push!(ZMX,imgp.max)
+		push!(ZSM,sum(imgmz.img))
+		push!(ZI,imgp.imax)
+		push!(ZJ,sum(imgp.jmax))
+
+        #println(" for filter ",fltr, " sum = ", sum(imgmz.img))
+	end
+    
+	DataFrame("fltn" => xfn, "cflt" => filtnm.center, "lflt" => filtnm.left, "rflt" => filtnm.right, "wflt" => filtnm.width,
+		      "sum"=> ZSM, "sumpes"=> adctopes *(ZSM ./filtnm.width), "max"=> ZMX, "imax" => ZI, "jmax" => ZJ)	
+end
 
 # ╔═╡ d5540947-8b91-4cba-9738-c707e9945eab
 begin
-	sdf = lfi.LaserLab.spectrum_max(xfiles, setup, xfn, filtnm, adctopes; nsigma=3.0)
+	sdf = spectrum_max(setup, xfn, filtnm, adctopes; nsigma=3.0)
 
 	plot(sdf.cflt, sdf.sumpes, lw=2, label=setup.point, title="Spectrum around maximum")
 	scatter!(sdf.cflt, sdf.sumpes, label="")
@@ -316,53 +442,106 @@ begin
 	ylabel!("pes")
 end
 
-# ╔═╡ af081fae-01f0-44ce-9f40-9cb5d3f28695
-setup
+# ╔═╡ ac542727-b476-437e-9bc8-8834a0653355
+function spectrum_sum(setup::Setup, 
+                      xfn::Vector{String}, filtnm::NamedTuple, adctopes::Float64)
+    
+    ZSM = Vector{Float64}()
+	xfiles, _    = select_files(setup.cmdir,setup.series,
+			                  setup.measurement, setup.point)
+	xfdrk, nxdrk = select_files(setup.cmdir,setup.series,
+			                  setup.measurement, drkpnt)
+    #println("in spectrum_sum: setup = ", setup)
+    for fltr in xfn
+        setupf = Setup(setup.cmdir, setup.series, setup.measurement,
+			           setup.point, fltr, setup.rep)
+
+		imgm, drkm = select_image(xfiles, xfdrk, nxdrk, setupf)
+		cimgz = get_corrected_image(imgm, drkm)
+        push!(ZSM,sum(cimgz.img))
+    end
+
+    #println("in spectrum_sum (after): setup = ", setup)
+    DataFrame("fltn" => xfn, 
+		      "cflt" => filtnm.center, 
+		      "lflt" => filtnm.left, 
+		      "rflt" => filtnm.right, 
+		      "wflt" => filtnm.width,
+              "sum"=> ZSM, 
+		      "sumpes"=> adctopes *(ZSM ./filtnm.width))	
+end
 
 # ╔═╡ 6325910e-b376-42ab-962a-28f749bc27b2
 begin
-	sdf2 = lfi.LaserLab.spectrum_sum(xfiles, setup,  xfn, filtnm, adctopes)
+	sdf2 = spectrum_sum(setup,  xfn, filtnm, adctopes)
 	plot(sdf2.cflt, sdf2.sumpes, lw=2, label=setup.point, title="spectrum full CMOS")
 	scatter!(sdf2.cflt, sdf2.sumpes, label="")
 	xlabel!("λ (nm)")
 	ylabel!("pes")
 end
 
-# ╔═╡ a90c8edc-1405-4a8c-aacf-53cd130910ae
-setup
+# ╔═╡ 18c767aa-1461-4847-ac0d-26ad5a06dd1c
+function get_outpath(setup::Setup, ext="*.csv")
+	string(setup.series, "_", setup.measurement, "_", 
+                   setup.point, ext)
 
-# ╔═╡ 56ccf00b-8797-4347-b4e9-026a9da14a81
-setup.point
+end
 
-# ╔═╡ a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
-md"""
-# Analysis for al points
-"""
-
-# ╔═╡ 1794afb6-6ef0-46d6-b182-d54362b9a07d
-md""" Check to carry analysis for all points: $(@bind zrec CheckBox())"""
+# ╔═╡ effb1278-5896-4b19-a6ad-7f12bf5ba9b5
+function spectrum_max_allpoints!(setup::Setup, 
+                                xpt::Vector{String}, xfn::Vector{String}, 
+                                filtnm::NamedTuple, adctopes::Float64; 
+								nsigma::Float64=3.0, odir, 
+								etype="csv", drkpnt="Dark")
+    for pt in xpt
+		setupp = Setup(setup.cmdir, setup.series, setup.measurement,
+			           pt, setup.filter, setup.rep)
+        xpath = joinpath(setupp.cmdir,setupp.series,setupp.measurement, setupp.point)
+        dfiles = string("*.",etype)
+		
+        sdf = spectrum_max(setupp, xfn, filtnm, adctopes;
+		                   nsigma=nsigma)
+        sdfnm = get_outpath(setupp, ".csv")
+        sdff = joinpath(odir, sdfnm)
+	    println("Writing point to  =", sdff)
+	    CSV.write(sdff, sdf)
+    end
+end
 
 # ╔═╡ 25219398-6903-4cb0-a336-127eedbfa902
 if zrec
-	lfi.LaserLab.spectrum_max_allpoints!(setup, sspdirs, xfn,  
-		                                 filtnm, adctopes; 
-                                         nsigma=nsigma, odir=csvdir, etype="csv")
+	spectrum_max_allpoints!(setup, sspdirs, xfn, 	
+		                    filtnm, adctopes; 
+                            nsigma=nsigma, odir=csvdir)
 end
 
 
-# ╔═╡ 82ddd81b-8aea-4711-97d9-a645121786f8
-md""" Check to read and plot data for all points: $(@bind zread CheckBox())"""
+# ╔═╡ f9608d49-3604-4c8d-913c-6cbf35f7a85f
+function read_spectrum(setup::Setup, csvdir::String, ext=".csv")
+    
+	sdfnm = string(setup.series, "_", setup.measurement, "_", 
+                   setup.point, ext)
+    
+                  
+	sdff = joinpath(csvdir, sdfnm)
+	println("reading file =", sdff)
 
-# ╔═╡ 0d8e9320-ae68-461f-87a5-8563010a930e
-spngn = string(setup.series, "_", setup.measurement, ".png")
+    lfi.LaserLab.load_df_from_csv(csvdir, sdfnm, lfi.LaserLab.enG)
+	
+end
 
-# ╔═╡ 20b26dae-9bc4-474e-9b2d-c397f6305a96
-joinpath(pngdir, spngn)
+# ╔═╡ 8b09554f-bf5f-4cc8-ab16-9ac34036f111
+function spectrum_fromfile_allpoints(setup::Setup, xpt::Vector{String}, csvdir)
+    dfdict = Dict()
+    for pt in xpt
+        setupp = Setup(setup.cmdir, setup.series, setup.measurement,
+			           pt, setup.filter, setup.rep)
+        df = read_spectrum(setupp, csvdir)
+        dfdict[pt] = df
+    end
 
-# ╔═╡ c1b2cf36-d72e-4348-911e-8e44f1834ae4
-md"""
-# Functions
-"""
+    dfdict
+end
 
 # ╔═╡ 9ad17eec-bb5c-4980-9c32-27e01c5b7fcf
 function plot_spectrum_for_point(sdfp, pt, fscale="cflt", escale="sumpes")
@@ -381,19 +560,16 @@ end
 
 # ╔═╡ 1f1b334e-941b-4fbd-b964-b4c098ef3231
 if zread
-	dfdict = lfi.LaserLab.spectrum_fromfile_allpoints(setup, sspdirs, csvdir);
+	dfdict = spectrum_fromfile_allpoints(setup, sspdirs, csvdir);
 	PLT=[]
 	for pt in sspdirs
 		sdfp = dfdict[pt]
 		push!(PLT, plot_spectrum_for_point(sdfp, pt, "cflt"))
 	end
-	pall = plot(size=(750,750), PLT[1:end-1]..., layout=(3,3), titlefontsize=8)
+	pall = plot(size=(750,750), PLT[1:end]..., layout=(3,3), titlefontsize=8)
 	
 	
 end
-
-# ╔═╡ 25a42a00-8ec0-46d8-b9f6-a634475cefd3
-length(PLT)
 
 # ╔═╡ f8b65718-3e1b-454a-817f-1e78feb43225
 if zread
@@ -408,7 +584,7 @@ end
 # ╠═981730a6-61fc-484b-ba3c-66920ee7cf83
 # ╠═8e7ec382-c738-11ec-3aae-b50d60f15c4f
 # ╠═06b8ed45-43bc-464f-89c0-dc0406312b81
-# ╟─8833b198-03e4-4679-8949-0c76546cb847
+# ╠═8833b198-03e4-4679-8949-0c76546cb847
 # ╠═6163ba69-1237-4b49-988e-9a73cfef67f6
 # ╠═5edc41bc-b912-44bf-9be5-a013f27a75ab
 # ╠═c9aaf1cc-80c4-475b-8a81-e00918d91b1e
@@ -421,19 +597,16 @@ end
 # ╠═f6dcfbd5-8416-42f5-b029-c794f92ee413
 # ╠═57d96432-4318-4291-8255-bfa5d6d3635c
 # ╠═0b4d2c08-a677-492c-b5da-982d3d5096fc
+# ╠═3ae7315b-2056-4e3f-9d41-b6e0292f30e3
+# ╠═161b12b6-88a0-4d4d-bfc5-01310534cbdc
 # ╠═e87f48e3-5e5a-44d5-83de-c520e522e33a
-# ╠═a759ecf7-7373-46bf-ab15-df39cbfa6814
-# ╠═1924796e-1cb9-47ad-bfb6-f01e544bdbc1
 # ╠═50ea2ecc-970f-4630-8c7e-acf5e69cc4c9
-# ╠═4a1c449f-2656-4f05-9bea-783a3c7a4d30
-# ╠═df94ef34-08c9-4711-ae16-b024cf84b82a
-# ╠═479f8f86-372c-4b91-9f73-e57a85d3d194
-# ╠═05bfacd2-047e-4491-a168-96120d394a83
-# ╠═0b162778-31bd-4066-a576-4066acf0c370
+# ╠═d389f99a-14c2-408f-ad7b-838e00225357
 # ╠═f13173e1-088c-4f5c-ae6a-f9aebcd6bc57
-# ╠═b19277b6-bdbc-46ce-ab18-d50e08fae24a
+# ╠═8dbf64ec-5854-44b1-ac73-7cd0363a1c6d
+# ╠═479f8f86-372c-4b91-9f73-e57a85d3d194
+# ╠═b857231c-f06c-426d-8f2c-5f8007134714
 # ╠═d762313e-1466-4724-9c35-dd89e657a11c
-# ╠═2e7d4d21-69be-45e8-8d30-440c215ffd3e
 # ╟─7e185082-f3bf-4d95-9d5d-57101f47a684
 # ╠═4760fdb6-5a0b-4ba2-89b7-0cc7f764d68e
 # ╠═8467180b-dd7a-4e99-931a-cbb87af90fc2
@@ -441,19 +614,31 @@ end
 # ╠═986b6b9e-3a02-4703-91d0-8088a8066810
 # ╠═aba1623c-1fd1-4210-b587-a76e21522397
 # ╠═e9e8e58a-e1db-49f1-8429-420271fb1852
+# ╠═54bd1f6c-2b10-47a1-838f-b428fe6b7635
 # ╠═d5540947-8b91-4cba-9738-c707e9945eab
 # ╠═af081fae-01f0-44ce-9f40-9cb5d3f28695
 # ╠═6325910e-b376-42ab-962a-28f749bc27b2
 # ╠═a90c8edc-1405-4a8c-aacf-53cd130910ae
-# ╠═56ccf00b-8797-4347-b4e9-026a9da14a81
 # ╠═a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
 # ╠═1794afb6-6ef0-46d6-b182-d54362b9a07d
 # ╠═25219398-6903-4cb0-a336-127eedbfa902
 # ╠═82ddd81b-8aea-4711-97d9-a645121786f8
 # ╠═1f1b334e-941b-4fbd-b964-b4c098ef3231
-# ╠═25a42a00-8ec0-46d8-b9f6-a634475cefd3
-# ╠═0d8e9320-ae68-461f-87a5-8563010a930e
-# ╠═20b26dae-9bc4-474e-9b2d-c397f6305a96
 # ╠═f8b65718-3e1b-454a-817f-1e78feb43225
 # ╠═c1b2cf36-d72e-4348-911e-8e44f1834ae4
+# ╠═f2714261-7bb0-47d7-8aac-c16bb5d1f891
+# ╠═78de6bcd-4173-40e3-b500-499568289ba1
+# ╠═0d5a7021-6072-464e-836e-f05b1e178b80
+# ╠═a759ecf7-7373-46bf-ab15-df39cbfa6814
+# ╠═46b1d54e-4ebf-45a2-b137-9690b7a51d38
+# ╠═2498aa42-2c24-47e3-bf5b-647377af0dbc
+# ╠═afeb42ca-b462-4320-b364-98a0b4730e33
+# ╠═f9ea012f-9aae-4a8b-89d9-0f86802bb14f
+# ╠═58f3c3ac-698b-4381-bdcb-ca8a9cadc8d8
+# ╠═a62b6fd5-959c-421a-a160-c420dae4ca99
+# ╠═ac542727-b476-437e-9bc8-8834a0653355
+# ╠═18c767aa-1461-4847-ac0d-26ad5a06dd1c
+# ╠═effb1278-5896-4b19-a6ad-7f12bf5ba9b5
+# ╠═f9608d49-3604-4c8d-913c-6cbf35f7a85f
+# ╠═8b09554f-bf5f-4cc8-ab16-9ac34036f111
 # ╠═9ad17eec-bb5c-4980-9c32-27e01c5b7fcf

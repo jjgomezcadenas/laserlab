@@ -1,4 +1,10 @@
 
+using Peaks
+using Glob
+using FFTW
+using DSP
+using DataFrames
+
 """
     scope_rawdata(WAVEDESC::Int)
 
@@ -282,24 +288,57 @@ A filtered waveform and a SPeaks struct
 function select_filtered_peaks(wvfm::NamedTuple{(:time, :ampl)}, thrp::Float64; 
                                promsel::Float64, wsel=0.0)
 
-    amplth = wvfm.ampl[wvfm.ampl .> thrp]
+	wfdf = DataFrame(time=wvfm.time, ampl=wvfm.ampl)
+    #amplth = wvfm.ampl[wvfm.ampl .> thrp]
 
-	#wvfmFlt = filter(row -> row[:fAmpl] > thrp, wvfm)
-	pks, _ = findmaxima(amplth)
-	peaks2, proms = peakproms(pks,amplth; minprom=promsel)
+	wvfmFlt = filter(row -> row[:ampl] > thrp, wfdf)
+	pks, _ = findmaxima(wvfmFlt.ampl)
+	peaks2, proms = peakproms(pks, wvfmFlt.ampl; minprom=promsel)
+	#pks, _ = findmaxima(amplth)
+	#peaks2, proms = peakproms(pks,amplth; minprom=promsel)
 	
 	if length(peaks2) == 0
 		return Nothing 
 	end
 	
-	peaks2, widths, leftedge, rightedge = peakwidths(peaks2, amplth, proms; minwidth=wsel)
+	peaks2, widths, leftedge, rightedge = peakwidths(peaks2, wvfmFlt.ampl, proms; minwidth=wsel)
 
-	ys = [amplth[i] for i in peaks2]
-	xs = [wvfm.time[i] for i in peaks2]
+	#ys = [amplth[i] for i in peaks2]
+	#xs = [wvfm.time[i] for i in peaks2]
+
+	ys = [wvfmFlt.ampl[i] for i in peaks2]
+	xs = [wvfmFlt.time[i] for i in peaks2]
 
 	npeaks = length(peaks2)
 	xbase = ones(npeaks,1)*[promsel]
 	
+	return (ampl = wvfmFlt.ampl, speaks = SPeaks(peaks2, proms, widths, leftedge, rightedge, xs,ys, xbase, promsel))
+end
+
+
+function select_filtered_peaks2(wvfm::NamedTuple{(:time, :ampl)}, thrp::Float64; 
+	                            promsel::Float64, wsel=0.0)
+
+	
+	amplthi = findall(x-> x > thrp, wvfm.ampl) 
+	amplth = [wvfm.ampl[i] for i in amplthi]
+	timeth = [wvfm.time[i] for i in amplthi]
+
+	pks, _ = findmaxima(amplth)
+	peaks2, proms = peakproms(pks, amplth; minprom=promsel)
+	
+	if length(peaks2) == 0
+		return Nothing 
+	end
+
+	peaks2, widths, leftedge, rightedge = peakwidths(peaks2, amplth, proms; minwidth=wsel)
+
+	ys = [amplth[i] for i in peaks2]
+	xs = [timeth[i] for i in peaks2]
+
+	npeaks = length(peaks2)
+	xbase = ones(npeaks,1)*[promsel]
+
 	return (ampl = amplth, speaks = SPeaks(peaks2, proms, widths, leftedge, rightedge, xs,ys, xbase, promsel))
 end
 
@@ -334,7 +373,7 @@ function select_peaks(csvf::Vector{String}, i0::Integer, il::Integer;
         fwvfm  = filter_signal_lp(wvfm, tw; filtertype= filtertype, flhz=flhz)
         fstats = wstats(fwvfm; nsigma=nsigma)
 
-		result = select_filtered_peaks(fwvfm, fstats.thrp; promsel=promsel, wsel=0.0)
+		result = select_filtered_peaks2(fwvfm, fstats.thrp; promsel=promsel, wsel=0.0)
         if result == Nothing 
             SPK[fileNumber] = SPeaks([1], [0.0], [0.0], [0.0], [0.0], [0.0],[0.0], [0.0], 0.0)
         else 
