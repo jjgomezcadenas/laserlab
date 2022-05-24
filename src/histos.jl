@@ -26,16 +26,20 @@ function h1d(x::Vector{T}, nbins::Integer, xmin::T=typemin(T), xmax::T=typemax(T
 end
 
 """plot a h1d histogram"""
-function plot_h1d(h::Histo1d, xs::String;
+function plot_h1d(h::Histo1d, xs::String; i0=1, il=-1,
                   markersize::Int64=3, fwl::Bool=false,
                   label::String="", legend::Bool=false)
 
     xg = h.centers
     yg = h.weights
-    p  = scatter(xg, yg, yerr=sqrt.(abs.(yg)),
+
+    if il == -1 
+        il = length(xg)
+    end
+    p  = scatter(xg[i0:il], yg[i0:il], yerr=sqrt.(abs.(yg[i0:il])),
                  markersize=markersize, label=label, legend=legend)
     if fwl
-        p = plot!(p, xg, yg, yerr=sqrt.(abs.(yg)), fmt=:png,
+        p = plot!(p, xg[i0:il], yg[i0:il], yerr=sqrt.(abs.(yg[i0:il])), fmt=:png,
                   linewidth=1, label=label, legend=legend)
     end
 

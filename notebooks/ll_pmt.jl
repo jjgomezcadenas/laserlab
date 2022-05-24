@@ -71,7 +71,7 @@ md"""
 
 # ╔═╡ abc85752-30e4-48ac-87da-8b1050e05e43
 begin
-	tl = 2.0μs
+	tl = 1.0μs
 	lf = uconvert(MHz, 1.0/tl)
 	
 md" - Parameters:
@@ -96,11 +96,11 @@ end
 let
 	readdir(pmtdir)
 	dirs = lfi.LaserLab.getbolddirs(pmtdir)
-	md""" Select experiment : $(@bind sexp2 Select(dirs))"""
+	md""" Select experiment : $(@bind sexp Select(dirs))"""
 end
 
 # ╔═╡ a4fdfa7a-57bc-4d9f-ab90-bf99d3b48277
-sexp = "Bold_068_A1"
+#sexp = "Bold_068_A1"
 
 # ╔═╡ 740681e5-7dc2-4fa1-bfb7-1ee5557ab885
 let
@@ -243,6 +243,9 @@ tl/1.0μs
 # ╔═╡ 931aad69-ae0f-4168-8245-619590a046a2
 md""" Select  prominence cut: $(@bind pcut NumberField(0.5:10.0, default=2.5))"""
 
+# ╔═╡ dc3b9b68-4478-4f53-875d-3ecb6449edb8
+coefw
+
 # ╔═╡ 268f59b5-5b40-4ba0-a064-edb534bb3bab
 md"""
 # Functions
@@ -254,7 +257,9 @@ function subtract_laser(tv::Vector{Float64}, ltus::Float64)
 end
 
 # ╔═╡ d557f2b0-7ccf-45c7-a93b-5bf499cfafad
-subtract_laser(fpeaks.xs, tl/1.0μs)
+if rfpeaks != Nothing
+	subtract_laser(fpeaks.xs, tl/1.0μs)
+end
 
 # ╔═╡ 4c222697-e58c-4199-8114-38bc5a457cbb
 function tfit(htime, pa0, i0, l0, ffun, mffun)
@@ -284,6 +289,27 @@ function tfit_sgn(htime; cbkg, pa0=[100.0, 0.5], i0=10, l0=20)
 	
 	ffun(t, N1, λ) = N1 * exp(-t/λ)  +  bkg(t)
 	mffun(t, p) = p[1] * exp.(-t/p[2]) +  bkg.(t)
+
+	tfit(htime, pa0, i0, l0, ffun, mffun)
+end
+
+# ╔═╡ ae323f97-3bda-4933-9652-68224c939938
+function tfit_sgn2(htime; cbkg, csgn, pa0=[100.0, 0.5], i0=1, l0=2)
+	
+	bkg(t) = cbkg[1] + cbkg[2] * t
+	sgn(t) = csgn[1] * exp(-t/csgn[2])  +  bkg(t)
+	ffun(t, N1, λ) = N1 * exp(-t/λ)  +  sgn(t)
+	
+	mffun(t, p) = p[1] * exp.(-t/p[2]) +  sgn.(t)
+
+	tfit(htime, pa0, i0, l0, ffun, mffun)
+end
+
+# ╔═╡ cce4cc88-be0b-47a2-b37f-08cc0e40cf70
+function tfit_2exp(htime; pa0=[1000.0, 10., 1000.0, 10.0], i0, l0)
+	
+	ffun(t, N1, λ1, N2, λ2) = N1 * exp(-t/λ1) + N2 * exp(-t/λ2)
+	mffun(t, p) = p[1] * exp.(-t/p[2]) + p[3] * exp.(-t/p[4]) 
 
 	tfit(htime, pa0, i0, l0, ffun, mffun)
 end
@@ -337,7 +363,7 @@ pmtFpr = filter(row -> row[:pr] > pcut, pmtdf);
 
 # ╔═╡ 12d461dd-1e80-4aab-90f4-8fd58344ee73
 begin
-	hpr = lfi.LaserLab.h1d(pmtdf.pr, 20, 0.0, 10.0)
+	hpr = lfi.LaserLab.h1d(pmtFpr.pr, 20, 0.0, 10.0)
 	phpr = lfi.LaserLab.plot_h1d(hpr, "prom")
 	htpr = lfi.LaserLab.h1d(pmtFpr.ts, 20, 0.0, tl/1.0μs)
 	phtpr = lfi.LaserLab.plot_h1d(htpr, "times")
@@ -354,8 +380,23 @@ begin
 	phprx = lfi.LaserLab.plot_h1d(hpr, "prom")
 end
 
+# ╔═╡ 8adbeffc-5ac4-43da-b668-9bc17aca8bfc
+lfi.LaserLab.plot_h1d(htpr, "times"; i0=2)
+
 # ╔═╡ a3843632-e13c-47df-a7c7-72b4d841dbad
 plot(phpr, phtpr, phws, phvs, size=(750,750), layout=(2,2),titlefontsize=8)
+
+# ╔═╡ adafbbc7-9535-4d04-96e3-27cb386770a1
+coefx, stderx, tftx = tfit_bkg(htpr; pa0=[10.0, 0.5], i0=13, l0=20)
+
+# ╔═╡ 1146ca40-9d0d-4779-8d62-1ae4f991ada6
+coefy, stdery, tfty = tfit_sgn(htpr; cbkg=coefx, pa0=[1000.0, 0.5], i0=2, l0=20)
+
+# ╔═╡ c6e5ed98-aecd-4bba-9911-e3ecbc57bfd2
+coefy
+
+# ╔═╡ e90932f1-9a1b-4a77-8750-1e8b1322b788
+pngpath = joinpath(pngdir, string(sflt,".png"))
 
 # ╔═╡ fc65ca7f-aac8-49e5-8c13-2c47fb6a4a83
 function runsel(csvf::Vector{String}, fi::Integer, fe::Integer;
@@ -413,29 +454,52 @@ function plot_fit(htime, coeff, tft; savefig=false, fn="")
 	return pp 
 end
 
+# ╔═╡ 2c8543f7-878d-4cdf-bc90-d1a0ef989dd3
+function plot_fit2(htime, label, tft; savefig=false, fn="")
+	tdata =htime.centers
+	vdata =htime.weights
+	ps1 = scatter(tdata, vdata, yerr=sqrt.(abs.(vdata)), markersize=2,
+				  color = :black,
+	    		  label="data",
+				  fmt = :png)
+	pp = plot(ps1, tdata, tft, lw=2, label=label, fmt = :png)
+	xlabel!("t (μs)")
+	ylabel!("frequency")
+	if savefig
+		png(pp, fn)
+	end
+	return pp 
+end
+
 # ╔═╡ 3e9b0679-decd-40b0-81a7-94853101ac85
-begin
-	pngpath = joinpath(pngdir, string(sflt,".png"))
-    coefx, stderx, tftx = tfit_bkg(htpr; pa0=[10.0, 0.5], i0=17, l0=20)
-    ptime = plot_fit(htpr, coefx, tftx; savefig=false,
-	                 fn=pngpath)
+let
+	s1 = " cte = $(round(coefx[1]))\n"
+   	ptime = plot_fit2(htpr, s1, tftx; savefig=false,fn=pngpath)
 	plot(ptime)
 end
 
-# ╔═╡ dc3b9b68-4478-4f53-875d-3ecb6449edb8
-coefx
-
 # ╔═╡ 37ba3d41-8816-470d-9536-8133bcd05cfd
-begin
-	coefy, stdery, tfty = tfit_sgn(htpr; cbkg=coefx, pa0=[10.0, 0.5], i0=1, l0=19)
-    ptime2 = plot_fit(htpr, coefy, tfty; savefig=true,
+let
+	s1 = " cte = $(round(coefx[1]))\n"
+	s2 = " μ1 = $(round(coefy[2]*1000)) ns\n"
+	label = string(s1,s2)
+    ptime2 = plot_fit2(htpr, label, tfty; savefig=true,
 	                 fn=pngpath)
 	plot(ptime2)
 end
 
 
-# ╔═╡ c6e5ed98-aecd-4bba-9911-e3ecbc57bfd2
-coefy
+# ╔═╡ 76cdb001-b78c-456b-b285-743abc1bf007
+begin
+	coefz, stderz, tftz = tfit_sgn2(htpr; cbkg=coefx, csgn=coefy, pa0=[1000.0, 0.5], i0=1, l0=2)
+	sf1 = " cte = $(round(coefx[1]))\n"
+	sf2 = " μ1 = $(round(coefy[2]*1000)) ns \n"
+	sf3 = " μ2 = $(round(coefz[2]*1000)) ns \n"
+	label = string(sf1,sf2,sf3)
+    ptime3 = plot_fit2(htpr, label, tftz; savefig=true,
+	                 fn=pngpath)
+	plot(ptime3)
+end
 
 # ╔═╡ Cell order:
 # ╠═74bc6fb9-8b52-46bf-b9cc-4a63883c5196
@@ -479,15 +543,22 @@ coefy
 # ╠═931aad69-ae0f-4168-8245-619590a046a2
 # ╠═3e2d1b5f-de3a-4149-a90f-cf56a2c5a244
 # ╠═12d461dd-1e80-4aab-90f4-8fd58344ee73
+# ╠═8adbeffc-5ac4-43da-b668-9bc17aca8bfc
 # ╠═a3843632-e13c-47df-a7c7-72b4d841dbad
+# ╠═e90932f1-9a1b-4a77-8750-1e8b1322b788
+# ╠═adafbbc7-9535-4d04-96e3-27cb386770a1
 # ╠═3e9b0679-decd-40b0-81a7-94853101ac85
+# ╠═1146ca40-9d0d-4779-8d62-1ae4f991ada6
 # ╠═37ba3d41-8816-470d-9536-8133bcd05cfd
+# ╠═76cdb001-b78c-456b-b285-743abc1bf007
 # ╠═dc3b9b68-4478-4f53-875d-3ecb6449edb8
 # ╠═c6e5ed98-aecd-4bba-9911-e3ecbc57bfd2
 # ╠═268f59b5-5b40-4ba0-a064-edb534bb3bab
 # ╠═5c11564b-ba5c-49b4-b23e-6bef4fb242c1
 # ╠═2e4d3f1b-bf12-4729-adcb-8ffb95902ec6
 # ╠═0d61f471-d272-4dfb-9cf9-45e08d7b1c82
+# ╠═ae323f97-3bda-4933-9652-68224c939938
+# ╠═cce4cc88-be0b-47a2-b37f-08cc0e40cf70
 # ╠═4c222697-e58c-4199-8114-38bc5a457cbb
 # ╠═368cd59a-e9e2-436f-872b-92ef5bb8c1d8
 # ╠═7fa04ed2-113a-4166-9f29-eef98393ab6d
@@ -497,3 +568,4 @@ coefy
 # ╠═70217e57-b672-4f17-9d4e-ab27e9a47057
 # ╠═ec2cd649-7293-426c-ad9f-7ace1bf53f45
 # ╠═11ee36e8-2eca-4577-93eb-207d1efa4cbb
+# ╠═2c8543f7-878d-4cdf-bc90-d1a0ef989dd3
