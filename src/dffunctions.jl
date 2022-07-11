@@ -56,7 +56,7 @@ Load a dataframe from a csv file.
 - `fname::String`: name of the (csv) file expressing the df.
 - `csvg=spG`: CVS coding (spanish, default) or english.
 """
-function load_df_from_csv(path::String, fname::String, csvg::CsvG, header::Integer=1)
+function load_df_from_csv(path::String, fname::String, csvg::CsvG; header=1)
     name   = string(path, "/", fname)
     csvf   = CSV.File(name; header=header, delim=csvg.delim, decimal=csvg.decimal)
     return DataFrame(csvf)
@@ -125,6 +125,24 @@ function ftopdf(wl, f)
 	end
     N = qpdf(f, wl[1], wl[end])
 	return N, pdf
+end
+
+
+
+function create_dir!(dir)
+	if isdir(dir) == false
+		mkdir(dir)
+	end
+end
+
+
+function output_dirs!(odir, sexp)
+	create_dir!(joinpath(odir, sexp))
+	csvdir = joinpath(odir, sexp,"csv")
+	pngdir = joinpath(odir, sexp, "png")
+	create_dir!(csvdir)
+	create_dir!(pngdir)
+	csvdir, pngdir
 end
 
 

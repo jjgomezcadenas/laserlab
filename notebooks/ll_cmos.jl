@@ -117,8 +117,11 @@ begin
 """
 end
 
+# ╔═╡ 88c44435-9685-41c3-a6c8-ffaf7498d60f
+md""" Select nsigma cut: $(@bind spsigma NumberField(1.0:10.0, default=5.0))"""
+
 # ╔═╡ f6dcfbd5-8416-42f5-b029-c794f92ee413
-nsigma=5.0
+nsigma=promsel = Float64(spsigma)
 
 # ╔═╡ dde07319-e6a0-48ac-94d6-92e0fda4df41
 md"""
@@ -172,8 +175,8 @@ md"""
 - Notice the umphysical shoulder when using the full camera
 """
 
-# ╔═╡ af081fae-01f0-44ce-9f40-9cb5d3f28695
-filtnm
+# ╔═╡ 5477b1dc-ef52-4426-aa47-f513854fcdae
+md""" Check to compute sum using full cmos (dark current): $(@bind zfull CheckBox())"""
 
 # ╔═╡ a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
 md"""
@@ -312,6 +315,9 @@ xfn
 # ╔═╡ b857231c-f06c-426d-8f2c-5f8007134714
 fixdark(nxdrk)
 
+# ╔═╡ 43ccd7f3-140f-4cb8-af41-e13534c454f3
+xfiles
+
 # ╔═╡ d762313e-1466-4724-9c35-dd89e657a11c
 begin
 	setup = Setup(cmdir, string(sexp), string(srun), string(spoint),        
@@ -337,6 +343,7 @@ setup
 # ╔═╡ f9ea012f-9aae-4a8b-89d9-0f86802bb14f
 function select_image(xfiles::Vector{String}, xfdrk::Vector{String}, 
 	                  nxdrk::Vector{String}, setup::Setup) 
+	
 	
 	imgn =string("Filter_",setup.filter,"_rep_", setup.rep, "_ExpoT_10s_Imag_1.csv")
 	idrk =string("Filter_",setup.filter, "_", fixdark(nxdrk) )
@@ -374,8 +381,10 @@ end
 
 # ╔═╡ cdf03376-4450-4b71-a820-33564d1ed71d
 begin
-	imgmax, imgpos = lfi.LaserLab.signal_around_maximum(cimg.img, cimg.dark; nsigma=4.0)
-	Gray.(imgmax.imgn)
+	imgmax, imgpos = lfi.LaserLab.signal_around_maximum(cimg.img, cimg.dark; nsigma=nsigma)
+	if typeof(imgmax.imgn) == Matrix{Float64}
+		Gray.(imgmax.imgn)
+	end
 end
 
 # ╔═╡ 986b6b9e-3a02-4703-91d0-8088a8066810
@@ -383,7 +392,9 @@ let
 	spngn = string(setup.series, "_", setup.measurement, "_",
 		           setup.point,  "_Filter_", setup.filter, "_imageZoomCMOS.png")
 	pxth = joinpath(pngdir, spngn)	
-	save(pxth, colorview(Gray, map(clamp01nan, imgmax.imgn) ))
+	if typeof(imgmax.imgn) == Matrix{Float64}
+		save(pxth, colorview(Gray, map(clamp01nan, imgmax.imgn) ))
+	end
 end
 
 # ╔═╡ aba1623c-1fd1-4210-b587-a76e21522397
@@ -434,12 +445,19 @@ end
 
 # ╔═╡ d5540947-8b91-4cba-9738-c707e9945eab
 begin
-	sdf = spectrum_max(setup, xfn, filtnm, adctopes; nsigma=3.0)
+	sdf = spectrum_max(setup, xfn, filtnm, adctopes; nsigma=nsigma)
 
-	plot(sdf.cflt, sdf.sumpes, lw=2, label=setup.point, title="Spectrum around maximum")
+	psing = plot(sdf.cflt, sdf.sumpes, lw=2, label=setup.point, title="Spectrum around maximum")
 	scatter!(sdf.cflt, sdf.sumpes, label="")
 	xlabel!("λ (nm)")
 	ylabel!("pes")
+end
+
+# ╔═╡ 03c6566e-f4d3-47b6-8a20-4744efc541a0
+begin
+	spsngn = string(setup.series, "_", setup.measurement, "_", setup.point, ".png")
+	pxxth = joinpath(pngdir, spsngn)	
+	png(psing, pxxth)
 end
 
 # ╔═╡ ac542727-b476-437e-9bc8-8834a0653355
@@ -472,7 +490,7 @@ function spectrum_sum(setup::Setup,
 end
 
 # ╔═╡ 6325910e-b376-42ab-962a-28f749bc27b2
-begin
+if zfull
 	sdf2 = spectrum_sum(setup,  xfn, filtnm, adctopes)
 	plot(sdf2.cflt, sdf2.sumpes, lw=2, label=setup.point, title="spectrum full CMOS")
 	scatter!(sdf2.cflt, sdf2.sumpes, label="")
@@ -595,6 +613,7 @@ end
 # ╠═88853edb-dc1f-4e7a-a0ba-1868276d1ada
 # ╠═dde07319-e6a0-48ac-94d6-92e0fda4df41
 # ╠═f6dcfbd5-8416-42f5-b029-c794f92ee413
+# ╠═88c44435-9685-41c3-a6c8-ffaf7498d60f
 # ╠═57d96432-4318-4291-8255-bfa5d6d3635c
 # ╠═0b4d2c08-a677-492c-b5da-982d3d5096fc
 # ╠═3ae7315b-2056-4e3f-9d41-b6e0292f30e3
@@ -608,6 +627,7 @@ end
 # ╠═b857231c-f06c-426d-8f2c-5f8007134714
 # ╠═d762313e-1466-4724-9c35-dd89e657a11c
 # ╟─7e185082-f3bf-4d95-9d5d-57101f47a684
+# ╠═43ccd7f3-140f-4cb8-af41-e13534c454f3
 # ╠═4760fdb6-5a0b-4ba2-89b7-0cc7f764d68e
 # ╠═8467180b-dd7a-4e99-931a-cbb87af90fc2
 # ╠═cdf03376-4450-4b71-a820-33564d1ed71d
@@ -616,7 +636,8 @@ end
 # ╠═e9e8e58a-e1db-49f1-8429-420271fb1852
 # ╠═54bd1f6c-2b10-47a1-838f-b428fe6b7635
 # ╠═d5540947-8b91-4cba-9738-c707e9945eab
-# ╠═af081fae-01f0-44ce-9f40-9cb5d3f28695
+# ╠═03c6566e-f4d3-47b6-8a20-4744efc541a0
+# ╠═5477b1dc-ef52-4426-aa47-f513854fcdae
 # ╠═6325910e-b376-42ab-962a-28f749bc27b2
 # ╠═a90c8edc-1405-4a8c-aacf-53cd130910ae
 # ╠═a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
