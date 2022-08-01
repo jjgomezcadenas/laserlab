@@ -136,8 +136,11 @@ md"""
 
 # ╔═╡ 0b4d2c08-a677-492c-b5da-982d3d5096fc
 begin
-	cmdir   = "/Users/jj/JuliaProjects/LaserLab/labdata/CMOS"
+	#cmdir   = "/Users/jj/JuliaProjects/LaserLab/labdata/CMOS"
 	odir    = "/Users/jj/JuliaProjects/LaserLab/data/CMOS"
+	cmdir   = "/Users/jj/LaserLab/Proyectos/data/CMOS2"
+	#odir   = "/Users/jj/LaserLab/Proyectos/pdata/CMOS2"
+	
 	dfiles  = "*.csv"
 	dplots  = "*.png"
 	dmtype  = ["Imag","Dark"]
@@ -188,6 +191,14 @@ md""" Check to carry analysis for all points: $(@bind zrec CheckBox())"""
 
 # ╔═╡ 82ddd81b-8aea-4711-97d9-a645121786f8
 md""" Check to read and plot data for all points: $(@bind zread CheckBox())"""
+
+# ╔═╡ 155d5066-935b-4643-8aad-f4c635aa7eec
+if zread
+	md""" Select nnumber of plots in x and y: 
+	- select nx $(@bind nx NumberField(1:10, default=3))
+	- select ny $(@bind ny NumberField(1:10, default=3))
+	"""
+end
 
 # ╔═╡ c1b2cf36-d72e-4348-911e-8e44f1834ae4
 md"""
@@ -584,7 +595,7 @@ if zread
 		sdfp = dfdict[pt]
 		push!(PLT, plot_spectrum_for_point(sdfp, pt, "cflt"))
 	end
-	pall = plot(size=(750,750), PLT[1:end]..., layout=(3,3), titlefontsize=8)
+	pall = plot(size=(750,750), PLT[1:end]..., layout=(nx,ny), titlefontsize=8)
 	
 	
 end
@@ -643,7 +654,8 @@ end
 # ╠═a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
 # ╠═1794afb6-6ef0-46d6-b182-d54362b9a07d
 # ╠═25219398-6903-4cb0-a336-127eedbfa902
-# ╠═82ddd81b-8aea-4711-97d9-a645121786f8
+# ╟─82ddd81b-8aea-4711-97d9-a645121786f8
+# ╟─155d5066-935b-4643-8aad-f4c635aa7eec
 # ╠═1f1b334e-941b-4fbd-b964-b4c098ef3231
 # ╠═f8b65718-3e1b-454a-817f-1e78feb43225
 # ╠═c1b2cf36-d72e-4348-911e-8e44f1834ae4
