@@ -16,15 +16,15 @@ using Test
 
 # dspot(λ::Real, NA::Real) = 1.83*λ/(2*NA)
 
-#include("dffunctions_test.jl")
+include("dffunctions_test.jl")
 #include("setup_test.jl")
 #include("glaser_test.jl")
 #include("pmt_test.jl")
 
 function pmttest()
 	#@testset "pmt_test.jl" begin
-        fword  = "/Users/jj/JuliaProjects/LaserLab/test/C1--Trace--00010.trc"
-        fbyte  = "/Users/jj/JuliaProjects/LaserLab/test/C1--Trace--00108.trc"
+        fword  = "C1--Trace--00010.trc"
+        fbyte  = "C1--Trace--00108.trc"
         
         iob = open(fbyte, "r")
         iow = open(fword, "r")
