@@ -1,7 +1,8 @@
-function pmttest()
-	#@testset "pmt_test.jl" begin
-        fword  = "/Users/jj/JuliaProjects/LaserLab/test/C1--Trace--00010.trc"
-        fbyte  = "/Users/jj/JuliaProjects/LaserLab/test/C1--Trace--00108.trc"
+
+	@testset "pmt_test.jl" begin
+        tdir = pwd()
+        fword  = joinpath(tdir, "C1--Trace--00010.trc")
+        fbyte  = joinpath(tdir, "C1--Trace--00108.trc")
         
         iob = open(fbyte, "r")
         iow = open(fword, "r")
@@ -27,5 +28,5 @@ function pmttest()
 
         tsw = LaserLab.readtimestamp(iow, WAVEDESCw + 296)
         @test tsw.year == 2022
-    #end
-end
+    end
+

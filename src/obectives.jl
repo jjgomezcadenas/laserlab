@@ -3,7 +3,6 @@
 lmu_40x_nuv  = LaserLab.Objective("LMU-40X-NUV", 5.3mm, 5.1mm, 40.0)
 lmm40xf_uvv  = LaserLab.Objective("LMM40XF-UVVV", 5.0mm, 5.1mm, 40.0)
 rdir = pwd()
-println("rdir =", rdir)
 objdir = joinpath(rdir,"data/objectives")
 df  = LaserLab.load_df_from_csv(objdir, "LMU-40X-NUV.csv", LaserLab.enG)
 wl  = 200.0:20:800.0
