@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.4
+# v0.19.11
 
 using Markdown
 using InteractiveUtils
@@ -15,7 +15,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 981730a6-61fc-484b-ba3c-66920ee7cf83
-using Pkg; Pkg.activate("/Users/jj/JuliaProjects/LaserLab/")
+using Pkg; Pkg.activate(ENV["JLaserLab"])
 
 # ╔═╡ 8e7ec382-c738-11ec-3aae-b50d60f15c4f
 begin
@@ -43,6 +43,9 @@ begin
 	import Glob
 
 end
+
+# ╔═╡ f7bb5111-2fc9-49df-972a-0737182da98c
+ENV["JLaserLab"]
 
 # ╔═╡ 06b8ed45-43bc-464f-89c0-dc0406312b81
 import Unitful:
@@ -136,10 +139,8 @@ md"""
 
 # ╔═╡ 0b4d2c08-a677-492c-b5da-982d3d5096fc
 begin
-	#cmdir   = "/Users/jj/JuliaProjects/LaserLab/labdata/CMOS"
-	odir    = "/Users/jj/JuliaProjects/LaserLab/data/CMOS"
-	cmdir   = "/Users/jj/LaserLab/Proyectos/data/CMOS2"
-	#odir   = "/Users/jj/LaserLab/Proyectos/pdata/CMOS2"
+	odir    = "/Users/jjgomezcadenas/LaserLab/Proyectos/pdata/CMOS2/ITO"
+    cmdir   ="/Users/jjgomezcadenas/LaserLab/Proyectos/data/CMOS2/ITO"
 	
 	dfiles  = "*.csv"
 	dplots  = "*.png"
@@ -153,14 +154,24 @@ begin
 	"""
 end
 
-# ╔═╡ 3ae7315b-2056-4e3f-9d41-b6e0292f30e3
-#sexp ="IrSL_BOLD_068_A1"
-
 # ╔═╡ e87f48e3-5e5a-44d5-83de-c520e522e33a
 let
 	readdir(cmdir)
 	dirs = lfi.LaserLab.getbolddirs(cmdir)
 	md""" Select experiment : $(@bind sexp Select(dirs))"""
+end
+
+# ╔═╡ fd713860-9637-48b3-905a-24fa81fff18c
+findfirst("Point", "Filter") == nothing 
+
+# ╔═╡ f7675c1d-7a40-4547-9c9e-3c9e55990752
+function list_select_point(cmdir, sexp, srun)
+	path = joinpath(cmdir,sexp,srun)
+	pdirs = readdir(path)
+	pdirs = lfi.LaserLab.getbolddirs(path)
+	points = [split(pd, "Point")[2] for pd in pdirs if findfirst("Point", pd) != nothing]
+	spdirs = sort(parse.(Int64, points))
+	[string("Point", string(i)) for i in spdirs]
 end
 
 # ╔═╡ 7e185082-f3bf-4d95-9d5d-57101f47a684
@@ -177,6 +188,9 @@ md"""
 
 - Notice the umphysical shoulder when using the full camera
 """
+
+# ╔═╡ 54bd1f6c-2b10-47a1-838f-b428fe6b7635
+md""" Check to compute sum using full ROI: $(@bind zroi CheckBox())"""
 
 # ╔═╡ 5477b1dc-ef52-4426-aa47-f513854fcdae
 md""" Check to compute sum using full cmos (dark current): $(@bind zfull CheckBox())"""
@@ -278,12 +292,15 @@ let
 	md""" Select run : $(@bind srun Select(dirs))"""
 end
 
+# ╔═╡ 077d7e4e-1b94-4b30-a70a-f3b5d3a6fc46
+list_select_point(cmdir, sexp, srun)
+
 # ╔═╡ afeb42ca-b462-4320-b364-98a0b4730e33
 function select_point(cmdir, sexp, srun)
 	path = joinpath(cmdir,sexp,srun)
-	readdir(path)
+	pdirs = readdir(path)
 	pdirs = lfi.LaserLab.getbolddirs(path)
-	points = [split(pd, "Point")[2] for pd in pdirs if pd != "Dark"]
+	points = [split(pd, "Point")[2] for pd in pdirs if findfirst("Point", pd) != nothing]
 	spdirs = sort(parse.(Int64, points))
 	[string("Point", string(i)) for i in spdirs]
 end
@@ -319,9 +336,6 @@ begin
 	- filter = $sfn
 	"""
 end
-
-# ╔═╡ 54bd1f6c-2b10-47a1-838f-b428fe6b7635
-xfn
 
 # ╔═╡ b857231c-f06c-426d-8f2c-5f8007134714
 fixdark(nxdrk)
@@ -390,6 +404,14 @@ let
 	save(pxth, colorview(Gray, map(clamp01nan, cimg.imgn) ))
 end
 
+# ╔═╡ ac352a93-b0cc-4b7d-846d-8149237e0954
+begin
+	pci2 = heatmap(image.img)
+	pcd2 = heatmap(dimage.img)
+	pcc2 = heatmap(cimg.img)
+	plot(pci2,pcd2,pcc2,layout=(3,1))
+end
+
 # ╔═╡ cdf03376-4450-4b71-a820-33564d1ed71d
 begin
 	imgmax, imgpos = lfi.LaserLab.signal_around_maximum(cimg.img, cimg.dark; nsigma=nsigma)
@@ -418,6 +440,59 @@ md"""
 - position of max: i = $(imgpos.imax)  j = $(imgpos.jmax)
 """
 end
+
+# ╔═╡ 8c1ed52f-f5c5-4276-90ac-4d28da153318
+function corona(img::Matrix{Float64}, drk::Matrix{Float64}; 
+	            nsigma::Float64=2.0, rpxl=15, isize=512)
+	
+	function crx(imgx::Matrix{Float64}, cutx=0.0)
+		local maxx, indx
+		maxx, indx = findmax(imgx)
+		ixl = max(indx[1] - rpxl, 1)
+		ixr = min(indx[1] + rpxl, isize)
+		iyl = max(indx[2] - rpxl,1)
+		iyr = min(indx[2] + rpxl, isize)
+		
+		img2 = Array{Float64}(undef,2*rpxl+1,2*rpxl+1)
+		for (i, ix) in enumerate(ixl:ixr) 
+			for (j, iy) in enumerate(iyl:iyr)
+				if img[ix,iy] > cutx
+					img2[i,j] = imgx[ix,iy]
+				else
+					img2[i,j] = 0.0
+				end
+			end
+		end
+		maxx, indx, img2
+	end
+	
+	cutoff::Float64 =  nsigma * std(drk)
+	cimg::Matrix{Float64} = img .- drk
+	
+	maxs, indxs, ximgs = crx(img)
+	maxd, indxd, ximgd = crx(drk)
+	maxc, indxc, ximgc = crx(cimg, 2.0)
+	(max=maxs, indx=indxs, ximg=ximgs), (max=maxd, indx=indxd, ximg=ximgd), 
+	(max=maxc, indx=indxc, ximg=ximgc)
+end
+
+# ╔═╡ bb137808-572a-4870-89b1-bf8495dd47c7
+ci, cd, cc = corona(image.img, dimage.img, nsigma=2.0, rpxl=15);
+
+# ╔═╡ e83418f8-4732-4f2d-86af-0bbdf113a055
+begin
+	pci = heatmap(ci.ximg)
+	pcd = heatmap(cd.ximg)
+	pcc = heatmap(cc.ximg)
+	plot(pci,pcd,pcc,layout=(3,1))
+end
+
+# ╔═╡ af43303e-3891-43a1-811a-038af983482f
+md"""
+- signal maximum = $(ci.max) at $(ci.indx)
+- dark maximum = $(cd.max) at $(cd.indx)
+- corr maximum = $(cc.max) at $(cc.indx)
+"""
 
 # ╔═╡ a62b6fd5-959c-421a-a160-c420dae4ca99
 function spectrum_max(setup::Setup,  
@@ -455,7 +530,7 @@ function spectrum_max(setup::Setup,
 end
 
 # ╔═╡ d5540947-8b91-4cba-9738-c707e9945eab
-begin
+if zroi
 	sdf = spectrum_max(setup, xfn, filtnm, adctopes; nsigma=nsigma)
 
 	psing = plot(sdf.cflt, sdf.sumpes, lw=2, label=setup.point, title="Spectrum around maximum")
@@ -465,7 +540,7 @@ begin
 end
 
 # ╔═╡ 03c6566e-f4d3-47b6-8a20-4744efc541a0
-begin
+if zroi
 	spsngn = string(setup.series, "_", setup.measurement, "_", setup.point, ".png")
 	pxxth = joinpath(pngdir, spsngn)	
 	png(psing, pxxth)
@@ -610,6 +685,7 @@ if zread
 end
 
 # ╔═╡ Cell order:
+# ╠═f7bb5111-2fc9-49df-972a-0737182da98c
 # ╠═981730a6-61fc-484b-ba3c-66920ee7cf83
 # ╠═8e7ec382-c738-11ec-3aae-b50d60f15c4f
 # ╠═06b8ed45-43bc-464f-89c0-dc0406312b81
@@ -627,10 +703,12 @@ end
 # ╠═88c44435-9685-41c3-a6c8-ffaf7498d60f
 # ╠═57d96432-4318-4291-8255-bfa5d6d3635c
 # ╠═0b4d2c08-a677-492c-b5da-982d3d5096fc
-# ╠═3ae7315b-2056-4e3f-9d41-b6e0292f30e3
 # ╠═161b12b6-88a0-4d4d-bfc5-01310534cbdc
 # ╠═e87f48e3-5e5a-44d5-83de-c520e522e33a
 # ╠═50ea2ecc-970f-4630-8c7e-acf5e69cc4c9
+# ╠═fd713860-9637-48b3-905a-24fa81fff18c
+# ╠═f7675c1d-7a40-4547-9c9e-3c9e55990752
+# ╠═077d7e4e-1b94-4b30-a70a-f3b5d3a6fc46
 # ╠═d389f99a-14c2-408f-ad7b-838e00225357
 # ╠═f13173e1-088c-4f5c-ae6a-f9aebcd6bc57
 # ╠═8dbf64ec-5854-44b1-ac73-7cd0363a1c6d
@@ -641,6 +719,10 @@ end
 # ╠═43ccd7f3-140f-4cb8-af41-e13534c454f3
 # ╠═4760fdb6-5a0b-4ba2-89b7-0cc7f764d68e
 # ╠═8467180b-dd7a-4e99-931a-cbb87af90fc2
+# ╠═bb137808-572a-4870-89b1-bf8495dd47c7
+# ╠═ac352a93-b0cc-4b7d-846d-8149237e0954
+# ╠═e83418f8-4732-4f2d-86af-0bbdf113a055
+# ╠═af43303e-3891-43a1-811a-038af983482f
 # ╠═cdf03376-4450-4b71-a820-33564d1ed71d
 # ╠═986b6b9e-3a02-4703-91d0-8088a8066810
 # ╠═aba1623c-1fd1-4210-b587-a76e21522397
@@ -668,6 +750,7 @@ end
 # ╠═afeb42ca-b462-4320-b364-98a0b4730e33
 # ╠═f9ea012f-9aae-4a8b-89d9-0f86802bb14f
 # ╠═58f3c3ac-698b-4381-bdcb-ca8a9cadc8d8
+# ╠═8c1ed52f-f5c5-4276-90ac-4d28da153318
 # ╠═a62b6fd5-959c-421a-a160-c420dae4ca99
 # ╠═ac542727-b476-437e-9bc8-8834a0653355
 # ╠═18c767aa-1461-4847-ac0d-26ad5a06dd1c
