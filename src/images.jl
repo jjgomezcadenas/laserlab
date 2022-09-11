@@ -24,6 +24,48 @@ mutable struct Setup
     pext::String 
 end
 
+
+"""
+Given a directory tree defined by root directory (cmdir), experiment (sexp),
+run (srun) and point (spoint) returns a list of files (of type dfiles) found
+in the directory
+
+"""
+function select_files(cmdir,sexp,srun, spoint, dfiles="*.csv")
+	path = joinpath(cmdir,sexp,srun, spoint)
+	readdir(path)
+	xfiles = Glob.glob(dfiles, path)
+	nxfiles = string.([split(f,"/")[end] for f in xfiles])
+	xfiles, nxfiles
+end
+
+
+"""
+Given a vector of string containing names (full path) of image files (inames) and the
+name of the image to be selected (imgn) returns the full path of the image file
+"""
+function get_image_name(inames::Vector{String}, imgn::String)
+	names = [split(f,"/")[end] for f in inames]
+	indx = findall([occursin(imgn, name) for name in names])[1]
+	inames[indx]
+end
+
+
+"""
+Given the full path to a file containing the description of an image (ffimg)
+returns a tuple containing the image (as an array) and the normalised image (gray)
+"""
+function get_image(ffimg::String)
+	imgdf = DataFrame(CSV.File(ffimg, header=false,delim="\t"))
+	img   = dftomat(imgdf)
+    imgn = img ./maximum(img)
+    (img = img, imgn = imgn)
+end
+
+
+"""
+*** To revise **** 
+"""
 function select_image_name(setup::Setup, imgid="Dark")
 
     if imgid == "Dark"
@@ -41,21 +83,17 @@ function select_image_name(setup::Setup, imgid="Dark")
 end
 
 
-function get_image_name(inames::Vector{String}, imgn::String)
-	names = [split(f,"/")[end] for f in inames]
-	indx = findall([occursin(imgn, name) for name in names])[1]
-	inames[indx]
+"""
+Given a vector of string containing names (full path) of image files (inames) and the
+name of the image to be selected (imgn) returns a tuple containing the image (as an array) 
+and the normalised image (gray)
+
+"""
+function select_image(fnames::Vector{String}, fname::String)
+    imgn = get_image_name(fnames, fname)	
+    get_image(imgn)
+    
 end
-
-
-function get_image(ffimg::String)
-	imgdf = DataFrame(CSV.File(ffimg, header=false,delim="\t"))
-	img   = dftomat(imgdf)
-    imgn = img ./maximum(img)
-    (img = img, imgn = imgn)
-end
-
-
 
 function select_image(xfiles::Vector{String}, setup::Setup, imgid::String) 
 	imgn = select_image_name(setup, imgid)
@@ -64,6 +102,59 @@ function select_image(xfiles::Vector{String}, setup::Setup, imgid::String)
     #println("ximg = ", ximg)
 	get_image(ximg)
 end
+
+
+"""
+Given a vector of files containing full path to dark current images (fnames)
+returns an image containing the average value o the dark current. 
+It assumes that the dark current files are taken for one or more filters
+with the convention Filter_2, Filter_3... Filter_11
+"""
+function dark_avg(fnames::Vector{String}; prnt=false)
+	function img_max(fname::String)
+		dimg = select_image(fnames, fname)	
+		image = dimg.img
+		max, indx = findmax(image)
+		image, max, indx
+	end
+
+	function flt_names()
+		fxnm = [split(fn, "/")[end] for fn in fnames]
+		fxnb = [split(fn, "_")[2] for fn in fxnm]
+		fxint = sort([parse(Int64, ff) for ff in fxnb])
+		[string("Filter_", string(i), "_") for i in fxint]
+	end
+
+	filters = flt_names()
+	img, mxx, indxt = img_max(filters[1])
+	
+	if prnt 
+		println("filter 2: mean =", mean(img), " std = ", std(img))
+		println(" max =", mxx, " position max = ", indxt)
+	end
+	
+	for flt in filters[2:end]
+		dimg, mxx, indxt = img_max(flt)
+		if prnt 
+			println("filter ", flt, " mean =", mean(dimg), " std = ", std(dimg))
+			println(" max =", mxx, " position max = ", indxt)
+		end
+		img = img .+ dimg
+	end
+	
+	img = img ./length(filters)
+	mxx, indxt = findmax(img)
+	imgn = img ./mxx
+	
+	if prnt
+		println("avg filters: mean =", mean(img), " std = ", std(img))
+		println(" max =", mxx, " position max = ", indxt)
+	end
+    (img = img, imgn = imgn), filters 
+	
+end
+
+
 
 
 function get_corrected_image(files::Vector{String}, setup::Setup) 
@@ -384,6 +475,106 @@ function sujoy(img; four_connectivity=true)
 
     return grad
 end
+
+"""
+Return a tuple ((x1,x1)...(xn,yn)) with the coordinates of the points in edge
+"""
+function indx_from_edge(iedge::Matrix{Float64}, isize=512)
+	indx = []
+	for i in 1:isize
+		for j in 1:isize
+			if iedge[i,j] == 1
+				push!(indx,(i,j))
+			end
+		end
+	end
+	indx
+end
+
+
+"""
+Returns the indexes of the (xmin, ymin), (xmax,ymax) corners from the edge 
+"""
+function edge_corners(iedge)
+	indxmin = maximum([ii[1] for ii in iedge])
+	lindxmin = [ii for ii in iedge if ii[1] == indxmin ]
+	zmindy = minimum([ii[2] for ii in lindxmin])
+	indxmax = minimum([ii[1] for ii in iedge])
+	lindxmax = [ii for ii in iedge if ii[1] == indxmax ]
+	zmaxy = maximum([ii[2] for ii in lindxmax])
+	(minvx=(indxmin,zmindy ), maxvx = (indxmax, zmaxy))
+end
+
+
+"""
+Returns true if coordinates x,y are inside the box defined by the corners of the edge
+"""
+function inedge(vxe, i::Int64,j::Int64)
+	if i <= vxe.minvx[1] &&  j >= vxe.minvx[2]   
+		if i >= vxe.maxvx[1] && j <= vxe.maxvx[2] 
+			return true
+		end
+	end
+	return false
+end
+
+
+"""
+Given an image (img) and the vertex of the image edge (vxe), returns the image
+in the roi defined by a square box around the edge
+"""
+function imgroi(img::Matrix{Float64}, vxe; isize=512)
+
+	roi = Array{Float64}(undef,isize, isize)
+	
+	for il in 1:isize
+		for jl in 1:isize
+			if inedge(vxe, il,jl) 
+				roi[il,jl] = img[il,jl]
+			else
+				roi[il,jl] = 0.0
+			end
+		end
+	end
+	roi
+end
+
+
+"""
+Returns true if coordinates x,y are contained in a square box of size rbox defined 
+from point xybox
+"""
+function in_box(xybox::Tuple{Int64, Int64}, rbox::Int64, i::Int64,j::Int64)
+	if i >= xybox[1] - rbox  &&  i <= xybox[1] + rbox   
+		if j >= xybox[2] - rbox  && j <= xybox[2] + rbox 
+			return true
+		end
+	end
+	return false
+end
+
+"""
+Given an image (img) and the vertex of the image edge (vxe), returns the image
+in the roi defined by a square box around the edge
+"""
+function imgbox(img::Matrix{Float64}, xybox::Tuple{Int64, Int64}, 
+	            rbox::Int64; isize=512)
+
+	roi = zeros(isize, isize)
+	
+	for il in 1:isize
+		for jl in 1:isize
+			if in_box(xybox, rbox, il,jl) 
+				roi[il,jl] = img[il,jl]
+			end
+		end
+	end
+	roi
+end
+
+imgbox(img::Matrix{Float64}, xybox::CartesianIndex{2}, 
+       rbox::Int64; isize=512) =  imgbox(img, (xybox[1], xybox[2]), rbox; isize=isize)
+
 
 """
     plot_images(imgnt)

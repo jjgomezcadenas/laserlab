@@ -116,6 +116,16 @@ function getbolddirs(bdir::AbstractString)
 end
 
 
+"""
+Create a dir if it doesn't exist yet
+"""
+function create_dir!(dir)
+	if isdir(dir) == false
+		mkdir(dir)
+	end
+end
+
+
 function findpattern(nxfiles::Vector{String}, pattern::String, spl="_", pos=1)
 	REPS = []
 	for f in nxfiles

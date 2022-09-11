@@ -16,49 +16,53 @@ end
 
 dspot(λ::Real, NA::Real) = 1.83*λ/(2*NA)
 
-include("dffunctions_test.jl")
-include("setup_test.jl")
-include("glaser_test.jl")
-include("pmt_test.jl")
+#include("dffunctions_test.jl")
+#include("setup_test.jl")
+#include("glaser_test.jl")
+#include("pmt_test.jl")
 
-function pmttest()
-    rdir = pwd()
-    tdir = joinpath(rdir,"test")
-    fword  = joinpath(tdir, "C1--Trace--00010.trc")
-    fbyte  = joinpath(tdir, "C1--Trace--00108.trc")
-	
-    iob = open(fbyte, "r")
-    iow = open(fword, "r")
+    #rdir = pwd()
+    #tdir = joinpath(rdir,"test")
+    #fbyte  = joinpath(tdir, "C1--Trace--00108.trc")
+    #fword  = joinpath(tdir, "C1--Trace--00010.trc")
+
+
+    function test_matrix(xs, ys, irng, jrng)
+        tmx = zeros(xs, ys)
+        indx = []
+        for i in irng
+            for j in jrng
+                tmx[i,j] = 1.0
+                push!(indx, (i,j))
+            end
+        end
+        tmx, indx
+    end
+
+
+function test_edge_corners(tedge,edcorn)
+    iymax = maximum([ii[2] for ii in tedge])
+	ixmax = minimum([ii[1] for ii in tedge])
+	iymin = minimum([ii[2] for ii in tedge])
+	ixmin = maximum([ii[1] for ii in tedge])
+    @test edcorn.minvx == (ixmin, iymin)
+    @test edcorn.maxvx == (ixmax, iymax)
     
-    @test typeof(iob) == IOStream
-    @test typeof(iow) == IOStream
+end
 
-    WAVEDESCb = LaserLab.wavedesc(iob)
-    WAVEDESCw = LaserLab.wavedesc(iow)
-    @test WAVEDESCb == WAVEDESCw
 
-    @test LaserLab.readword(iob, WAVEDESCb + 32) == 0  #Byte
-    @test LaserLab.readword(iow, WAVEDESCw + 32) == 1  #Word
-
-    @test LaserLab.readlong(iow, WAVEDESCw + 60) == 2 * LaserLab.readlong(iob, WAVEDESCb + 60)
+function imgtest()
+    xsz=5
+	irng = 2:4
+	jrng = 2:4
+    vx = (3,3)
+    rx = 1
     
-    @test LaserLab.readstring(iow, WAVEDESCw + 76, 14) == "LECROYWS4104HD"
-    @test LaserLab.readstring(iob, WAVEDESCb + 76, 14) == "LECROYWS4104HD"
-
-    @test LaserLab.readfloat(iow, WAVEDESCw + 160) == LaserLab.readfloat(iob, WAVEDESCb + 160)
-
-    @test LaserLab.readdouble(iow, WAVEDESCw+ 180) ≈ LaserLab.readdouble(iob, WAVEDESCb + 180)
-
-    tsw = LaserLab.readtimestamp(iow, WAVEDESCw + 296)
-    @test tsw.year == 2022
-
-    xadd = LaserLab.scope_rawdata(iow, WAVEDESCw)
-    @test xadd["NOMINAL_BITS"] == 12
-
-    wvf   = LaserLab.xydata(iow, xadd)
-    stats = LaserLab.wstats(wvf; nsigma=3.0)
-
-    @test stats.mean + 3.0*stats.std ≈ stats.thrp
-    @test stats.mean - 3.0*stats.std ≈ stats.thrn
-    #end
+    tmrx, indx = test_matrix(xsz, xsz, irng, jrng)
+    tedge = LaserLab.indx_from_edge(tmrx, xsz)
+    edcorn = LaserLab.edge_corners(tedge)
+	@test tedge == indx
+    test_edge_corners(tedge,edcorn)
+    LaserLab.imgroi(tmrx, edcorn; isize=xsz) == tmrx
+    LaserLab.imgbox(tmrx, vx, rx; isize=xsz) == tmrx
 end
