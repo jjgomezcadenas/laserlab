@@ -40,12 +40,15 @@ begin
 	using Peaks
 	using FFTW
 	using DSP
+	using Clustering
 	import Glob
-
 end
 
 # ╔═╡ f7bb5111-2fc9-49df-972a-0737182da98c
 ENV["JLaserLab"]
+
+# ╔═╡ 5358aad5-955c-4395-973c-add579491383
+
 
 # ╔═╡ 06b8ed45-43bc-464f-89c0-dc0406312b81
 import Unitful:
@@ -161,8 +164,8 @@ md"""
 
 # ╔═╡ f26bb6e0-45ac-4419-bcb2-46e2cac1f75b
 begin
-	sexp = "AYN_05_Ba"
-	srun = "AYN_05_Ba2_45x_G2SL_rep2_P9_220901"
+	#sexp = "AYN_05_Ba"
+	#srun = "AYN_05_Ba2_45x_G2SL_rep2_P9_220901"
 end
 
 # ╔═╡ 308649b5-5c65-40dd-bc66-5b0273648341
@@ -182,7 +185,7 @@ md"""
 
 # ╔═╡ b270c34c-177b-41ba-8024-56576770b45c
 md"""
-### Select spot
+### Select ROI
 - Folder Filter1 contains the measurements carried out with unfiltered light. Those measurements are used to focus the beam and define the spot. 
 
 - The algorithm to find the spot (for each point) is as follows:
@@ -193,37 +196,54 @@ md"""
 
 # ╔═╡ ecbc5d11-3397-4495-a21f-fa7151dabcd1
 md"""
-#### Find the edge of the image
+#### Find the edge of the image using sujoy algorithm.
+- **iedge** is a vector of tuples which contains the coordinates (indexes of the matrix) of the edge. The first coordinate runs through the y axis and the second through the x axys. 
+- **yedge** and **xedge** are vectors of coordinates corresponding to the first and second coordinates of the edge
+- **medge** is a matrix in which each column correspond to a data point (y, x). The matrix is used by the clusterization algorithm
+
+The image show the edge.
 """
 
-# ╔═╡ ff46c65c-5b5c-4db5-9265-5f335eca84aa
+# ╔═╡ 19cd1ee2-f0a4-4620-89c3-e916c4551246
 md"""
-#### Find the indexes of the edge
+The image shows the edge as a scatter plot
 """
 
-# ╔═╡ 1c2f1eb7-cefa-4df6-8183-edbe99c1e5a7
+# ╔═╡ 4615ac40-0164-4297-9aad-66d39d289d15
 md"""
-#### Find the corners of the edge 
+#### Clusterize the edge
+
+##### Customize DBSCAN algorithm 
 """
 
-# ╔═╡ ae87b961-58ec-4ca2-b6e9-e4f14b120b87
+# ╔═╡ c156b901-e9e2-4576-858f-dc3aa9ae65ee
+md""" Select clustering radius: $(@bind crad NumberField(0.0:100.0, default=10.0))"""
+
+# ╔═╡ 8774dd9a-98d3-432e-9ff6-51190e6d4326
+md""" Select min number of neighbors: $(@bind nmin NumberField(1:10, default=5))"""
+
+# ╔═╡ 455952f8-9cf4-484a-beef-1fc2810e3b89
+md""" Select min cluster size: $(@bind csize NumberField(1:100, default=10))"""
+
+# ╔═╡ 607b0b63-f80e-4d57-bd2f-ccdf74a9af3b
 md"""
-#### Find the ROI defined by the corners 
+#### Cluster selection 
 """
 
-# ╔═╡ 6684ea02-5feb-4328-a174-9ea8e4f2e505
+# ╔═╡ ca926619-b396-416e-9f72-4c3254f94f80
 md"""
-#### Find the ROI defined by the corners and store it in a sparse matrix
+#### Find the ROI
 """
+
+# ╔═╡ ff856515-001c-4251-ae41-a763171949e5
+#indroi = indxroi(xc1, yc1, ecorner)
+
+# ╔═╡ ba8facfa-970e-4265-95e5-58bbe27f273d
+#xxe, yye = edge_to_vct(iedge, indroi)
 
 # ╔═╡ cecdf185-4a1b-481e-8bc7-a8c4bb7d4990
 md"""
-Plot the signal in the ROI
-"""
-
-# ╔═╡ ff242019-65d1-449b-bb52-c429966c33e7
-md"""
-#### Find the ROI defined by a box o radius R around the maximum 
+##### Plot the signal in the ROI
 """
 
 # ╔═╡ a5dc8f3a-420b-4676-93e2-b6d947f26d4c
@@ -231,16 +251,12 @@ md"""
 ### Analysis for Filters 2-11
 """
 
-# ╔═╡ 95e7ab4d-68d5-483b-961b-b20eb9b37d17
-md"""
-## Select Filter
-"""
+# ╔═╡ 1261b327-b07f-495b-8570-13885870b920
+nsigma
 
 # ╔═╡ e9e8e58a-e1db-49f1-8429-420271fb1852
 md"""
-## Comparison between spectrum computed around maximum and using the full camera. 
-
-- Notice the umphysical shoulder when using the full camera
+## Spectrum using ROI
 """
 
 # ╔═╡ 54bd1f6c-2b10-47a1-838f-b428fe6b7635
@@ -434,34 +450,6 @@ md"""
 ## Management and intendence functions
 """
 
-# ╔═╡ ae5cf21c-7656-4f9f-bd04-73e0e0d8fbee
-"""
-Dumps a matrix into a vector
-"""
-function mtrxtovct(mtrx)
-	sz = size(mtrx)
-	vx = zeros(sz[1]*sz[2])
-	ii = 1
-	for i in 1:sz[1]
-		for j in 1:sz[2]
-			vx[ii] = mtrx[i,j]
-			ii+=1
-		end
-	end
-	vx	
-end
-
-# ╔═╡ 54664106-32d8-4ba9-b3e4-0a926a02309c
-"""
-Given a ROI (eg, a matrix representing a section of an image) it returns an histogram of the signal in the ROI
-"""
-function histo_signal(iroi)
-	vroi = mtrxtovct(iroi)
-	mxvroi = maximum(vroi)
-	mnvroi = minimum(vroi)
-	lfi.LaserLab.hist1d(vroi, "signal in roi", 100,mnvroi,mxvroi)
-end
-
 # ╔═╡ 0d5a7021-6072-464e-836e-f05b1e178b80
 """
 Create a dir if it doesn't exist yet
@@ -486,16 +474,6 @@ function output_dirs!(sexp)
 	csvdir, pngdir
 end
 
-# ╔═╡ 161b12b6-88a0-4d4d-bfc5-01310534cbdc
-begin 
-	csvdir, pngdir = output_dirs!(sexp)
-	md"""
-	#### Output dirs
-	- csv dir = $csvdir
-	- png dir = $pngdir
-	"""
-end
-
 # ╔═╡ bc421f3e-e091-4f83-bc47-ab8572570e1b
 """
 Returns dirs below cmdir (experiments by convention)
@@ -508,7 +486,17 @@ end
 # ╔═╡ e87f48e3-5e5a-44d5-83de-c520e522e33a
 let
 	dirs = select_exp(cmdir)
-	#md""" Select experiment : $(@bind sexp Select(dirs))"""
+	md""" Select experiment : $(@bind sexp Select(dirs))"""
+end
+
+# ╔═╡ 161b12b6-88a0-4d4d-bfc5-01310534cbdc
+begin 
+	csvdir, pngdir = output_dirs!(sexp)
+	md"""
+	#### Output dirs
+	- csv dir = $csvdir
+	- png dir = $pngdir
+	"""
 end
 
 # ╔═╡ 2498aa42-2c24-47e3-bf5b-647377af0dbc
@@ -525,7 +513,7 @@ end
 # ╔═╡ 50ea2ecc-970f-4630-8c7e-acf5e69cc4c9
 let
 	dirs = select_run(cmdir, sexp)
-	#md""" Select run : $(@bind srun Select(dirs))"""
+	md""" Select run : $(@bind srun Select(dirs))"""
 end
 
 # ╔═╡ afeb42ca-b462-4320-b364-98a0b4730e33
@@ -580,11 +568,8 @@ md"""
 ##### Average dark current
 - mean = $(mean(davgimg.img))
 - std = $(std(davgimg.img))
-- max velue $(mxdk) at $imdk
+- max value $(mxdk) at $imdk
 """
-
-# ╔═╡ dd30581f-7968-4a6e-bdbf-3f69345e372b
-nsigma  * std(davgimg.img)
 
 # ╔═╡ 077d7e4e-1b94-4b30-a70a-f3b5d3a6fc46
 ff1, nff1 = select_files(cmdir,sexp,srun, "Filter1")
@@ -602,74 +587,25 @@ md"""
 #### Image for $spointf1
 """
 
-# ╔═╡ ba301d3e-3852-4449-bec0-16f53aa7a002
-spoint = spointf1
-
 # ╔═╡ e8b6d609-7357-4996-bda5-f1119b4b0263
 f1img = lfi.LaserLab.select_image(ff1, string(spointf1));
 
 # ╔═╡ 8c911d89-107b-4445-9bda-e7e9b50ff051
 heatmap(f1img.img)
 
-# ╔═╡ 81fb5293-c82f-41ef-aa55-50055f74fcf4
-mximg, imximg =findmax(f1img.img)
-
 # ╔═╡ d182ae16-b964-48e2-ab7f-9016e44c5d32
+begin
+	mximg, imximg =findmax(f1img.img)
 md"""
 #### Maximum of the image
 - value  = $mximg
 - coordinates = $imximg
 """
-
-# ╔═╡ 9b118763-2739-4535-99c3-da6245ba1eae
-begin
-img_edge = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
-img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
-
-mosaicview(Gray.(f1img.imgn), Gray.(img_edgeb); nrow = 1)
 end
-
-# ╔═╡ 5f8dbfec-6354-49ac-9f72-449c7280ff37
-heatmap(img_edge)
-
-# ╔═╡ 7c005ef7-c9f4-4eab-8f98-a002e42138b6
-begin
-	iedge = lfi.LaserLab.indx_from_edge(img_edgeb)
-	xsed = [ii[2] for ii in iedge]
-	ysed = [ii[1] for ii in iedge]
-end
-
-# ╔═╡ 2864ed9a-143d-4c34-a5ba-d9e5b0f23d27
-ecorn = lfi.LaserLab.edge_corners(iedge)
-
-# ╔═╡ 57ca9236-cb82-4429-923e-51ca5feb28bd
-begin
-	heatmap(img_edge)
-	scatter!(xsed, ysed, label="edge",markersize=2)
-end
-
-# ╔═╡ e1c80222-4e9f-4dad-9bf9-d799e02b1527
-begin
-	iroix = lfi.LaserLab.imgroi(f1img.img, ecorn)
-	mxxroi, imxroi =findmax(iroix)
-end
-
-# ╔═╡ 9ce16f28-f56b-4f74-a7e8-23f909cf2fb6
-typeof(imxroi)
-
-# ╔═╡ d2af1b2b-9c86-408c-b008-9e5a8ddd6c0c
-iboxx = lfi.LaserLab.imgbox(f1img.img, (imxroi[1],imxroi[2]), 50);
-
-# ╔═╡ 2113ea1a-b784-48fd-bcf1-7b45a85234bd
-md"""
-Signal in ROIS compared
-
-- sum(roi) from edge --> $(sum(iroix))
-- sum(roi) from box  --> $(sum(iboxx))
-"""
 
 # ╔═╡ 479f8f86-372c-4b91-9f73-e57a85d3d194
 begin
+	spoint = spointf1
 	xfiles, nxfiles  = select_files(cmdir,sexp,srun, spoint)
 	xfdrk, nxdrk     = select_files(cmdir,sexp,srun, drkpnt)
 end
@@ -679,7 +615,40 @@ begin
 	xfa = lfi.LaserLab.findpattern(nxfiles, "Filter")
 	xfb = sort(parse.(Int64, xfa))
 	xfn = string.(xfb)
-	md""" Select filter: $(@bind sfn Select(xfn))"""
+	md""" ##### Select filter: $(@bind sfn Select(xfn))"""
+end
+
+# ╔═╡ b2623f9c-c0d4-4dd9-8de5-f0bae60c0560
+zimg = lfi.LaserLab.select_image(xfiles, string(sfn));
+
+# ╔═╡ 3bfd7691-10eb-4ed3-b3b0-de7e1b0d48c7
+heatmap(zimg.img)
+
+# ╔═╡ 406cc319-e7a9-4c68-b732-774b7d1a7e59
+zcimg = zimg.img .- davgimg.img;
+
+# ╔═╡ 10aa1194-17c5-40fa-af3a-c8c6db1f4488
+begin
+	czmx, czimx = findmax(zcimg)
+	czmxx, czimxx = findmin(zcimg)
+md"""
+##### Image for filter $sfn  (dark current subtracted)
+- maximum: value = $czmx,  coordinates = $czimx
+- minimum: value = $czmxx,  coordinates = $czimxx
+- average: $(mean(zcimg))    std = $(std(zcimg))
+"""
+end
+
+# ╔═╡ e4a4e9d4-9351-4e28-9eb0-224001e2b295
+begin
+	zmx, zimx = findmax(zimg.img)
+	zmxx, zimxx = findmin(zimg.img)
+md"""
+##### Image for filter $sfn
+- maximum: value = $zmx,  coordinates = $zimx
+- minimum: value = $zmxx,  coordinates = $zimxx
+- average: $(mean(zimg.img))    std = $(std(zimg.img))
+"""
 end
 
 # ╔═╡ 8dbf64ec-5854-44b1-ac73-7cd0363a1c6d
@@ -716,41 +685,162 @@ end
 # ╔═╡ a90c8edc-1405-4a8c-aacf-53cd130910ae
 setup
 
-# ╔═╡ b2623f9c-c0d4-4dd9-8de5-f0bae60c0560
-zimg = lfi.LaserLab.select_image(xfiles, string(sfn));
-
-# ╔═╡ 3bfd7691-10eb-4ed3-b3b0-de7e1b0d48c7
-heatmap(zimg.img)
-
-# ╔═╡ 406cc319-e7a9-4c68-b732-774b7d1a7e59
-zcimg = zimg.img .- davgimg.img;
-
-# ╔═╡ 10aa1194-17c5-40fa-af3a-c8c6db1f4488
-begin
-	czmx, czimx = findmax(zcimg)
-	czmxx, czimxx = findmin(zcimg)
-md"""
-##### Image for filter $sfn  (dark current subtracted)
-- maximum: value = $czmx,  coordinates = $czimx
-- minimum: value = $czmxx,  coordinates = $czimxx
-- average: $(mean(zcimg))    std = $(std(zcimg))
-"""
-end
-
-# ╔═╡ e4a4e9d4-9351-4e28-9eb0-224001e2b295
-begin
-	zmx, zimx = findmax(zimg.img)
-	zmxx, zimxx = findmin(zimg.img)
-md"""
-##### Image for filter $sfn
-- maximum: value = $zmx,  coordinates = $zimx
-- minimum: value = $zmxx,  coordinates = $zimxx
-- average: $(mean(zimg.img))    std = $(std(zimg.img))
-"""
-end
-
 # ╔═╡ 43ccd7f3-140f-4cb8-af41-e13534c454f3
 nxfiles
+
+# ╔═╡ 92a5b0b7-5dbb-4e98-a33e-bef1f6992b40
+md"""
+## Manipulation of images
+"""
+
+# ╔═╡ fa052909-2ed8-4d90-8144-73147682df0e
+"""
+Returns true if coordinates x,y are inside the box defined by the corners of the edge
+"""
+function inedgex(vxe::NamedTuple{(:topleft, :botright)}, i::Int64,j::Int64)
+	if i <= vxe.topleft[1] &&  j >= vxe.topleft[2]   
+		if i >= vxe.botright[1] && j <= vxe.botright[2] 
+			return true
+		end
+	end
+	return false
+end
+
+# ╔═╡ 369dcaf2-ce5d-4641-a8cb-274161749c19
+"""
+Given an image (img) and the vertex of the image edge (ecorn), returns the image
+in the roi defined by a square box around the edge. The returned matrix is sparse
+"""
+function imgroix(img::Matrix{Float64}, 
+	             ecorn::NamedTuple{(:topleft, :botright)}; isize=512, prtlv=0)
+
+	#vxe = lfi.LaserLab.indx_from_edge(img, isize)
+	#ecorn = lfi.LaserLab.edge_corners(vxe)
+	
+	sx = abs(ecorn.botright[2] - ecorn.topleft[2]) + 1
+	sy = abs(ecorn.topleft[1] - ecorn.botright[1]) + 1
+
+	if prtlv == 1
+		#println("vxe =", vxe)
+		println("ecorn = ", ecorn)
+		println("sx = ", sx, " sy = ", sy)
+	end 
+
+	roi = zeros(sx, sy)
+	iroi = Vector{Tuple{Int, Int}}(undef, 0)
+	
+	ix = 0
+	jx = 1
+	for il in 1:isize
+		for jl in 1:isize
+			if prtlv == 3
+				println("i = ", il, " j = ", jl, " ic = ", " in edge? =", 
+				     inedgex(ecorn, il,jl))
+			end
+			if inedgex(ecorn, il,jl) 
+				if ix < sy
+					ix+=1
+				else
+					ix = 1
+					jx+=1
+				end
+				if prtlv == 2
+					println("il = ", il, " jl= ", jl, " ix = ", ix, " jx = ", jx)
+				end
+				roi[jx,ix] = img[il,jl]
+				push!(iroi, (il,jl))
+			end
+		end
+	end
+	roi, iroi
+end
+
+# ╔═╡ 8496f1e5-ad5a-4469-851e-0795c8cf6c6b
+"""
+Returns the indexes of the roi contained between the corners topleft and bottomright
+"""
+function indxroi(xc1::Vector{Int}, yc1::Vector{Int}, 
+	             ecorn::NamedTuple{(:topleft, :botright)})
+	
+	zcorner = zip(xc1, yc1)
+	findall(i->(i==true), [II[1] <= ecorn.topleft[1] && II[2] >= ecorn.topleft[2] && II[1] >= ecorn.botright[1] && II[2] <= ecorn.botright[2] for II in zcorner ])
+end
+
+
+# ╔═╡ dfda19e3-e772-4458-b29d-2885a020f77b
+"""
+Given an idege vector and a set of indexes return coordiantes
+"""
+function xy_from_tuplelist(iedge::Vector{Tuple{Int, Int}})
+	xedge = Vector{Int}(undef, length(iedge))
+	yedge = Vector{Int}(undef, length(iedge))
+	for ii in 1:length(iedge)
+		xedge[ii] = iedge[ii][1]
+		yedge[ii] = iedge[ii][2]
+	end
+	xedge, yedge
+end
+
+# ╔═╡ 0bf2d20e-dff6-48c2-b059-38b87ed46bb6
+"""
+Given an idege vector and a set of indexes return coordiantes
+"""
+function edge_to_vct(iedge::Vector{Tuple{Int, Int}}, indx::Vector{Int})
+	xedge = Vector{Int64}(undef, length(indx))
+	yedge = Vector{Int64}(undef, length(indx))
+	for ii in 1:length(indx)
+		xedge[ii] = iedge[ii][1]
+		yedge[ii] = iedge[ii][2]
+	end
+	xedge, yedge
+end
+
+
+
+# ╔═╡ c3cb6332-0b65-4a49-aa63-a846df3a5277
+"""
+Given a roi matrix, return the indexes
+"""
+function indx_from_roimtrx(imgroi)
+	INDX = []
+	sz= size(imgroi)
+	for i in 1:sz[1]
+		for j in 1:sz[2]
+			if imgroi[i,j] != 0.0 
+				push!(INDX, (i,j))
+			end
+		end
+	end
+	INDX
+end
+
+# ╔═╡ ae5cf21c-7656-4f9f-bd04-73e0e0d8fbee
+"""
+Dumps a matrix into a vector
+"""
+function mtrxtovct(mtrx::Matrix{<:Real})
+	sz = size(mtrx)
+	vx = zeros(sz[1]*sz[2])
+	ii = 1
+	for i in 1:sz[1]
+		for j in 1:sz[2]
+			vx[ii] = mtrx[i,j]
+			ii+=1
+		end
+	end
+	vx	
+end
+
+# ╔═╡ 54664106-32d8-4ba9-b3e4-0a926a02309c
+"""
+Given a ROI (eg, a matrix representing a section of an image) it returns an histogram of the signal in the ROI
+"""
+function histo_signal(iroi)
+	vroi = mtrxtovct(iroi)
+	mxvroi = maximum(vroi)
+	mnvroi = minimum(vroi)
+	lfi.LaserLab.hist1d(vroi, "signal in roi", 100,mnvroi,mxvroi)
+end
 
 # ╔═╡ 84170688-fbc6-4676-84f1-126ecce4f5f2
 """
@@ -760,51 +850,12 @@ function get_coord_from_indx(xyindx)
 	xyindx[2], xyindx[1]
 end
 
-# ╔═╡ af83c5aa-ae91-4483-a116-a6fa49993fa4
-begin
-	exmin, eymin = get_coord_from_indx(ecorn.minvx)
-	exmax, eymax = get_coord_from_indx(ecorn.maxvx)
-	vxmax, vymax = get_coord_from_indx(imximg)
-	
-	heatmap(img_edge)
-	scatter!([vxmax], [vymax], label="img max",markersize=3)
-	scatter!([exmin], [eymin], label="min vertex",markersize=3)
-	scatter!([exmax], [eymax], label="max vertex",markersize=3)
-end
-
-# ╔═╡ bc4bb613-d4d9-49e3-9c12-335766e9071b
-begin
-	vxmaxr, vymaxr = get_coord_from_indx(imxroi)
-	heatmap(iroix)
-	
-	scatter!([vxmax], [vymax], label="img max",markersize=3)
-	scatter!([vxmaxr], [vymaxr], label="roi max",markersize=3)
-	scatter!([exmin], [eymin], label="min vertex",markersize=3)
-	scatter!([exmax], [eymax], label="max vertex",markersize=3)
-end
-
-# ╔═╡ 1da5474d-dabe-45f1-b856-94085052099d
-begin
-	heatmap(iboxx)
-	scatter!([vxmaxr], [vymaxr], label="roi max",markersize=3)
-end
-
-# ╔═╡ e5c09fba-6f8c-4b56-a791-f071532e2dbd
-begin
-	iroizc = lfi.LaserLab.imgroi(zcimg, ecorn)
-	mxxroizc, imxroizc =findmax(iroizc)
-	minroizc, imimroizc =findmin(iroizc)
-	xmxzc, ymxzc = get_coord_from_indx(imxroizc)
-	heatmap(iroizc)
-	scatter!([xmxzc], [ymxzc], label="roi max",markersize=3)
-end
-
 # ╔═╡ 0ad139e9-85bc-421b-bdd7-e61711d47454
 """
 Return a tuple ((x1,x1)...(xn,yn)) with the coordinates of the points in edge
 """
 function indx_from_edge(iedge::Matrix{Float64}, isize=512)
-	indx = []
+	indx = Vector{Tuple{Int, Int}}(undef, 0)
 	for i in 1:isize
 		for j in 1:isize
 			if iedge[i,j] == 1
@@ -815,11 +866,27 @@ function indx_from_edge(iedge::Matrix{Float64}, isize=512)
 	indx
 end
 
+# ╔═╡ 58bdc137-fc29-4f5e-9ab0-d6f959cfa71c
+"""
+Given a vector defining an edge, of two vectors of coordinates, return the topleft and bottomright corners
+"""
+function find_edge_corners(xc1::Vector{Int}, yc1::Vector{Int})
+	zcorner = zip(xc1, yc1)
+	topy = maximum([ii[1] for ii in zcorner])
+	lfty = minimum([ii[2] for ii in zcorner])
+	boty = minimum([ii[1] for ii in zcorner])
+	rgty = maximum([ii[2] for ii in zcorner])
+
+	topy, lfty, boty, rgty
+	(topleft=(topy, lfty), botright=(boty, rgty))
+end
+
+
 # ╔═╡ 92900aa3-c295-4def-8700-384ddbea43d9
 """
 Returns the indexes of the (xmin, ymin), (xmax,ymax) corners from the edge 
 """
-function edge_corners(iedge)
+function edge_corners(iedge::Vector{Tuple{Int, Int}})
 	indxmin = maximum([ii[1] for ii in iedge])
 	lindxmin = [ii for ii in iedge if ii[1] == indxmin ]
 	zmindy = minimum([ii[2] for ii in lindxmin])
@@ -827,6 +894,12 @@ function edge_corners(iedge)
 	lindxmax = [ii for ii in iedge if ii[1] == indxmax ]
 	zmaxy = maximum([ii[2] for ii in lindxmax])
 	(minvx=(indxmin,zmindy ), maxvx = (indxmax, zmaxy))
+end
+
+# ╔═╡ f52ea16e-2aaa-41c4-802d-1481ad1f1fb2
+function edge_corners(xc1, yc1)
+	iedge = zip(xc1, yc1)
+	edge_corners(iedge)
 end
 
 # ╔═╡ 376f9591-a2e7-464f-bedf-9e4e4e9ed600
@@ -851,13 +924,162 @@ function inedge(vxe, i::Int64,j::Int64)
 	return false
 end
 
-# ╔═╡ d85ce87b-043b-4109-9b3b-2d562bd7aabc
+# ╔═╡ e956095a-e468-4456-9659-b1acd6bd507d
+"""
+Given vector xedge and yedge containing (x,y) coordinates of the edge and the
+clusters object returned by DBDSCAN, returns vectors of cluster points, cx, yc (for cluster number nc)
+
+"""
+function getclusters(iedge::Vector{Tuple{Int, Int}}, 
+	                 clusters::Vector{DbscanCluster}, nc::Int64)
+	cs = clusters[nc].size
+	ci = clusters[nc].core_indices
+	cb = clusters[nc].boundary_indices
+	
+	xc = Vector{Int64}(undef, cs)
+	yc = Vector{Int64}(undef, cs)
+	for (i, indx) in enumerate(ci)
+		xc[i] = iedge[indx][1]
+		yc[i] = iedge[indx][2]
+	end
+	for (i, indx) in enumerate(cb)
+		xc[i] = iedge[indx][1]
+		yc[i] = iedge[indx][2]
+	end
+	xc,yc
+end
+
+# ╔═╡ 65402da4-601a-4766-ba2c-6735f201ef6a
+"""
+Take the vector of indexes defining the edge (iedge) and return a matrix m(2, n),
+where n is the size of iedge and two vectors x(n), y(n). These objects are needed
+for DBDSCAN clustering 
+"""
+function edge_to_mtrx(iedge::Vector{Tuple{Int, Int}})
+	nedge = length(iedge)
+	medge = zeros(2, nedge )
+	xedge = zeros(nedge)
+	yedge = zeros(nedge)
+	for i in 1:nedge
+		medge[1, i] = iedge[i][1]
+		medge[2, i] = iedge[i][2]
+		xedge[i] = iedge[i][1]
+		yedge[i] = iedge[i][2]
+	end
+	medge, xedge, yedge
+end
+
+# ╔═╡ 9b118763-2739-4535-99c3-da6245ba1eae
+begin
+	img_edge = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
+	img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
+	mxedge, imxedge =findmax(img_edge)
+	vxmaxed, vymaxed = get_coord_from_indx(imxedge)
+	iedge = indx_from_edge(img_edgeb)  #indexed of the edge
+	medge, xedge, yedge = edge_to_mtrx(iedge)  # edge expressed as matrix, x,y
+	heatmap(img_edgeb)
+	#mosaicview(Gray.(f1img.imgn), Gray.(img_edgeb); nrow = 1)
+	#scatter!([vxmaxed], [vymaxed], label="edge max",markersize=3)
+end
+
+# ╔═╡ 1154dba4-fc68-48c4-ab55-c4a5687d0547
+scatter([yedge], [xedge], label="edge",markersize=2)
+
+# ╔═╡ ddf630eb-6be5-422e-9db5-b1a4348adf01
+clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
+
+# ╔═╡ 8414f6ab-c4f4-4f01-8082-80468ac4e04b
+md"""
+- DBSCAN found $(length(clusters)) clusters
+"""
+
+# ╔═╡ 0ca0299c-6c33-4e35-9642-66e77b1cedba
+begin
+	fcl = 1:length(clusters)
+	md""" ##### Select cluster  : $(@bind scl Select(fcl))"""
+end
+
+# ╔═╡ cf1adbfc-e494-44e2-a6d6-7b89fb9a6be6
+xc1, yc1 = getclusters(iedge, clusters, scl);
+
+# ╔═╡ 8946f9d0-7108-4af5-90a7-8f338f59009b
+md"""
+- Cluster $scl containd $(length(xc1)) points
+"""
+
+# ╔═╡ e3b52355-a912-42ff-ac39-08a79a1ccee5
+ecorner = find_edge_corners(xc1, yc1);
+
+# ╔═╡ ca7eb636-f817-4a1a-8b25-7e5ff2d3d0e5
+md"""
+##### corners of selected cluster:
+- top-left =$(ecorner.topleft)
+- bottom-right =$(ecorner.botright)
+"""
+
+# ╔═╡ 1968c0dd-8cf9-476a-84a8-b92b37ac02ad
+roixx, iroixx = imgroix(f1img.img, ecorner, prtlv=0);
+
+# ╔═╡ a1817474-d089-4245-9263-70314969b43e
+md"""
+- ROI has dimensions: $(size(roixx)) 
+"""
+
+# ╔═╡ b81df45b-e64e-4a07-982f-368ae03353c2
+begin
+	hroi, proi = histo_signal(roixx)
+	plot(proi)
+end
+
+# ╔═╡ e5c09fba-6f8c-4b56-a791-f071532e2dbd
+begin
+	roiflt, iroiflt = imgroix(zcimg, ecorner, prtlv=0);
+	#iroizc = lfi.LaserLab.imgroi(zcimg, ecorn)
+	
+	#xmxzc, ymxzc = get_coord_from_indx(imxroizc)
+	xxflt, yyflt = xy_from_tuplelist(iroiflt)
+	#heatmap(iroizc)
+	scatter!([yyflt], [xxflt], label="roi max",markersize=3)
+end
+
+# ╔═╡ 2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
+begin
+hroiz, proiz = histo_signal(roiflt)
+	plot(proiz)
+end
+
+# ╔═╡ 939c1d23-35d3-41bf-a854-395457e9ad59
+begin
+	xxe, yye = xy_from_tuplelist(iroixx)
+	
+	exminc, eyminc = get_coord_from_indx(ecorner.topleft)
+	exmaxc, eymaxc = get_coord_from_indx(ecorner.botright)
+	
+	scatter([yedge], [xedge], label="edge",markersize=2)
+	scatter!([yc1], [xc1], label="cluster $scl",markersize=2)
+	
+	scatter!([ecorner.topleft[2]], [ecorner.topleft[1]], 
+		     label="top left clust $scl",markersize=4)
+	
+	scatter!([ecorner.botright[2]], [ecorner.botright[1]], 
+	         label="bottom right clust $scl",markersize=4)
+	hline!([ecorner.topleft[1]], label="")
+	vline!([ecorner.topleft[2]], label="")
+	hline!([ecorner.botright[1]], label="")
+	vline!([ecorner.botright[2]], label="")
+	scatter!([yc1], [xc1], label="ROI edge for clust $scl",markersize=4)
+	scatter!([yye], [xxe], label="ROI points for clust $scl",markersize=1)
+	
+	
+end
+
+# ╔═╡ 44107b67-1a43-4b78-a928-71f96b5d6ab8
 
 
 # ╔═╡ 89b2979a-6e18-40df-8ac4-866e3a0639d6
 """
-Given an image (img) and the vertex of the image edge (vxe), returns the image
-in the roi defined by a square box around the edge
+Given an image (img) and the vertex of the image edge (ecorn), returns the image
+in the roi defined by a square box around the edge. The returned matrix is sparse
 """
 function imgroi2(img::Matrix{Float64}, ecorn; isize=512, prtlv=0)
 
@@ -900,45 +1122,6 @@ function imgroi2(img::Matrix{Float64}, ecorn; isize=512, prtlv=0)
 	roi
 end
 
-# ╔═╡ 52c48abb-dcc8-41cb-bae9-0bbcc1fcbb46
-iroix2 = imgroi2(f1img.img, ecorn; prtlv=0);
-
-# ╔═╡ 630b04bd-7060-4f0f-bb5b-0e671ea3fbe7
-md"""
-Check that the sum and maximum of both ROIS are the same
-
-- sum(roi)  --> $(sum(iroix))
-- sum(roi2)  --> $(sum(iroix2))
-"""
-
-# ╔═╡ b81df45b-e64e-4a07-982f-368ae03353c2
-begin
-	hroi, proi = histo_signal(iroix2)
-	plot(proi)
-end
-
-# ╔═╡ 3d979530-d087-4823-9aa4-fffb78dbd0af
-begin
-	iroizc2 = imgroi2(zcimg, ecorn)
-	mxxroizc2, imxroizc2 =findmax(iroizc2)
-	minroizc2, imimroizc2 =findmin(iroizc2)
-end
-
-# ╔═╡ 2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
-begin
-hroiz, proiz = histo_signal(iroizc2)
-	plot(proiz)
-end
-
-# ╔═╡ 00dc58cd-7575-4410-a430-dde56a890e7a
-md"""
-##### Image for filter $sfn  (dark current subtracted) in ROI
-- maximum: value = $mxxroizc2,  coordinates = $imxroizc
-- minimum: value = $minroizc2,  coordinates = $imimroizc
-- average: $(mean(iroizc2))    std = $(std(iroizc2))
-- Total charge : $(sum(iroizc))
-"""
-
 # ╔═╡ 07084d5b-ed96-4f43-863d-c5f67b2bc05f
 imgroi2(t2mrx, ec2; isize=xsz, prtlv=0)
 
@@ -976,6 +1159,11 @@ function imgbox(img::Matrix{Float64}, xybox::Tuple{Int64, Int64},
 	roi
 end
 
+# ╔═╡ dfc058a5-a988-4244-801d-7685dbe47e1b
+md"""
+## Computation of spectra
+"""
+
 # ╔═╡ 136289e4-f0ca-48f4-8ea0-463f7c49dbbf
 """
 Gives the sum of the image, correcting with dark current and adding only
@@ -1011,33 +1199,59 @@ function sum_ovth(img::Matrix{Float64}, thr::Float64)
 end
 
 # ╔═╡ 4d56de37-7398-49b1-a500-5945f693db1c
-sum_ovth(iroix2, nsigma  *std(davgimg.img))
+sum_ovth(roixx, nsigma  *std(davgimg.img))
 
 # ╔═╡ 0f736101-628b-4fc4-92fe-cafa7c07e334
-sum_ovth(iroizc, nsigma  *std(davgimg.img))
+sum_ovth(roiflt, nsigma  *std(davgimg.img))
 
-# ╔═╡ 8d4429c8-c7e2-43fd-ba98-24534cca8799
-if zroi
-	PLTF = []
+# ╔═╡ da7e09c2-cf28-414d-bca2-3b9a35275857
+begin
+	mxxroizc, imxroizc =findmax(roiflt)
+	minroizc, imimroizc =findmin(roiflt)
+md"""
+##### Image for filter $sfn in ROI
+- maximum: value = $mxxroizc,  coordinates = $imxroizc
+- minimum: value = $minroizc,  coordinates = $imimroizc
+- average: $(mean(roiflt))    std = $(std(roiflt))
+- Total charge : $(sum(roiflt))
+- Threshold cut: std of dark = $(std(davgimg.img)), nsigmas = $(nsigma)
+- Total charge above threshold = $(sum_ovth(roiflt, nsigma  *std(davgimg.img)))
+"""
+end
+
+# ╔═╡ eac4c715-03ec-4b52-92e5-4dfc4de6b7be
+"""
+Returns the sum of the signal in the ROI and the histograms of the signal 
+"""
+function roi_sum_and_signal_histos(xfiles::Vector{String}, xfn::Vector{String}, 
+	                               darkimg::Matrix{Float64}, 
+	                               ecorn::NamedTuple{(:topleft, :botright)}, 
+                                   nsigma::Float64)
 	SUM= []
-	for flt in 2:11
-		fltimg = lfi.LaserLab.select_image(xfiles, string(flt));
-		fltcimg = fltimg.img .- davgimg.img;
-		fltroi = imgroi2(fltcimg, ecorn)
+	PLTF = []
+	for flt in xfn
+		fltimg = lfi.LaserLab.select_image(xfiles, string(flt))
+		fltcimg = fltimg.img .- darkimg
+		fltroi, iroiflt = imgroix(fltcimg, ecorn)
 		hfltroi, pfltroi = histo_signal(fltroi)
 		push!(PLTF,pfltroi)
-		push!(SUM, sum_ovth(fltroi, nsigma  *std(davgimg.img)))
+		push!(SUM, sum_ovth(fltroi, nsigma * std(darkimg)))
 	end
-	
-	plot(filtnm.center, SUM, lw=2, label=spointf1, title="Signal")
-	scatter!(filtnm.center, SUM, label="")
+	SUM, PLTF
+end
+
+# ╔═╡ a6c7f9cf-e2ae-4965-8607-a7e79ff43a74
+begin
+	fsum, pfhst = roi_sum_and_signal_histos(xfiles, xfn, davgimg.img, ecorner, nsigma)
+	plot(filtnm.center, fsum, lw=2, label=spointf1, title="Signal")
+	scatter!(filtnm.center, fsum, label="")
 	xlabel!("λ (nm)")
 	ylabel!("counts")
 end
 
-# ╔═╡ 2761ca35-bd96-4aed-9622-1b33fff2738c
+# ╔═╡ b842a9b8-1642-480c-a5b0-0b5228832c16
 if zroi
-	plot(PLTF..., layout=(5,2), titlefontsize=10)
+	plot(pfhst..., layout=(5,2), titlefontsize=10)
 end
 
 # ╔═╡ 78de6bcd-4173-40e3-b500-499568289ba1
@@ -1093,9 +1307,6 @@ begin
 	mosaicview(Gray.(image.imgn), Gray.(cimg.imgn); nrow = 1)
 end
 
-# ╔═╡ 7102dae4-99f8-49a2-9dbd-c69bfeb95546
-heatmap(image.img)
-
 # ╔═╡ cdf03376-4450-4b71-a820-33564d1ed71d
 begin
 	imgmax, imgpos = lfi.LaserLab.signal_around_maximum(cimg.img, cimg.dark; nsigma=nsigma)
@@ -1125,42 +1336,29 @@ md"""
 """
 end
 
-# ╔═╡ 8c1ed52f-f5c5-4276-90ac-4d28da153318
-function corona(img::Matrix{Float64}, drk::Matrix{Float64}; 
-	            nsigma::Float64=2.0, rpxl=15, isize=512)
-	
-	function crx(imgx::Matrix{Float64}, cutx=0.0)
-		local maxx, indx
-		maxx, indx = findmax(imgx)
-		ixl = max(indx[1] - rpxl, 1)
-		ixr = min(indx[1] + rpxl, isize)
-		iyl = max(indx[2] - rpxl,1)
-		iyr = min(indx[2] + rpxl, isize)
-		
-		img2 = Array{Float64}(undef,2*rpxl+1,2*rpxl+1)
-		for (i, ix) in enumerate(ixl:ixr) 
-			for (j, iy) in enumerate(iyl:iyr)
-				if img[ix,iy] > cutx
-					img2[i,j] = imgx[ix,iy]
-				else
-					img2[i,j] = 0.0
-				end
-			end
-		end
-		maxx, indx, img2
+# ╔═╡ e0f20bf3-cf17-4718-85dc-999b71d391d0
+"""
+Returns the sum of the signal in the ROI or each filter
+"""
+function spectrum_roi(xfiles::Vector{String}, xfn::Vector{String}, 
+	                  darkimg::Matrix{Float64}, ecorn::NamedTuple, nsigma::Float64)
+	SUM= []
+	for flt in xfn
+		fltimg = lfi.LaserLab.select_image(xfiles, string(flt));
+		fltcimg = fltimg.img .- darkimg
+		fltroi = imgroi2(fltcimg, ecorn)
+		push!(SUM, sum_ovth(fltroi, nsigma * std(darkimg)))
 	end
-	
-	cutoff::Float64 =  nsigma * std(drk)
-	cimg::Matrix{Float64} = img .- drk
-	
-	maxs, indxs, ximgs = crx(img)
-	maxd, indxd, ximgd = crx(drk)
-	maxc, indxc, ximgc = crx(cimg, 2.0)
-	(max=maxs, indx=indxs, ximg=ximgs), (max=maxd, indx=indxd, ximg=ximgd), 
-	(max=maxc, indx=indxc, ximg=ximgc)
+	SUM
 end
 
+# ╔═╡ 57fc1b69-1213-4ced-967f-4e54c8b6624a
+
+
 # ╔═╡ a62b6fd5-959c-421a-a160-c420dae4ca99
+"""
+Returns the signal in a ROI around the maximum
+"""
 function spectrum_max(setup::Setup,  
                       xfn::Vector{String}, filtnm::NamedTuple, adctopes::Float64;
 					  nsigma::Float64=3.0, drkpnt="Dark")
@@ -1354,6 +1552,7 @@ end
 # ╠═f7bb5111-2fc9-49df-972a-0737182da98c
 # ╠═981730a6-61fc-484b-ba3c-66920ee7cf83
 # ╠═8e7ec382-c738-11ec-3aae-b50d60f15c4f
+# ╠═5358aad5-955c-4395-973c-add579491383
 # ╠═06b8ed45-43bc-464f-89c0-dc0406312b81
 # ╠═8833b198-03e4-4679-8949-0c76546cb847
 # ╠═6163ba69-1237-4b49-988e-9a73cfef67f6
@@ -1388,35 +1587,33 @@ end
 # ╠═e8b6d609-7357-4996-bda5-f1119b4b0263
 # ╠═8c911d89-107b-4445-9bda-e7e9b50ff051
 # ╠═d182ae16-b964-48e2-ab7f-9016e44c5d32
-# ╠═81fb5293-c82f-41ef-aa55-50055f74fcf4
 # ╠═ecbc5d11-3397-4495-a21f-fa7151dabcd1
 # ╠═9b118763-2739-4535-99c3-da6245ba1eae
-# ╠═5f8dbfec-6354-49ac-9f72-449c7280ff37
-# ╠═ff46c65c-5b5c-4db5-9265-5f335eca84aa
-# ╠═7c005ef7-c9f4-4eab-8f98-a002e42138b6
-# ╠═57ca9236-cb82-4429-923e-51ca5feb28bd
-# ╠═1c2f1eb7-cefa-4df6-8183-edbe99c1e5a7
-# ╠═2864ed9a-143d-4c34-a5ba-d9e5b0f23d27
-# ╠═af83c5aa-ae91-4483-a116-a6fa49993fa4
-# ╠═ae87b961-58ec-4ca2-b6e9-e4f14b120b87
-# ╠═e1c80222-4e9f-4dad-9bf9-d799e02b1527
-# ╠═bc4bb613-d4d9-49e3-9c12-335766e9071b
-# ╠═6684ea02-5feb-4328-a174-9ea8e4f2e505
-# ╠═52c48abb-dcc8-41cb-bae9-0bbcc1fcbb46
-# ╠═630b04bd-7060-4f0f-bb5b-0e671ea3fbe7
+# ╠═19cd1ee2-f0a4-4620-89c3-e916c4551246
+# ╠═1154dba4-fc68-48c4-ab55-c4a5687d0547
+# ╠═4615ac40-0164-4297-9aad-66d39d289d15
+# ╠═c156b901-e9e2-4576-858f-dc3aa9ae65ee
+# ╠═8774dd9a-98d3-432e-9ff6-51190e6d4326
+# ╠═455952f8-9cf4-484a-beef-1fc2810e3b89
+# ╠═ddf630eb-6be5-422e-9db5-b1a4348adf01
+# ╠═8414f6ab-c4f4-4f01-8082-80468ac4e04b
+# ╠═607b0b63-f80e-4d57-bd2f-ccdf74a9af3b
+# ╠═0ca0299c-6c33-4e35-9642-66e77b1cedba
+# ╠═cf1adbfc-e494-44e2-a6d6-7b89fb9a6be6
+# ╠═8946f9d0-7108-4af5-90a7-8f338f59009b
+# ╠═e3b52355-a912-42ff-ac39-08a79a1ccee5
+# ╠═ca7eb636-f817-4a1a-8b25-7e5ff2d3d0e5
+# ╠═ca926619-b396-416e-9f72-4c3254f94f80
+# ╠═ff856515-001c-4251-ae41-a763171949e5
+# ╠═1968c0dd-8cf9-476a-84a8-b92b37ac02ad
+# ╠═a1817474-d089-4245-9263-70314969b43e
+# ╠═ba8facfa-970e-4265-95e5-58bbe27f273d
+# ╠═939c1d23-35d3-41bf-a854-395457e9ad59
 # ╠═cecdf185-4a1b-481e-8bc7-a8c4bb7d4990
-# ╠═54664106-32d8-4ba9-b3e4-0a926a02309c
 # ╠═b81df45b-e64e-4a07-982f-368ae03353c2
 # ╠═4d56de37-7398-49b1-a500-5945f693db1c
-# ╠═ff242019-65d1-449b-bb52-c429966c33e7
-# ╠═9ce16f28-f56b-4f74-a7e8-23f909cf2fb6
-# ╠═d2af1b2b-9c86-408c-b008-9e5a8ddd6c0c
-# ╠═1da5474d-dabe-45f1-b856-94085052099d
-# ╠═2113ea1a-b784-48fd-bcf1-7b45a85234bd
 # ╠═a5dc8f3a-420b-4676-93e2-b6d947f26d4c
 # ╠═d389f99a-14c2-408f-ad7b-838e00225357
-# ╠═ba301d3e-3852-4449-bec0-16f53aa7a002
-# ╠═95e7ab4d-68d5-483b-961b-b20eb9b37d17
 # ╠═f13173e1-088c-4f5c-ae6a-f9aebcd6bc57
 # ╠═479f8f86-372c-4b91-9f73-e57a85d3d194
 # ╠═b2623f9c-c0d4-4dd9-8de5-f0bae60c0560
@@ -1425,21 +1622,20 @@ end
 # ╠═e4a4e9d4-9351-4e28-9eb0-224001e2b295
 # ╠═10aa1194-17c5-40fa-af3a-c8c6db1f4488
 # ╠═e5c09fba-6f8c-4b56-a791-f071532e2dbd
-# ╠═3d979530-d087-4823-9aa4-fffb78dbd0af
+# ╠═1261b327-b07f-495b-8570-13885870b920
 # ╠═2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
-# ╠═dd30581f-7968-4a6e-bdbf-3f69345e372b
 # ╠═0f736101-628b-4fc4-92fe-cafa7c07e334
-# ╠═00dc58cd-7575-4410-a430-dde56a890e7a
+# ╠═da7e09c2-cf28-414d-bca2-3b9a35275857
 # ╠═e9e8e58a-e1db-49f1-8429-420271fb1852
+# ╠═eac4c715-03ec-4b52-92e5-4dfc4de6b7be
 # ╠═54bd1f6c-2b10-47a1-838f-b428fe6b7635
-# ╠═8d4429c8-c7e2-43fd-ba98-24534cca8799
-# ╠═2761ca35-bd96-4aed-9622-1b33fff2738c
+# ╠═a6c7f9cf-e2ae-4965-8607-a7e79ff43a74
+# ╠═b842a9b8-1642-480c-a5b0-0b5228832c16
 # ╠═8dbf64ec-5854-44b1-ac73-7cd0363a1c6d
 # ╠═d762313e-1466-4724-9c35-dd89e657a11c
 # ╠═7e185082-f3bf-4d95-9d5d-57101f47a684
 # ╠═43ccd7f3-140f-4cb8-af41-e13534c454f3
 # ╠═4760fdb6-5a0b-4ba2-89b7-0cc7f764d68e
-# ╠═7102dae4-99f8-49a2-9dbd-c69bfeb95546
 # ╠═cdf03376-4450-4b71-a820-33564d1ed71d
 # ╠═986b6b9e-3a02-4703-91d0-8088a8066810
 # ╠═aba1623c-1fd1-4210-b587-a76e21522397
@@ -1486,28 +1682,42 @@ end
 # ╠═56771073-b0b3-47bf-8578-2dd11a59a9b2
 # ╠═f2714261-7bb0-47d7-8aac-c16bb5d1f891
 # ╠═81a2bc2a-2821-4aa6-86e9-97eedc0bc51c
-# ╠═ae5cf21c-7656-4f9f-bd04-73e0e0d8fbee
 # ╠═0d5a7021-6072-464e-836e-f05b1e178b80
 # ╠═a759ecf7-7373-46bf-ab15-df39cbfa6814
 # ╠═bc421f3e-e091-4f83-bc47-ab8572570e1b
 # ╠═2498aa42-2c24-47e3-bf5b-647377af0dbc
 # ╠═afeb42ca-b462-4320-b364-98a0b4730e33
 # ╠═46b1d54e-4ebf-45a2-b137-9690b7a51d38
+# ╠═92a5b0b7-5dbb-4e98-a33e-bef1f6992b40
+# ╠═fa052909-2ed8-4d90-8144-73147682df0e
+# ╠═369dcaf2-ce5d-4641-a8cb-274161749c19
+# ╠═8496f1e5-ad5a-4469-851e-0795c8cf6c6b
+# ╠═dfda19e3-e772-4458-b29d-2885a020f77b
+# ╠═0bf2d20e-dff6-48c2-b059-38b87ed46bb6
+# ╠═c3cb6332-0b65-4a49-aa63-a846df3a5277
+# ╠═54664106-32d8-4ba9-b3e4-0a926a02309c
+# ╠═ae5cf21c-7656-4f9f-bd04-73e0e0d8fbee
 # ╠═84170688-fbc6-4676-84f1-126ecce4f5f2
 # ╠═0ad139e9-85bc-421b-bdd7-e61711d47454
+# ╠═58bdc137-fc29-4f5e-9ab0-d6f959cfa71c
 # ╠═92900aa3-c295-4def-8700-384ddbea43d9
+# ╠═f52ea16e-2aaa-41c4-802d-1481ad1f1fb2
 # ╠═aeb87084-72fe-4e82-acfc-0a92bd534bcd
-# ╠═d85ce87b-043b-4109-9b3b-2d562bd7aabc
+# ╠═e956095a-e468-4456-9659-b1acd6bd507d
+# ╠═65402da4-601a-4766-ba2c-6735f201ef6a
+# ╠═44107b67-1a43-4b78-a928-71f96b5d6ab8
 # ╠═89b2979a-6e18-40df-8ac4-866e3a0639d6
 # ╠═fda4ec0c-ca4f-48e3-ac98-85644cc2ba67
 # ╠═50c2178f-eec0-4d94-b621-db383a509789
+# ╠═dfc058a5-a988-4244-801d-7685dbe47e1b
 # ╠═136289e4-f0ca-48f4-8ea0-463f7c49dbbf
 # ╠═0d02c70b-af32-442e-adb8-fd5a666ba574
 # ╠═78de6bcd-4173-40e3-b500-499568289ba1
 # ╠═f9ea012f-9aae-4a8b-89d9-0f86802bb14f
 # ╠═1be45690-2ce1-45fb-bbc6-f9f4f1bf11e4
 # ╠═58f3c3ac-698b-4381-bdcb-ca8a9cadc8d8
-# ╠═8c1ed52f-f5c5-4276-90ac-4d28da153318
+# ╠═e0f20bf3-cf17-4718-85dc-999b71d391d0
+# ╠═57fc1b69-1213-4ced-967f-4e54c8b6624a
 # ╠═a62b6fd5-959c-421a-a160-c420dae4ca99
 # ╠═ac542727-b476-437e-9bc8-8834a0653355
 # ╠═18c767aa-1461-4847-ac0d-26ad5a06dd1c
