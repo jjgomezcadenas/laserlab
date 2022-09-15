@@ -168,6 +168,17 @@ begin
 	#srun = "AYN_05_Ba2_45x_G2SL_rep2_P9_220901"
 end
 
+# ╔═╡ ec95a04a-bda9-429b-92f2-c79f28a322f0
+"""
+Given a list **xnames** (full path to files) returns the filter names
+"""
+function flt_names(xnames::Vector{String})
+		fxnm = [split(fn, "/")[end] for fn in xnames]
+		fxnb = [split(fn, "_")[2] for fn in fxnm]
+		fxint = sort([parse(Int64, ff) for ff in fxnb])
+		[string("Filter_", string(i), "_") for i in fxint]
+	end
+
 # ╔═╡ 308649b5-5c65-40dd-bc66-5b0273648341
 md"""
 ## Algorithm
@@ -178,9 +189,8 @@ md"""
 
 # ╔═╡ 4218a405-5cb5-464f-9ce1-5d23daeabbef
 md"""
-### Compute (average) dark current 
-- Dark folder contains measurements of the dark current for one or more filter
-- All those measurements should be equivalent, since the dark current does not depend of illumination. When more than one measurement exists, they can be averaged
+### Dark current 
+- Dark folder contains measurements of the dark current for each filter. One expects similar results, since DC is measured without illumination
 """
 
 # ╔═╡ b270c34c-177b-41ba-8024-56576770b45c
@@ -217,7 +227,7 @@ md"""
 """
 
 # ╔═╡ c156b901-e9e2-4576-858f-dc3aa9ae65ee
-md""" Select clustering radius: $(@bind crad NumberField(0.0:100.0, default=10.0))"""
+md""" Select clustering radius: $(@bind crad NumberField(0:100, default=10))"""
 
 # ╔═╡ 8774dd9a-98d3-432e-9ff6-51190e6d4326
 md""" Select min number of neighbors: $(@bind nmin NumberField(1:10, default=5))"""
@@ -262,16 +272,10 @@ md"""
 # ╔═╡ 54bd1f6c-2b10-47a1-838f-b428fe6b7635
 md""" Check to compute sum using full ROI: $(@bind zroi CheckBox())"""
 
-# ╔═╡ 7e185082-f3bf-4d95-9d5d-57101f47a684
-md"""
-## Select image
-
-- Image in the left not corrected 
-- Image in the right corrected (dark current subtracted)
-"""
-
-# ╔═╡ 5477b1dc-ef52-4426-aa47-f513854fcdae
-md""" Check to compute sum using full cmos (dark current): $(@bind zfull CheckBox())"""
+# ╔═╡ 43ccd7f3-140f-4cb8-af41-e13534c454f3
+if zroi
+	
+end
 
 # ╔═╡ a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
 md"""
@@ -280,6 +284,14 @@ md"""
 
 # ╔═╡ 1794afb6-6ef0-46d6-b182-d54362b9a07d
 md""" Check to carry analysis for all points: $(@bind zrec CheckBox())"""
+
+# ╔═╡ 25219398-6903-4cb0-a336-127eedbfa902
+#if zrec
+#	spectrum_max_allpoints!(setup, sspdirs, xfn, 	
+#		                    filtnm, adctopes; 
+ #                           nsigma=nsigma, odir=csvdir)
+#end
+
 
 # ╔═╡ 82ddd81b-8aea-4711-97d9-a645121786f8
 md""" Check to read and plot data for all points: $(@bind zread CheckBox())"""
@@ -291,6 +303,19 @@ if zread
 	- select ny $(@bind ny NumberField(1:10, default=3))
 	"""
 end
+
+# ╔═╡ 1f1b334e-941b-4fbd-b964-b4c098ef3231
+#if zread
+#	dfdict = spectrum_fromfile_allpoints(setup, sspdirs, csvdir);
+#	PLT=[]
+#	for pt in sspdirs
+#		sdfp = dfdict[pt]
+#		push!(PLT, plot_spectrum_for_point(sdfp, pt, "cflt"))
+#	end
+#	pall = plot(size=(750,750), PLT[1:end]..., layout=(nx,ny), titlefontsize=8)
+#	
+#	
+#end
 
 # ╔═╡ 5a88cb1e-47b2-45cc-965c-2af9a45e72f5
 md"""
@@ -542,7 +567,8 @@ run (srun) and point (spoint) returns a list of files (of type dfiles) found
 in the directory
 
 """
-function select_files(cmdir,sexp,srun, spoint, dfiles="*.csv")
+function select_files(cmdir::String, sexp::String,srun::String, spoint::String, 
+	                  dfiles="*.csv")
 	path = joinpath(cmdir,sexp,srun, spoint)
 	readdir(path)
 	xfiles = Glob.glob(dfiles, path)
@@ -552,7 +578,10 @@ end
 
 
 # ╔═╡ def14fbe-f0cf-477f-910a-e8d2ede5eeaf
-fd1, nfd1 = select_files(cmdir,sexp,srun, "Dark")
+fd1, nfd1 = select_files(cmdir,string(sexp),string(srun), "Dark")
+
+# ╔═╡ e071d45a-d94e-4932-944d-614deb62b4de
+fltn = flt_names(fd1)
 
 # ╔═╡ 9f898e05-51da-47a9-8654-c592ff5bde01
 davgimg, fltnm = lfi.LaserLab.dark_avg(fd1; prnt=false);
@@ -572,7 +601,7 @@ md"""
 """
 
 # ╔═╡ 077d7e4e-1b94-4b30-a70a-f3b5d3a6fc46
-ff1, nff1 = select_files(cmdir,sexp,srun, "Filter1")
+ff1, nff1 = select_files(cmdir,string(sexp),string(srun), "Filter1")
 
 # ╔═╡ c69c8b9d-50bf-46ce-8614-1fee1661e424
 fpoints = [split(pd, "_")[1] for pd in nff1] 
@@ -586,6 +615,12 @@ end
 md"""
 #### Image for $spointf1
 """
+
+# ╔═╡ e38d2a94-008e-46db-a35e-176bb5ae297a
+fpoints
+
+# ╔═╡ 24d380e0-18d2-48ae-a2ea-3cb42d5d75e0
+fpoints
 
 # ╔═╡ e8b6d609-7357-4996-bda5-f1119b4b0263
 f1img = lfi.LaserLab.select_image(ff1, string(spointf1));
@@ -606,9 +641,12 @@ end
 # ╔═╡ 479f8f86-372c-4b91-9f73-e57a85d3d194
 begin
 	spoint = spointf1
-	xfiles, nxfiles  = select_files(cmdir,sexp,srun, spoint)
-	xfdrk, nxdrk     = select_files(cmdir,sexp,srun, drkpnt)
+	xfiles, nxfiles  = select_files(cmdir,string(sexp),string(srun), string(spoint))
+	#xfdrk, nxdrk     = select_files(cmdir,sexp,srun, drkpnt)
 end
+
+# ╔═╡ 50a6a6e1-e3de-4b86-a2c6-313a92b16d3b
+nxfiles
 
 # ╔═╡ f13173e1-088c-4f5c-ae6a-f9aebcd6bc57
 begin
@@ -617,6 +655,12 @@ begin
 	xfn = string.(xfb)
 	md""" ##### Select filter: $(@bind sfn Select(xfn))"""
 end
+
+# ╔═╡ 1756a4dd-10c5-4c04-b5e0-afe402fda7e5
+xfa
+
+# ╔═╡ fbfe6b1c-5aba-489e-8349-cfc5af258f61
+typeof(xfn)
 
 # ╔═╡ b2623f9c-c0d4-4dd9-8de5-f0bae60c0560
 zimg = lfi.LaserLab.select_image(xfiles, string(sfn));
@@ -650,43 +694,6 @@ md"""
 - average: $(mean(zimg.img))    std = $(std(zimg.img))
 """
 end
-
-# ╔═╡ 8dbf64ec-5854-44b1-ac73-7cd0363a1c6d
-begin 
-	
-	md"""
-	### Setup
-	- run = $srun
-	- experiment = $sexp
-	- point = $spoint
-	- filter = $sfn
-	"""
-end
-
-# ╔═╡ d762313e-1466-4724-9c35-dd89e657a11c
-begin
-	setup = Setup(cmdir, string(sexp), string(srun), string(spoint),        
-		              string(sfn), string(rep))
-	
-	#pngpath = joinpath(pngdir,lfi.LaserLab.get_outpath(setup, "png"))
-	md"""
-	Setup
-	- root dir = $(setup.cmdir)
-	- Series = $(setup.series)
-	- Measurement = $(setup.measurement)
-	- Point = $(setup.point)
-	- Filter = $(setup.filter)
-	- Repetition = $(setup.rep)
-	
-
-	"""
-end
-
-# ╔═╡ a90c8edc-1405-4a8c-aacf-53cd130910ae
-setup
-
-# ╔═╡ 43ccd7f3-140f-4cb8-af41-e13534c454f3
-nxfiles
 
 # ╔═╡ 92a5b0b7-5dbb-4e98-a33e-bef1f6992b40
 md"""
@@ -842,6 +849,26 @@ function histo_signal(iroi)
 	lfi.LaserLab.hist1d(vroi, "signal in roi", 100,mnvroi,mxvroi)
 end
 
+# ╔═╡ 0ee6da42-aa03-4923-bee9-15b92b6583c5
+begin
+	DRK = [lfi.LaserLab.select_image(fd1, flt).img for flt in fltn];
+	HDRK = [histo_signal(drk) for drk in DRK]
+	PDRK = [HDRK[i][2] for i in 1:length(HDRK)]
+	phdrk = plot(size=(750,750), PDRK..., layout=(5,2), titlefontsize=8)
+end
+
+# ╔═╡ 5a99fed9-04af-42b0-b789-fbf54f3f7a67
+begin
+	hdrk, pdrk = histo_signal(davgimg.img)
+	plot(pdrk)
+end
+
+# ╔═╡ 0d8a0329-a4ec-413d-946c-986956834c2a
+begin
+	hf1img, pf1img = histo_signal(f1img.img)
+	plot(pf1img)
+end
+
 # ╔═╡ 84170688-fbc6-4676-84f1-126ecce4f5f2
 """
 Indexes are colum wise in julia, so (x,y) coordinates corresponde to (second, first) index 
@@ -938,13 +965,16 @@ function getclusters(iedge::Vector{Tuple{Int, Int}},
 	
 	xc = Vector{Int64}(undef, cs)
 	yc = Vector{Int64}(undef, cs)
+	ii=1
 	for (i, indx) in enumerate(ci)
-		xc[i] = iedge[indx][1]
-		yc[i] = iedge[indx][2]
+		xc[ii] = iedge[indx][1]
+		yc[ii] = iedge[indx][2]
+		ii+=1
 	end
 	for (i, indx) in enumerate(cb)
-		xc[i] = iedge[indx][1]
-		yc[i] = iedge[indx][2]
+		xc[ii] = iedge[indx][1]
+		yc[ii] = iedge[indx][2]
+		ii+=1
 	end
 	xc,yc
 end
@@ -988,6 +1018,9 @@ scatter([yedge], [xedge], label="edge",markersize=2)
 # ╔═╡ ddf630eb-6be5-422e-9db5-b1a4348adf01
 clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
 
+# ╔═╡ 4f5e0036-d91e-4a4a-9389-3db058e44d60
+length(clusters[1].core_indices)
+
 # ╔═╡ 8414f6ab-c4f4-4f01-8082-80468ac4e04b
 md"""
 - DBSCAN found $(length(clusters)) clusters
@@ -1001,6 +1034,9 @@ end
 
 # ╔═╡ cf1adbfc-e494-44e2-a6d6-7b89fb9a6be6
 xc1, yc1 = getclusters(iedge, clusters, scl);
+
+# ╔═╡ 5ad5ca92-a0d9-4825-b3d7-ed8982526eaf
+xc1
 
 # ╔═╡ 8946f9d0-7108-4af5-90a7-8f338f59009b
 md"""
@@ -1039,7 +1075,7 @@ begin
 	#xmxzc, ymxzc = get_coord_from_indx(imxroizc)
 	xxflt, yyflt = xy_from_tuplelist(iroiflt)
 	#heatmap(iroizc)
-	scatter!([yyflt], [xxflt], label="roi max",markersize=3)
+	#scatter([yyflt], [xxflt], label="roi max",markersize=3)
 end
 
 # ╔═╡ 2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
@@ -1228,22 +1264,35 @@ function roi_sum_and_signal_histos(xfiles::Vector{String}, xfn::Vector{String},
 	                               ecorn::NamedTuple{(:topleft, :botright)}, 
                                    nsigma::Float64)
 	SUM= []
+	AVG = []
+	STD = []
+	MAX = []
+	MIN = []
 	PLTF = []
+	#println("xfn =", xfn)
 	for flt in xfn
+		#println("flt = ", flt)
 		fltimg = lfi.LaserLab.select_image(xfiles, string(flt))
+		#println("fltimg = ", size(fltimg.img))
 		fltcimg = fltimg.img .- darkimg
 		fltroi, iroiflt = imgroix(fltcimg, ecorn)
+		#println("fltimg = ", size(fltroi))
 		hfltroi, pfltroi = histo_signal(fltroi)
+		#println("hfltroi = ", hfltroi)
 		push!(PLTF,pfltroi)
 		push!(SUM, sum_ovth(fltroi, nsigma * std(darkimg)))
+		push!(AVG, mean(fltroi))
+		push!(STD, std(fltroi))
+		push!(MAX, maximum(fltroi))
+		push!(MIN, minimum(fltroi))
 	end
-	SUM, PLTF
+	SUM, AVG, STD, MAX, MIN,  PLTF
 end
 
 # ╔═╡ a6c7f9cf-e2ae-4965-8607-a7e79ff43a74
 begin
-	fsum, pfhst = roi_sum_and_signal_histos(xfiles, xfn, davgimg.img, ecorner, nsigma)
-	plot(filtnm.center, fsum, lw=2, label=spointf1, title="Signal")
+	fsum, favg, fstd, fmax, fmin, pfhst = roi_sum_and_signal_histos(xfiles, xfn, davgimg.img, ecorner, nsigma)
+	pfsum = plot(filtnm.center, fsum, lw=2, label=spointf1, title="Sum")
 	scatter!(filtnm.center, fsum, label="")
 	xlabel!("λ (nm)")
 	ylabel!("counts")
@@ -1252,6 +1301,144 @@ end
 # ╔═╡ b842a9b8-1642-480c-a5b0-0b5228832c16
 if zroi
 	plot(pfhst..., layout=(5,2), titlefontsize=10)
+end
+
+# ╔═╡ 4d743a2d-62c7-45ca-b2c9-2a4893bb3b60
+if zroi
+	pfavg = plot(filtnm.center, favg, lw=2, label=spointf1, title="mean")
+	xlabel!("λ (nm)")
+	ylabel!("counts")
+	pfstd = plot(filtnm.center, fstd, lw=2, label=spointf1, title="std")
+	xlabel!("λ (nm)")
+	ylabel!("counts")
+	pfmax = plot(filtnm.center, fmax, lw=2, label=spointf1, title="max")
+	xlabel!("λ (nm)")
+	ylabel!("counts")
+	pfmin = plot(filtnm.center, fmin, lw=2, label=spointf1, title="min")
+	xlabel!("λ (nm)")
+	ylabel!("counts")
+	pfall = plot(size=(750,750), pfavg, pfstd, pfmax, pfmin, 
+		         layout=(2,2), titlefontsize=8)
+end
+
+# ╔═╡ 236d4600-f5a3-4f56-9f95-ce733879afd0
+"""
+Computes the spectra for all points in experiment
+"""
+function spectra_allpoints(cmdir::String, sexp::String, srun::String,
+	                       xpt::Vector{String}, xfn::Vector{String},
+						   crad::Int64, nmin::Int64, csize::Int64, scl::Int64,
+						   nsigma::Float64)
+
+	function dark_current()
+		fdrk, _ = select_files(cmdir,sexp,srun, "Dark")
+		davg, _ = lfi.LaserLab.dark_avg(fdrk)
+		davg
+	end
+
+	function croi(pt::String)
+		flt1, _ = select_files(cmdir,sexp,srun, "Filter1")
+		f1img = lfi.LaserLab.select_image(flt1, pt)
+		img_edge = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
+		img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
+		iedge = indx_from_edge(img_edgeb)  
+		medge, xedge, yedge = edge_to_mtrx(iedge)
+		clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
+		xc1, yc1 = getclusters(iedge, clusters, scl)
+		ec = find_edge_corners(xc1, yc1)
+		roixx, _ = imgroix(f1img.img, ec)
+		ec, sum_ovth(roixx, nsigma  *std(davgimg.img))
+	end
+
+	function roi_sum_flt(darkimg::Matrix{Float64}, 
+	                     ecorn::NamedTuple{(:topleft, :botright)}, pt::String)
+
+		xfiles, _  = select_files(cmdir,sexp,srun, pt)
+		slft = zeros(length(xfn))
+		for (i, flt) in enumerate(xfn)
+			fltimg = lfi.LaserLab.select_image(xfiles, flt)
+			fltcimg = fltimg.img .- darkimg
+			fltroi, _ = imgroix(fltcimg, ecorn)
+			slft[i] = sum_ovth(fltroi, nsigma * std(darkimg))
+		end
+		slft
+	end
+
+	println("++ spectra_allpoints++")
+	
+	println(" directory = ", cmdir, " experiment = ", sexp, 
+		    " run = ", srun)
+
+	println(" Points = ", xpt, " Filters = ", xfn)
+
+	println(" Parameters of DBSCAN: radius =", xpt, "min points = ", nmin,
+		    " min cluster size =", csize, " cluster number =", scl)
+
+	println(" number of sigmas over dark current to accept signal =", nsigma)
+	                       
+	davgimg = dark_current()
+	
+	println("dark current: avg =", mean(davgimg.img), " std = ", std(davgimg.img),
+	        " cutoff = ", nsigma * std(davgimg.img))
+
+	P0 = zeros(length(xpt))
+	PFLT = []
+    for (i,pt) in enumerate(xpt)
+		ecorner, sumf1 = croi(pt)
+
+		println("ROI defined by topleft, bottomright: =", ecorner)
+		println("Sum (no filter) =", sumf1)
+		
+		sumflt = roi_sum_flt(davgimg.img, ecorner, pt)
+
+		println("Sum (all filters) =", sumflt)
+		P0[i] = sumf1
+		push!(PFLT, sumflt)
+
+		#DataFrame("fltn" => xfn, "cflt" => filtnm.center, "lflt" => filtnm.left, #"rflt" => filtnm.right, "wflt" => filtnm.width,
+		#      "sum"=> ZSM, "sumpes"=> adctopes *(ZSM ./filtnm.width), "max"=> ZMX, #"imax" => ZI, "jmax" => ZJ)	
+        #sdfnm = get_outpath(setupp, ".csv")
+        #sdff = joinpath(odir, sdfnm)
+	    #println("Writing point to  =", sdff)
+	    #CSV.write(sdff, sdf)
+    end
+	P0, PFLT
+end
+
+# ╔═╡ f8b65718-3e1b-454a-817f-1e78feb43225
+if zrec
+	ff0, fltsum = spectra_allpoints(cmdir, string(sexp), string(srun), 
+		              string.(fpoints), string.(xfn),
+					  crad, nmin, csize, scl, nsigma)
+	#let
+	#	spngn = string(setup.series, "_", setup.measurement, ".png")
+	#	pxth = joinpath(pngdir, spngn)	
+	#	png(pall, pxth)
+	#end
+end
+
+# ╔═╡ 09a1a9bc-21d9-4ed3-9344-efcc9513497e
+if zread
+	pp0 = plot(fpoints, ff0, lw=2, label=" ", title="No filters")
+	scatter!(fpoints, ff0, label="")
+	xlabel!("number of points")
+	ylabel!("counts")
+	ylims!((0.0, 1e+7))
+	
+end
+
+# ╔═╡ d32d1f40-b2f3-4fdd-b499-f200071b7a4e
+if zread
+	PLT=[]
+	for (i,flts) in enumerate(fltsum)
+		lbl = string("Point", i)
+		ppflt = plot(filtnm.center, flts, lw=2, label=lbl, title="Signal flt")
+		scatter!(filtnm.center, flts, label="")
+		xlabel!("λ (nm)")
+		ylabel!("counts")
+		push!(PLT, ppflt)
+	end
+	pall = plot(size=(750,750), PLT[1:end]..., layout=(nx,ny), titlefontsize=8)
 end
 
 # ╔═╡ 78de6bcd-4173-40e3-b500-499568289ba1
@@ -1280,6 +1467,39 @@ function select_image(xfiles::Vector{String}, xfdrk::Vector{String},
 	lfi.LaserLab.get_image(ximg), lfi.LaserLab.get_image(xdrk)
 end
 
+# ╔═╡ bd85fe34-3de6-4692-b8f6-986dfc118f06
+"""
+Given a vector of files containing full path to dark current images (fnames)
+returns an image containing the average value o the dark current. 
+It assumes that the dark current files are taken for one or more filters
+with the convention Filter_2, Filter_3... Filter_11
+"""
+function dark_flt(xnames::Vector{String}, fltnames::Vector{String}; prnt=false)
+	
+	DRK = [select_image(xnames, flt).img for flt in filters]
+	for flt in filters
+		dimg, mxx, indxt = img_max(flt)
+		if prnt 
+			println("filter ", flt, " mean =", mean(dimg), " std = ", std(dimg))
+			println(" max =", mxx, " position max = ", indxt)
+		end
+		img = img .+ dimg
+	end
+	
+	img = img ./length(filters)
+	mxx, indxt = findmax(img)
+	imgn = img ./mxx
+	
+	if prnt
+		println("avg filters: mean =", mean(img), " std = ", std(img))
+		println(" max =", mxx, " position max = ", indxt)
+	end
+    (img = img, imgn = imgn), filters 
+	
+end
+
+
+
 # ╔═╡ 1be45690-2ce1-45fb-bbc6-f9f4f1bf11e4
 function select_f1point_image(xfiles::Vector{String}, point::String) 
 	function getxfile(files::Vector{String})
@@ -1298,42 +1518,6 @@ function get_corrected_image(imgm::NamedTuple{(:img, :imgn)},
 	img = imgm.img .- drkm.img
 	imgn = img ./maximum(img)
     (img = img, imgn = imgn, dark=drkm.img)
-end
-
-# ╔═╡ 4760fdb6-5a0b-4ba2-89b7-0cc7f764d68e
-begin
-	image, dimage = select_image(xfiles, xfdrk, nxdrk,setup)
-	cimg = get_corrected_image(image, dimage)
-	mosaicview(Gray.(image.imgn), Gray.(cimg.imgn); nrow = 1)
-end
-
-# ╔═╡ cdf03376-4450-4b71-a820-33564d1ed71d
-begin
-	imgmax, imgpos = lfi.LaserLab.signal_around_maximum(cimg.img, cimg.dark; nsigma=nsigma)
-	if typeof(imgmax.imgn) == Matrix{Float64}
-		Gray.(imgmax.imgn)
-	end
-end
-
-# ╔═╡ 986b6b9e-3a02-4703-91d0-8088a8066810
-let
-	spngn = string(setup.series, "_", setup.measurement, "_",
-		           setup.point,  "_Filter_", setup.filter, "_imageZoomCMOS.png")
-	pxth = joinpath(pngdir, spngn)	
-	if typeof(imgmax.imgn) == Matrix{Float64}
-		save(pxth, colorview(Gray, map(clamp01nan, imgmax.imgn) ))
-	end
-end
-
-# ╔═╡ aba1623c-1fd1-4210-b587-a76e21522397
-begin
-	stot = sum(imgmax.img)
-md"""
-- Size of the image =$(size(imgmax.img))
-- Total sum around the peak = $(round(stot, sigdigits=3))
-- value of max = $(imgpos.max)
-- position of max: i = $(imgpos.imax)  j = $(imgpos.jmax)
-"""
 end
 
 # ╔═╡ e0f20bf3-cf17-4718-85dc-999b71d391d0
@@ -1393,23 +1577,6 @@ function spectrum_max(setup::Setup,
 		      "sum"=> ZSM, "sumpes"=> adctopes *(ZSM ./filtnm.width), "max"=> ZMX, "imax" => ZI, "jmax" => ZJ)	
 end
 
-# ╔═╡ d5540947-8b91-4cba-9738-c707e9945eab
-if zroi
-	sdf = spectrum_max(setup, xfn, filtnm, adctopes; nsigma=nsigma)
-
-	psing = plot(sdf.cflt, sdf.sumpes, lw=2, label=setup.point, title="Spectrum around maximum")
-	scatter!(sdf.cflt, sdf.sumpes, label="")
-	xlabel!("λ (nm)")
-	ylabel!("pes")
-end
-
-# ╔═╡ 03c6566e-f4d3-47b6-8a20-4744efc541a0
-if zroi
-	spsngn = string(setup.series, "_", setup.measurement, "_", setup.point, ".png")
-	pxxth = joinpath(pngdir, spsngn)	
-	png(psing, pxxth)
-end
-
 # ╔═╡ ac542727-b476-437e-9bc8-8834a0653355
 function spectrum_sum(setup::Setup, 
                       xfn::Vector{String}, filtnm::NamedTuple, adctopes::Float64)
@@ -1439,15 +1606,6 @@ function spectrum_sum(setup::Setup,
 		      "sumpes"=> adctopes *(ZSM ./filtnm.width))	
 end
 
-# ╔═╡ 6325910e-b376-42ab-962a-28f749bc27b2
-if zfull
-	sdf2 = spectrum_sum(setup,  xfn, filtnm, adctopes)
-	plot(sdf2.cflt, sdf2.sumpes, lw=2, label=setup.point, title="spectrum full CMOS")
-	scatter!(sdf2.cflt, sdf2.sumpes, label="")
-	xlabel!("λ (nm)")
-	ylabel!("pes")
-end
-
 # ╔═╡ 18c767aa-1461-4847-ac0d-26ad5a06dd1c
 function get_outpath(setup::Setup, ext="*.csv")
 	string(setup.series, "_", setup.measurement, "_", 
@@ -1475,14 +1633,6 @@ function spectrum_max_allpoints!(setup::Setup,
 	    CSV.write(sdff, sdf)
     end
 end
-
-# ╔═╡ 25219398-6903-4cb0-a336-127eedbfa902
-if zrec
-	spectrum_max_allpoints!(setup, sspdirs, xfn, 	
-		                    filtnm, adctopes; 
-                            nsigma=nsigma, odir=csvdir)
-end
-
 
 # ╔═╡ f9608d49-3604-4c8d-913c-6cbf35f7a85f
 function read_spectrum(setup::Setup, csvdir::String, ext=".csv")
@@ -1526,28 +1676,6 @@ function plot_spectrum_for_point(sdfp, pt, fscale="cflt", escale="sumpes")
 	plt
 end
 
-# ╔═╡ 1f1b334e-941b-4fbd-b964-b4c098ef3231
-if zread
-	dfdict = spectrum_fromfile_allpoints(setup, sspdirs, csvdir);
-	PLT=[]
-	for pt in sspdirs
-		sdfp = dfdict[pt]
-		push!(PLT, plot_spectrum_for_point(sdfp, pt, "cflt"))
-	end
-	pall = plot(size=(750,750), PLT[1:end]..., layout=(nx,ny), titlefontsize=8)
-	
-	
-end
-
-# ╔═╡ f8b65718-3e1b-454a-817f-1e78feb43225
-if zread
-	let
-		spngn = string(setup.series, "_", setup.measurement, ".png")
-		pxth = joinpath(pngdir, spngn)	
-		png(pall, pxth)
-	end
-end
-
 # ╔═╡ Cell order:
 # ╠═f7bb5111-2fc9-49df-972a-0737182da98c
 # ╠═981730a6-61fc-484b-ba3c-66920ee7cf83
@@ -1573,12 +1701,17 @@ end
 # ╠═e87f48e3-5e5a-44d5-83de-c520e522e33a
 # ╠═50ea2ecc-970f-4630-8c7e-acf5e69cc4c9
 # ╠═f26bb6e0-45ac-4419-bcb2-46e2cac1f75b
+# ╠═ec95a04a-bda9-429b-92f2-c79f28a322f0
 # ╠═308649b5-5c65-40dd-bc66-5b0273648341
+# ╠═bd85fe34-3de6-4692-b8f6-986dfc118f06
 # ╠═4218a405-5cb5-464f-9ce1-5d23daeabbef
 # ╠═def14fbe-f0cf-477f-910a-e8d2ede5eeaf
+# ╠═e071d45a-d94e-4932-944d-614deb62b4de
+# ╠═0ee6da42-aa03-4923-bee9-15b92b6583c5
 # ╠═9f898e05-51da-47a9-8654-c592ff5bde01
 # ╠═dfa2081b-dcc2-444c-8e6c-885affb89426
 # ╠═842ba4d1-8511-4cef-aca4-f2afffeaa298
+# ╠═5a99fed9-04af-42b0-b789-fbf54f3f7a67
 # ╠═b270c34c-177b-41ba-8024-56576770b45c
 # ╠═077d7e4e-1b94-4b30-a70a-f3b5d3a6fc46
 # ╠═c69c8b9d-50bf-46ce-8614-1fee1661e424
@@ -1586,6 +1719,7 @@ end
 # ╠═95100b23-f017-4861-93c1-4adc571e467e
 # ╠═e8b6d609-7357-4996-bda5-f1119b4b0263
 # ╠═8c911d89-107b-4445-9bda-e7e9b50ff051
+# ╠═0d8a0329-a4ec-413d-946c-986956834c2a
 # ╠═d182ae16-b964-48e2-ab7f-9016e44c5d32
 # ╠═ecbc5d11-3397-4495-a21f-fa7151dabcd1
 # ╠═9b118763-2739-4535-99c3-da6245ba1eae
@@ -1596,10 +1730,12 @@ end
 # ╠═8774dd9a-98d3-432e-9ff6-51190e6d4326
 # ╠═455952f8-9cf4-484a-beef-1fc2810e3b89
 # ╠═ddf630eb-6be5-422e-9db5-b1a4348adf01
+# ╠═4f5e0036-d91e-4a4a-9389-3db058e44d60
 # ╠═8414f6ab-c4f4-4f01-8082-80468ac4e04b
 # ╠═607b0b63-f80e-4d57-bd2f-ccdf74a9af3b
 # ╠═0ca0299c-6c33-4e35-9642-66e77b1cedba
 # ╠═cf1adbfc-e494-44e2-a6d6-7b89fb9a6be6
+# ╠═5ad5ca92-a0d9-4825-b3d7-ed8982526eaf
 # ╠═8946f9d0-7108-4af5-90a7-8f338f59009b
 # ╠═e3b52355-a912-42ff-ac39-08a79a1ccee5
 # ╠═ca7eb636-f817-4a1a-8b25-7e5ff2d3d0e5
@@ -1614,6 +1750,8 @@ end
 # ╠═4d56de37-7398-49b1-a500-5945f693db1c
 # ╠═a5dc8f3a-420b-4676-93e2-b6d947f26d4c
 # ╠═d389f99a-14c2-408f-ad7b-838e00225357
+# ╠═50a6a6e1-e3de-4b86-a2c6-313a92b16d3b
+# ╠═1756a4dd-10c5-4c04-b5e0-afe402fda7e5
 # ╠═f13173e1-088c-4f5c-ae6a-f9aebcd6bc57
 # ╠═479f8f86-372c-4b91-9f73-e57a85d3d194
 # ╠═b2623f9c-c0d4-4dd9-8de5-f0bae60c0560
@@ -1631,25 +1769,20 @@ end
 # ╠═54bd1f6c-2b10-47a1-838f-b428fe6b7635
 # ╠═a6c7f9cf-e2ae-4965-8607-a7e79ff43a74
 # ╠═b842a9b8-1642-480c-a5b0-0b5228832c16
-# ╠═8dbf64ec-5854-44b1-ac73-7cd0363a1c6d
-# ╠═d762313e-1466-4724-9c35-dd89e657a11c
-# ╠═7e185082-f3bf-4d95-9d5d-57101f47a684
+# ╠═4d743a2d-62c7-45ca-b2c9-2a4893bb3b60
 # ╠═43ccd7f3-140f-4cb8-af41-e13534c454f3
-# ╠═4760fdb6-5a0b-4ba2-89b7-0cc7f764d68e
-# ╠═cdf03376-4450-4b71-a820-33564d1ed71d
-# ╠═986b6b9e-3a02-4703-91d0-8088a8066810
-# ╠═aba1623c-1fd1-4210-b587-a76e21522397
-# ╠═d5540947-8b91-4cba-9738-c707e9945eab
-# ╠═03c6566e-f4d3-47b6-8a20-4744efc541a0
-# ╠═5477b1dc-ef52-4426-aa47-f513854fcdae
-# ╠═6325910e-b376-42ab-962a-28f749bc27b2
-# ╠═a90c8edc-1405-4a8c-aacf-53cd130910ae
 # ╠═a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
+# ╠═e38d2a94-008e-46db-a35e-176bb5ae297a
 # ╠═1794afb6-6ef0-46d6-b182-d54362b9a07d
+# ╠═fbfe6b1c-5aba-489e-8349-cfc5af258f61
+# ╠═236d4600-f5a3-4f56-9f95-ce733879afd0
 # ╠═25219398-6903-4cb0-a336-127eedbfa902
 # ╟─82ddd81b-8aea-4711-97d9-a645121786f8
 # ╟─155d5066-935b-4643-8aad-f4c635aa7eec
 # ╠═1f1b334e-941b-4fbd-b964-b4c098ef3231
+# ╠═09a1a9bc-21d9-4ed3-9344-efcc9513497e
+# ╠═d32d1f40-b2f3-4fdd-b499-f200071b7a4e
+# ╠═24d380e0-18d2-48ae-a2ea-3cb42d5d75e0
 # ╠═f8b65718-3e1b-454a-817f-1e78feb43225
 # ╠═5a88cb1e-47b2-45cc-965c-2af9a45e72f5
 # ╠═7d3bd063-e821-4bd2-b375-5b0989e49270
