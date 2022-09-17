@@ -280,6 +280,9 @@ md"""
 # ╔═╡ 54bd1f6c-2b10-47a1-838f-b428fe6b7635
 md""" Check to compute sum using full ROI: $(@bind zroi CheckBox())"""
 
+# ╔═╡ 452e7864-5603-42a9-ad24-b4d826008d87
+length(filtnm.center)
+
 # ╔═╡ a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
 md"""
 # Analysis for al points
@@ -287,14 +290,6 @@ md"""
 
 # ╔═╡ 1794afb6-6ef0-46d6-b182-d54362b9a07d
 md""" Check to carry analysis for all points: $(@bind zrec CheckBox())"""
-
-# ╔═╡ 25219398-6903-4cb0-a336-127eedbfa902
-#if zrec
-#	spectrum_max_allpoints!(setup, sspdirs, xfn, 	
-#		                    filtnm, adctopes; 
- #                           nsigma=nsigma, odir=csvdir)
-#end
-
 
 # ╔═╡ 82ddd81b-8aea-4711-97d9-a645121786f8
 md""" Check to read and plot data for all points: $(@bind zread CheckBox())"""
@@ -306,19 +301,6 @@ if zread
 	- select ny $(@bind ny NumberField(1:10, default=3))
 	"""
 end
-
-# ╔═╡ 1f1b334e-941b-4fbd-b964-b4c098ef3231
-#if zread
-#	dfdict = spectrum_fromfile_allpoints(setup, sspdirs, csvdir);
-#	PLT=[]
-#	for pt in sspdirs
-#		sdfp = dfdict[pt]
-#		push!(PLT, plot_spectrum_for_point(sdfp, pt, "cflt"))
-#	end
-#	pall = plot(size=(750,750), PLT[1:end]..., layout=(nx,ny), titlefontsize=8)
-#	
-#	
-#end
 
 # ╔═╡ 5a88cb1e-47b2-45cc-965c-2af9a45e72f5
 md"""
@@ -628,6 +610,9 @@ begin
 	xfn = string.(xfb)
 	md""" ##### Select filter: $(@bind sfn Select(xfn))"""
 end
+
+# ╔═╡ ff6d0b8b-af3c-4632-96bc-17702e3b76d1
+xfn
 
 # ╔═╡ 92a5b0b7-5dbb-4e98-a33e-bef1f6992b40
 md"""
@@ -952,19 +937,36 @@ end
 Returns the sum of the signal in the ROI and the histograms of the signal 
 """
 function roi_sum_and_signal_histos(xfiles::Vector{String}, xfn::Vector{String}, 
-	                               dkavg::Float64, ctx::Float64,
-	                               ecorn::NamedTuple{(:topleft, :botright)})
-	SUM= []
+								   ecorn::NamedTuple{(:topleft, :botright)},
+	                               dkavg::Float64, ctx::Float64, 
+	                               nsigmaT::Float64 = 5.0, nsigmaS::Float64 = 2.5)
+	SUMTT= Vector{Float64}(undef,0)
+	SUMT= Vector{Float64}(undef,0)
 	PLTF = []
 	for flt in xfn
 		fltimg = lfi.LaserLab.select_image(xfiles, string(flt))
 		fltcimg = fltimg.img .- dkavg
 		fltroi, iroiflt = imgroix(fltcimg, ecorn)
-		hfltroi, pfltroi = histo_signal(fltroi)
+		hfltroi, pfltroi = histo_signal(fltroi,50)
+
+		meanfltt = mean(fltroi)
+		stdfltt = std(fltroi)
+		#println("Filter ", flt, "tail: mean =", meanfltt, " std =", stdfltt)
+		
+		meanflt, stdflt = meanstd_interval(fltroi, 
+			                               (-nsigmaT*stdfltt,nsigmaT*stdfltt))
+		#println("no tail: mean =", meanflt, " std =", stdflt)
+		
+		sumtt = sum_thr(fltroi, 0.0)
+		sumt = sum_interval(fltroi,(ctx, meanflt + nsigmaS*stdflt))
+		
+		#println("tail: sum =", sumtt, " no tail =", sumt)
+		
 		push!(PLTF,pfltroi)
-		push!(SUM, sum_thr(fltroi, ctx))
+		push!(SUMTT, sumtt)
+		push!(SUMT, sumt)
 	end
-	SUM, PLTF
+	SUMT, SUMTT, PLTF
 end
 
 # ╔═╡ 84170688-fbc6-4676-84f1-126ecce4f5f2
@@ -1174,7 +1176,7 @@ begin
 	stdfltt = std(roiflt)
 	meanflt, stdflt = meanstd_interval(roiflt, (-5.0*stdfltt, 5.0*stdfltt))
 	sumtt = sum_thr(roiflt, 0.0)
-	sumt = sum_interval(roiflt,(ctx, meanflt + 2*stdflt))
+	sumt = sum_interval(roiflt,(ctx, meanflt + nsigma*stdflt))
 md"""
 ##### Image for filter $sfn in ROI
 - average: $(round(meanfltt, sigdigits=2))    
@@ -1192,7 +1194,7 @@ begin
 	hroiz, proiz = histo_signal(roiflt,50)
 	#prz1 = plot(proiz)
 	hroizx, proizx = histo_signal(roiflt, 50, -5.0*stdfltt, 5.0*stdfltt)
-	plot(size=(750,750), proiz, proizx, layout=(1,2), titlefontsize=8)
+	plot(proiz, proizx, layout=(1,2), titlefontsize=8)
 end
 
 # ╔═╡ 60ddba5b-aaf0-46e7-9f52-79e70b19139a
@@ -1200,11 +1202,16 @@ nsigma*stdfltt
 
 # ╔═╡ a6c7f9cf-e2ae-4965-8607-a7e79ff43a74
 if zroi
-	fsum, pfhst = roi_sum_and_signal_histos(xfiles, xfn, dkavg, ctx, ecorner)
-	pfsum = plot(filtnm.center, fsum, lw=2, label=spointf1, title="Sum above thr")
+	fsum, fsumnt, pfhst = roi_sum_and_signal_histos(xfiles, xfn, ecorner, dkavg, ctx)
+	pfsum = plot(filtnm.center, fsum, lw=2, label=spointf1, title="Sum (no tails)")
 	scatter!(filtnm.center, fsum, label="")
 	xlabel!("λ (nm)")
 	ylabel!("counts")
+	pfsumnt = plot(filtnm.center, fsumnt, lw=2, label=spointf1, title="Sum (raw)")
+	scatter!(filtnm.center, fsumnt, label="")
+	xlabel!("λ (nm)")
+	ylabel!("counts")
+	plot( pfsum, pfsumnt, layout=(1,2), titlefontsize=8)
 end
 
 # ╔═╡ b842a9b8-1642-480c-a5b0-0b5228832c16
@@ -1235,6 +1242,60 @@ begin
 	scatter!([yye], [xxe], label="ROI points for clust $scl",markersize=1)
 	
 	
+end
+
+# ╔═╡ 902e4aaf-346c-4698-81a9-6872713fb18e
+function sum_allpoints(cmdir::String, sexp::String, srun::String,
+	          xpt::Vector{String}, xfn::Vector{String}, 
+	          dkavg::Float64, ctx::Float64, 
+              crad::Int64, nmin::Int64, csize::Int64, scl::Int64,
+	          nsigmaT::Float64 = 5.0, nsigmaS::Float64 = 2.5)
+
+	function select_roi(pt::String)
+		flt1, _   = select_files(cmdir, sexp, srun, "Filter1")
+		f1img     = lfi.LaserLab.select_image(flt1, pt)
+		img_edge  = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
+		img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
+		iedge     = indx_from_edge(img_edgeb)  
+		medge, xedge, yedge = edge_to_mtrx(iedge)
+		clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
+		xc1, yc1 = getclusters(iedge, clusters, scl)
+		find_edge_corners(xc1, yc1)
+	end
+	
+	PFLT = []
+    for (i,pt) in enumerate(xpt)
+		ecorner = select_roi(pt)
+		#println("ROI defined by topleft, bottomright: =", ecorner)
+
+		xfiles, _  = select_files(cmdir,sexp,srun, pt)
+
+		fsum, _, _ = roi_sum_and_signal_histos(xfiles, xfn, ecorner, dkavg, ctx,
+		                                       nsigmaT, nsigmaS)
+		push!(PFLT, fsum)
+    end
+	PFLT
+end
+
+# ╔═╡ b2d6792d-9de4-4d7e-beb3-879459d3709c
+if zrec
+	PFLT = sum_allpoints(cmdir, string(sexp), string(srun), 
+		                 string.(fpoints), string.(xfn),
+			             dkavg, ctx, crad, nmin, csize, scl)
+end
+
+# ╔═╡ 50e69dc7-0027-4d0c-bfa8-f6778a5754f3
+if zrec
+	PXFLT = []
+	for (i, plft) in enumerate(PFLT)
+		lbl = string("Point",i)
+		pfxx = plot(filtnm.center, plft, lw=2, label=lbl, legend=:topleft, title="")
+		scatter!(filtnm.center, plft, label="")
+		xlabel!("λ (nm)")
+		ylabel!("counts")
+		push!(PXFLT, pfxx)
+	end
+	plot(size=(1050,1050), PXFLT..., layout=(4,4), titlefontsize=8)
 end
 
 # ╔═╡ 44107b67-1a43-4b78-a928-71f96b5d6ab8
@@ -1360,126 +1421,6 @@ function sum_ovth(img::Matrix{Float64}, thr::Float64)
 		end
 	end
 	sumx
-end
-
-# ╔═╡ 236d4600-f5a3-4f56-9f95-ce733879afd0
-"""
-Computes the spectra for all points in experiment
-"""
-function spectra_allpoints(cmdir::String, sexp::String, srun::String,
-	                       xpt::Vector{String}, xfn::Vector{String},
-						   crad::Int64, nmin::Int64, csize::Int64, scl::Int64,
-						   nsigma::Float64)
-
-	function dark_current()
-		fdrk, _ = select_files(cmdir,sexp,srun, "Dark")
-		davg, _ = lfi.LaserLab.dark_avg(fdrk)
-		davg
-	end
-
-	function croi(pt::String)
-		flt1, _ = select_files(cmdir,sexp,srun, "Filter1")
-		f1img = lfi.LaserLab.select_image(flt1, pt)
-		img_edge = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
-		img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
-		iedge = indx_from_edge(img_edgeb)  
-		medge, xedge, yedge = edge_to_mtrx(iedge)
-		clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
-		xc1, yc1 = getclusters(iedge, clusters, scl)
-		ec = find_edge_corners(xc1, yc1)
-		roixx, _ = imgroix(f1img.img, ec)
-		ec, sum_ovth(roixx, nsigma  *std(davgimg.img))
-	end
-
-	function roi_sum_flt(darkimg::Matrix{Float64}, 
-	                     ecorn::NamedTuple{(:topleft, :botright)}, pt::String)
-
-		xfiles, _  = select_files(cmdir,sexp,srun, pt)
-		slft = zeros(length(xfn))
-		for (i, flt) in enumerate(xfn)
-			fltimg = lfi.LaserLab.select_image(xfiles, flt)
-			fltcimg = fltimg.img .- darkimg
-			fltroi, _ = imgroix(fltcimg, ecorn)
-			slft[i] = sum_ovth(fltroi, nsigma * std(darkimg))
-		end
-		slft
-	end
-
-	println("++ spectra_allpoints++")
-	
-	println(" directory = ", cmdir, " experiment = ", sexp, 
-		    " run = ", srun)
-
-	println(" Points = ", xpt, " Filters = ", xfn)
-
-	println(" Parameters of DBSCAN: radius =", xpt, "min points = ", nmin,
-		    " min cluster size =", csize, " cluster number =", scl)
-
-	println(" number of sigmas over dark current to accept signal =", nsigma)
-	                       
-	davgimg = dark_current()
-	
-	println("dark current: avg =", mean(davgimg.img), " std = ", std(davgimg.img),
-	        " cutoff = ", nsigma * std(davgimg.img))
-
-	P0 = zeros(length(xpt))
-	PFLT = []
-    for (i,pt) in enumerate(xpt)
-		ecorner, sumf1 = croi(pt)
-
-		println("ROI defined by topleft, bottomright: =", ecorner)
-		println("Sum (no filter) =", sumf1)
-		
-		sumflt = roi_sum_flt(davgimg.img, ecorner, pt)
-
-		println("Sum (all filters) =", sumflt)
-		P0[i] = sumf1
-		push!(PFLT, sumflt)
-
-		#DataFrame("fltn" => xfn, "cflt" => filtnm.center, "lflt" => filtnm.left, #"rflt" => filtnm.right, "wflt" => filtnm.width,
-		#      "sum"=> ZSM, "sumpes"=> adctopes *(ZSM ./filtnm.width), "max"=> ZMX, #"imax" => ZI, "jmax" => ZJ)	
-        #sdfnm = get_outpath(setupp, ".csv")
-        #sdff = joinpath(odir, sdfnm)
-	    #println("Writing point to  =", sdff)
-	    #CSV.write(sdff, sdf)
-    end
-	P0, PFLT
-end
-
-# ╔═╡ f8b65718-3e1b-454a-817f-1e78feb43225
-if zrec
-	ff0, fltsum = spectra_allpoints(cmdir, string(sexp), string(srun), 
-		              string.(fpoints), string.(xfn),
-					  crad, nmin, csize, scl, nsigma)
-	#let
-	#	spngn = string(setup.series, "_", setup.measurement, ".png")
-	#	pxth = joinpath(pngdir, spngn)	
-	#	png(pall, pxth)
-	#end
-end
-
-# ╔═╡ 09a1a9bc-21d9-4ed3-9344-efcc9513497e
-if zread
-	pp0 = plot(fpoints, ff0, lw=2, label=" ", title="No filters")
-	scatter!(fpoints, ff0, label="")
-	xlabel!("number of points")
-	ylabel!("counts")
-	ylims!((0.0, 1e+7))
-	
-end
-
-# ╔═╡ d32d1f40-b2f3-4fdd-b499-f200071b7a4e
-if zread
-	PLT=[]
-	for (i,flts) in enumerate(fltsum)
-		lbl = string("Point", i)
-		ppflt = plot(filtnm.center, flts, lw=2, label=lbl, title="Signal flt")
-		scatter!(filtnm.center, flts, label="")
-		xlabel!("λ (nm)")
-		ylabel!("counts")
-		push!(PLT, ppflt)
-	end
-	pall = plot(size=(750,750), PLT[1:end]..., layout=(nx,ny), titlefontsize=8)
 end
 
 # ╔═╡ 78de6bcd-4173-40e3-b500-499568289ba1
@@ -1764,20 +1705,19 @@ end
 # ╠═e9e8e58a-e1db-49f1-8429-420271fb1852
 # ╠═eac4c715-03ec-4b52-92e5-4dfc4de6b7be
 # ╠═54bd1f6c-2b10-47a1-838f-b428fe6b7635
+# ╠═452e7864-5603-42a9-ad24-b4d826008d87
+# ╠═ff6d0b8b-af3c-4632-96bc-17702e3b76d1
 # ╠═a6c7f9cf-e2ae-4965-8607-a7e79ff43a74
 # ╠═b842a9b8-1642-480c-a5b0-0b5228832c16
 # ╠═a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
 # ╠═e38d2a94-008e-46db-a35e-176bb5ae297a
+# ╠═902e4aaf-346c-4698-81a9-6872713fb18e
 # ╠═1794afb6-6ef0-46d6-b182-d54362b9a07d
-# ╠═236d4600-f5a3-4f56-9f95-ce733879afd0
-# ╠═25219398-6903-4cb0-a336-127eedbfa902
-# ╟─82ddd81b-8aea-4711-97d9-a645121786f8
+# ╠═b2d6792d-9de4-4d7e-beb3-879459d3709c
+# ╠═50e69dc7-0027-4d0c-bfa8-f6778a5754f3
+# ╠═82ddd81b-8aea-4711-97d9-a645121786f8
 # ╟─155d5066-935b-4643-8aad-f4c635aa7eec
-# ╠═1f1b334e-941b-4fbd-b964-b4c098ef3231
-# ╠═09a1a9bc-21d9-4ed3-9344-efcc9513497e
-# ╠═d32d1f40-b2f3-4fdd-b499-f200071b7a4e
 # ╠═24d380e0-18d2-48ae-a2ea-3cb42d5d75e0
-# ╠═f8b65718-3e1b-454a-817f-1e78feb43225
 # ╠═5a88cb1e-47b2-45cc-965c-2af9a45e72f5
 # ╠═7d3bd063-e821-4bd2-b375-5b0989e49270
 # ╠═7083fcc2-d2f0-44fa-b85e-0000bb100c0a
