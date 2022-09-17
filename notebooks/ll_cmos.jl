@@ -108,6 +108,9 @@ begin
 	println("Filter central values (nm) = ", filtnm.center, " width (nm) =", filtnm.width)
 end
 
+# ╔═╡ 777fe093-f1d2-4298-934f-0386b8c93210
+typeof(filtnm)
+
 # ╔═╡ b98ad447-6055-46e5-bb4f-9e67f9c3176a
 md"""
 ## Parameters of the CCD
@@ -163,12 +166,6 @@ end
 md"""
 	#### Experiment and run 
 	"""
-
-# ╔═╡ f26bb6e0-45ac-4419-bcb2-46e2cac1f75b
-begin
-	#sexp = "AYN_05_Ba"
-	#srun = "AYN_05_Ba2_45x_G2SL_rep2_P9_220901"
-end
 
 # ╔═╡ ec95a04a-bda9-429b-92f2-c79f28a322f0
 """
@@ -291,6 +288,35 @@ md"""
 # ╔═╡ 1794afb6-6ef0-46d6-b182-d54362b9a07d
 md""" Check to carry analysis for all points: $(@bind zrec CheckBox())"""
 
+<<<<<<< HEAD
+=======
+# ╔═╡ be87f23e-18b0-4927-ba6d-902180f05489
+function signalnorm(sumf::Vector{Float64}, sumtot::Float64, filtnm; scale=1e+4)
+	scale*(sumf/sumtot) ./filtnm.width
+end
+
+# ╔═╡ b2d6792d-9de4-4d7e-beb3-879459d3709c
+if zrec
+	#PFLT = sum_allpoints(cmdir, string(sexp), string(srun), 
+		#                 string.(fpoints), string.(xfn),
+		#	             dkavg, ctx, crad, nmin, csize, scl)
+end
+
+# ╔═╡ 50e69dc7-0027-4d0c-bfa8-f6778a5754f3
+if zrec
+	#PXFLT = []
+	#for (i, plft) in enumerate(PFLT)
+	#	lbl = string("Point",i)
+	#	pfxx = plot(filtnm.center, plft, lw=2, label=lbl, legend=:topright, title="")
+	#	scatter!(filtnm.center, plft, label="")
+	#	xlabel!("λ (nm)")
+	#	ylabel!("counts")
+	#	push!(PXFLT, pfxx)
+	#end
+	#plot(size=(1050,1050), PXFLT..., layout=(2,2), titlefontsize=8)
+end
+
+>>>>>>> c74c071 (A new version of ll_cmos.)
 # ╔═╡ 82ddd81b-8aea-4711-97d9-a645121786f8
 md""" Check to read and plot data for all points: $(@bind zread CheckBox())"""
 
@@ -526,6 +552,17 @@ let
 	md""" Select run : $(@bind srun Select(dirs))"""
 end
 
+# ╔═╡ f26bb6e0-45ac-4419-bcb2-46e2cac1f75b
+begin
+	md"""
+	
+	- experiment = $sexp
+	- run = $srun
+	"""
+	#sexp = "AYN_05_Ba"
+	#srun = "AYN_05_Ba2_45x_G2SL_rep2_P9_220901"
+end
+
 # ╔═╡ afeb42ca-b462-4320-b364-98a0b4730e33
 """
 Returns dirs defined by cmdir, sexp and srun (point by convention)
@@ -698,6 +735,27 @@ function meanstd_interval(img::Matrix{Float64}, int::Tuple{Float64, Float64})
 	mean(sgn), std(sgn)
 end
 
+# ╔═╡ 03b663a3-8e01-4720-ad55-b9085ee5115d
+"""
+Returns the regularised sum in the ROI. 
+
+- roidks is a matrix with active pixels
+- dkavg is the average of the dc which must be substracte
+- ctx is the effective cut to suppress dark current
+- nsigmaT is the interval to recompute mean and std of the roi suppressing tails
+- nsigmaS is the right-wig of the distribution to sum (mean + std* nsigmaS)
+"""
+function roisum(roidks::Matrix{Float64}, 
+				dkavg::Float64, ctx::Float64, 
+                nsigmaT::Float64 = 5.0, nsigmaS::Float64 = 2.5)
+
+	roi = roidks .- dkavg
+	meanf = mean(roi)
+	stdf  = std(roi)
+	meanflt, stdflt = meanstd_interval(roi, (-nsigmaT*stdf,nsigmaT*stdf))
+	sum_interval(roi,(ctx, meanflt + nsigmaS*stdflt))
+end
+
 # ╔═╡ 369dcaf2-ce5d-4641-a8cb-274161749c19
 """
 Given an image (img) and the vertex of the image edge (ecorn), returns the image
@@ -745,6 +803,36 @@ function imgroix(img::Matrix{Float64},
 		end
 	end
 	roi, iroi
+end
+
+# ╔═╡ 205fd30f-6a4e-473f-9eb5-e826b8c480b1
+"""
+Returns the sum of the signal in the ROI
+
+The sum is computed between the threshold to suppress dark current (ctx) and
+a maximum value of nsigmaS * std, where std is computed suppressing previously tails. 
+This guarantees that the impact of hot pixels is mimimised. 
+
+"""
+function signal_roi(xfiles::Vector{String}, xfn::Vector{String}, 
+					ecorn::NamedTuple{(:topleft, :botright)},
+	                dkavg::Float64, ctx::Float64, 
+	                nsigmaT::Float64 = 5.0, nsigmaS::Float64 = 2.5)
+
+	function signal_flt(flt::String)
+		fltimg = lfi.LaserLab.select_image(xfiles, flt)
+		#roisum(fltimg.img, dkavg, ctx)
+		fltcimg = fltimg.img .- dkavg
+		fltroi, iroiflt = imgroix(fltcimg, ecorn)
+		meanfltt = mean(fltroi)
+		stdfltt = std(fltroi)
+		meanflt, stdflt = meanstd_interval(fltroi, 
+			                               (-nsigmaT*stdfltt,nsigmaT*stdfltt))
+		sum_interval(fltroi,(ctx, meanflt + nsigmaS*stdflt))
+	end
+	
+	map(flt->signal_flt(flt), xfn)
+
 end
 
 # ╔═╡ 8496f1e5-ad5a-4469-851e-0795c8cf6c6b
@@ -896,12 +984,6 @@ md"""
 """
 end
 
-# ╔═╡ 918126c6-b25f-49b5-b5a2-3c15ba1d9cfd
-ctx = ctoff
-
-# ╔═╡ 92e48fe8-2207-478d-a57a-eee82bde1667
-ctx
-
 # ╔═╡ 3549eafe-70c4-49d5-a121-11b8d2860804
 begin
 	DKSUMZ = [sum_interval(drk .- dkavg, (-3.0* dkstd, 3.0* dkstd)) for drk in DRK]
@@ -910,7 +992,7 @@ begin
 	dksumt = mean(DKSUMT)
 	pdksumz = plot(filtnm.center, DKSUMZ, lw=2, label=spointf1, title="sum DC no tail")
 	scatter!(filtnm.center, DKSUMZ,label="")
-	ylims!(-1.0e6, 1.0e6)
+	ylims!(-1.0e7, 1.0e7)
 	xlabel!("value in filter")
 	ylabel!("counts")
 	pdksumt = plot(filtnm.center, DKSUMT, lw=2, label=spointf1, title="sum DC int tail")
@@ -932,10 +1014,13 @@ begin
 	phdrk2 = plot(size=(750,750), PDRK2..., layout=(5,2), titlefontsize=8)
 end
 
-# ╔═╡ eac4c715-03ec-4b52-92e5-4dfc4de6b7be
+# ╔═╡ ed8ab0b7-9fc5-4cb3-8436-79a056a5667f
 """
-Returns the sum of the signal in the ROI and the histograms of the signal 
+Returns the histogram of the signal per pixel in the ROI
+
+
 """
+<<<<<<< HEAD
 function roi_sum_and_signal_histos(xfiles::Vector{String}, xfn::Vector{String}, 
 								   ecorn::NamedTuple{(:topleft, :botright)},
 	                               dkavg::Float64, ctx::Float64, 
@@ -967,6 +1052,22 @@ function roi_sum_and_signal_histos(xfiles::Vector{String}, xfn::Vector{String},
 		push!(SUMT, sumt)
 	end
 	SUMT, SUMTT, PLTF
+=======
+function signal_histos(xfiles::Vector{String}, xfn::Vector{String}, 
+					ecorn::NamedTuple{(:topleft, :botright)},
+	                dkavg::Float64, nbins::Int=50)
+
+	function histos_flt(flt::String)
+		fltimg = lfi.LaserLab.select_image(xfiles, flt)
+		fltcimg = fltimg.img .- dkavg
+		fltroi, iroiflt = imgroix(fltcimg, ecorn)
+		hfltroi, pfltroi = histo_signal(fltroi, nbins)
+		pfltroi
+	end
+
+	map(flt->histos_flt(flt), xfn)
+	
+>>>>>>> c74c071 (A new version of ll_cmos.)
 end
 
 # ╔═╡ 84170688-fbc6-4676-84f1-126ecce4f5f2
@@ -1162,6 +1263,20 @@ begin
 	plot(proi)
 end
 
+# ╔═╡ 918126c6-b25f-49b5-b5a2-3c15ba1d9cfd
+begin
+	ctx = nsigma * dkstd
+	sumnf = roisum(roixx, dkavg, ctx)
+	sumtl = sum(roidks)
+md"""
+- std of dark current =$(round(dkstd, sigdigits=3))
+- Number of sigmas for dc suppression = $nsigma
+- Effective cutoff (in counts) = $(round(ctx, sigdigits=4))
+- Total signal (no filters) = $(round(sumnf, sigdigits=2))
+- Total signal (no filters, tails) = $(round(sumtl, sigdigits=2))
+"""
+end
+
 # ╔═╡ 406cc319-e7a9-4c68-b732-774b7d1a7e59
 begin
 	zimg = lfi.LaserLab.select_image(xfiles, string(sfn));
@@ -1172,11 +1287,18 @@ end
 
 # ╔═╡ da7e09c2-cf28-414d-bca2-3b9a35275857
 begin
+	nflt = parse(Int64, sfn)
 	meanfltt = mean(roiflt)
 	stdfltt = std(roiflt)
 	meanflt, stdflt = meanstd_interval(roiflt, (-5.0*stdfltt, 5.0*stdfltt))
 	sumtt = sum_thr(roiflt, 0.0)
+<<<<<<< HEAD
 	sumt = sum_interval(roiflt,(ctx, meanflt + nsigma*stdflt))
+=======
+	sumt = sum_interval(roiflt,(ctx, meanflt + 2.5*stdflt))
+
+	sumtf = sumt/filtnm.width[nflt]
+>>>>>>> c74c071 (A new version of ll_cmos.)
 md"""
 ##### Image for filter $sfn in ROI
 - average: $(round(meanfltt, sigdigits=2))    
@@ -1184,8 +1306,14 @@ md"""
 - average (tail suppressed): $(round(meanflt, sigdigits=2))    
 - std (tail suppressed) = $(round(stdflt,sigdigits=3))
 
-- Total charge (no inteval) : $(round(sumtt, sigdigits=3))
+- Total charge (no interval) : $(round(sumtt, sigdigits=3))
+
+- lower cutoff for sum = $(round(ctx, sigdigits=3))
+- upper cutoff for sum= $(round(meanflt + 2.5*stdflt, sigdigits=3))
 - Total charge (interval) = $(round(sumt, sigdigits=3))
+
+- Filter width = $(filtnm.width[nflt])
+- Charge/nm = $(round(sumtf, sigdigits=3))
 """
 end
 
@@ -1197,11 +1325,9 @@ begin
 	plot(proiz, proizx, layout=(1,2), titlefontsize=8)
 end
 
-# ╔═╡ 60ddba5b-aaf0-46e7-9f52-79e70b19139a
-nsigma*stdfltt
-
-# ╔═╡ a6c7f9cf-e2ae-4965-8607-a7e79ff43a74
+# ╔═╡ aa820b03-361a-4fc1-beb2-9e8b9d1419ee
 if zroi
+<<<<<<< HEAD
 	fsum, fsumnt, pfhst = roi_sum_and_signal_histos(xfiles, xfn, ecorner, dkavg, ctx)
 	pfsum = plot(filtnm.center, fsum, lw=2, label=spointf1, title="Sum (no tails)")
 	scatter!(filtnm.center, fsum, label="")
@@ -1212,11 +1338,37 @@ if zroi
 	xlabel!("λ (nm)")
 	ylabel!("counts")
 	plot( pfsum, pfsumnt, layout=(1,2), titlefontsize=8)
+=======
+	sfroi = signal_roi(xfiles, xfn, ecorner, dkavg, ctx)
+	pfhroi = signal_histos(xfiles, xfn, ecorner, dkavg)
+	psfroi = plot(filtnm.center, sfroi, lw=2, label=spointf1, title="Sum (no tails)")
+	scatter!(filtnm.center, sfroi, label="")
+	xlabel!("λ (nm)")
+	ylabel!("counts")
+	
+	psfroin = plot(filtnm.center, sfroi ./filtnm.width, lw=2, label=spointf1, title="Sum (per nm)")
+	scatter!(filtnm.center, sfroi ./filtnm.width, label="")
+	xlabel!("λ (nm)")
+	ylabel!("counts/nm")
+
+	psfroix = plot(filtnm.center, sfroi /sumnf, lw=2, label=spointf1, title="Sum (fraction of white light)")
+	scatter!(filtnm.center, sfroi /sumnf, label="")
+	xlabel!("λ (nm)")
+	ylabel!("fraction of WL")
+
+	psfroiy = plot(filtnm.center, (sfroi/sumnf) ./filtnm.width, lw=2, label=spointf1, title="Sum (fraction of white light per nm)")
+	scatter!(filtnm.center, (sfroi/sumnf) ./filtnm.width, label="")
+	xlabel!("λ (nm)")
+	ylabel!("fraction of WL/nm")
+
+	plot(size=(750,750), psfroi, psfroin, psfroix, psfroiy,
+		 layout=(2,2), titlefontsize=8)
+>>>>>>> c74c071 (A new version of ll_cmos.)
 end
 
 # ╔═╡ b842a9b8-1642-480c-a5b0-0b5228832c16
 if zroi
-	plot(size=(750,750), pfhst..., layout=(5,2), titlefontsize=10)
+	plot(size=(750,750), pfhroi..., layout=(5,2), titlefontsize=10)
 end
 
 # ╔═╡ 939c1d23-35d3-41bf-a854-395457e9ad59
@@ -1244,6 +1396,7 @@ begin
 	
 end
 
+<<<<<<< HEAD
 # ╔═╡ 902e4aaf-346c-4698-81a9-6872713fb18e
 function sum_allpoints(cmdir::String, sexp::String, srun::String,
 	          xpt::Vector{String}, xfn::Vector{String}, 
@@ -1254,14 +1407,35 @@ function sum_allpoints(cmdir::String, sexp::String, srun::String,
 	function select_roi(pt::String)
 		flt1, _   = select_files(cmdir, sexp, srun, "Filter1")
 		f1img     = lfi.LaserLab.select_image(flt1, pt)
+=======
+# ╔═╡ 1658ecd9-8949-4052-9874-a31248c45821
+"""
+Given point pt, return the edge corner of cluster scl
+crad, nmin and csize are parameters of the DBDSCAN algorithm 
+"""
+function select_edge_corners(cmdir::String, sexp::String, srun::String, pt::String,
+                             crad::Int64, nmin::Int64, csize::Int64, scl::Int64)
+
+		# get image
+		flt1, _   = select_files(cmdir, sexp, srun, "Filter1")
+		f1img     = lfi.LaserLab.select_image(flt1, pt)
+
+		#image edge
+>>>>>>> c74c071 (A new version of ll_cmos.)
 		img_edge  = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
 		img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
 		iedge     = indx_from_edge(img_edgeb)  
 		medge, xedge, yedge = edge_to_mtrx(iedge)
+<<<<<<< HEAD
+=======
+
+		#find clusters and return edge
+>>>>>>> c74c071 (A new version of ll_cmos.)
 		clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
 		xc1, yc1 = getclusters(iedge, clusters, scl)
 		find_edge_corners(xc1, yc1)
 	end
+<<<<<<< HEAD
 	
 	PFLT = []
     for (i,pt) in enumerate(xpt)
@@ -1280,10 +1454,38 @@ end
 # ╔═╡ b2d6792d-9de4-4d7e-beb3-879459d3709c
 if zrec
 	PFLT = sum_allpoints(cmdir, string(sexp), string(srun), 
+=======
+
+# ╔═╡ f649a197-c7a8-407d-9e11-6fd811c9d375
+"""
+Returns the sum of the signal in the ROI for all points
+
+"""
+function signal_roi_allpoints(cmdir::String, sexp::String, srun::String,
+	                          xpt::Vector{String}, xfn::Vector{String}, 
+	                          dkavg::Float64, ctx::Float64, 
+                              crad::Int64, nmin::Int64, csize::Int64, scl::Int64,
+	                          nsigmaT::Float64 = 5.0, nsigmaS::Float64 = 2.5)
+
+	function signal_pt(pt::String)
+		ecorn  = select_edge_corners(cmdir, sexp, srun, pt,
+                                      crad, nmin, csize, scl)
+		xfiles, _ = select_files(cmdir,sexp,srun, pt)
+		signal_roi(xfiles, xfn, ecorn, dkavg, ctx, nsigmaT, nsigmaS)
+	end
+	
+	map(pt->signal_pt(pt), xpt)
+end
+
+# ╔═╡ 1b6bd414-ddc4-4e6c-a4be-2e1d8fe623ef
+if zrec
+	SPFLT = signal_roi_allpoints(cmdir, string(sexp), string(srun), 
+>>>>>>> c74c071 (A new version of ll_cmos.)
 		                 string.(fpoints), string.(xfn),
 			             dkavg, ctx, crad, nmin, csize, scl)
 end
 
+<<<<<<< HEAD
 # ╔═╡ 50e69dc7-0027-4d0c-bfa8-f6778a5754f3
 if zrec
 	PXFLT = []
@@ -1296,6 +1498,24 @@ if zrec
 		push!(PXFLT, pfxx)
 	end
 	plot(size=(1050,1050), PXFLT..., layout=(4,4), titlefontsize=8)
+=======
+# ╔═╡ 6461b6c0-4741-4da6-8db2-5c0a809d3eea
+if zrec
+	SPXFLT = []
+	for (i, sf) in enumerate(SPFLT)
+		lbl = string("Point",i)
+		sc = 1e+4
+		sgnorm = signalnorm(sf, sumnf, filtnm; scale=sc)
+		scstr = @sprintf "%.1E" sc
+		xlb = string(scstr, " x sgn/nm")
+		pfxx = plot(filtnm.center, sgnorm, lw=2, label=lbl, legend=:topleft, title="")
+		scatter!(filtnm.center, sgnorm, label="")
+		xlabel!("λ (nm)")
+		ylabel!(xlb)
+		push!(SPXFLT, pfxx)
+	end
+	plot(size=(1050,1050), SPXFLT..., layout=(3,3), titlefontsize=8)
+>>>>>>> c74c071 (A new version of ll_cmos.)
 end
 
 # ╔═╡ 44107b67-1a43-4b78-a928-71f96b5d6ab8
@@ -1423,6 +1643,79 @@ function sum_ovth(img::Matrix{Float64}, thr::Float64)
 	sumx
 end
 
+<<<<<<< HEAD
+=======
+# ╔═╡ eac4c715-03ec-4b52-92e5-4dfc4de6b7be
+"""
+Returns the sum of the signal in the ROI and the histograms of the signal 
+"""
+function roi_sum_and_signal_histos(xfiles::Vector{String}, xfn::Vector{String}, 
+								   ecorn::NamedTuple{(:topleft, :botright)},
+	                               dkavg::Float64, ctx::Float64, 
+	                               nsigmaT::Float64 = 5.0, nsigmaS::Float64 = 2.5)
+	SUMTT= Vector{Float64}(undef,0)
+	SUMT= Vector{Float64}(undef,0)
+	PLTF = []
+	for flt in xfn
+		fltimg = lfi.LaserLab.select_image(xfiles, string(flt))
+		fltcimg = fltimg.img .- dkavg
+		fltroi, iroiflt = imgroix(fltcimg, ecorn)
+		hfltroi, pfltroi = histo_signal(fltroi,50)
+
+		meanfltt = mean(fltroi)
+		stdfltt = std(fltroi)
+		#println("Filter ", flt, "tail: mean =", meanfltt, " std =", stdfltt)
+		
+		meanflt, stdflt = meanstd_interval(fltroi, 
+			                               (-nsigmaT*stdfltt,nsigmaT*stdfltt))
+		#println("no tail: mean =", meanflt, " std =", stdflt)
+		
+		sumtt = sum_thr(fltroi, 0.0)
+		sumt = sum_interval(fltroi,(ctx, meanflt + nsigmaS*stdflt))
+		
+		#println("tail: sum =", sumtt, " no tail =", sumt)
+		
+		push!(PLTF,pfltroi)
+		push!(SUMTT, sumtt)
+		push!(SUMT, sumt)
+	end
+	SUMT, SUMTT, PLTF
+end
+
+# ╔═╡ 902e4aaf-346c-4698-81a9-6872713fb18e
+function sum_allpoints(cmdir::String, sexp::String, srun::String,
+	          xpt::Vector{String}, xfn::Vector{String}, 
+	          dkavg::Float64, ctx::Float64, 
+              crad::Int64, nmin::Int64, csize::Int64, scl::Int64,
+	          nsigmaT::Float64 = 5.0, nsigmaS::Float64 = 2.5)
+
+	function select_roi(pt::String)
+		flt1, _   = select_files(cmdir, sexp, srun, "Filter1")
+		f1img     = lfi.LaserLab.select_image(flt1, pt)
+		img_edge  = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
+		img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
+		iedge     = indx_from_edge(img_edgeb)  
+		medge, xedge, yedge = edge_to_mtrx(iedge)
+		clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
+		xc1, yc1 = getclusters(iedge, clusters, scl)
+		find_edge_corners(xc1, yc1)
+	end
+	
+	PFLT = []
+    for (i,pt) in enumerate(xpt)
+		ecorner = select_roi(pt)
+		#println("ROI defined by topleft, bottomright: =", ecorner)
+
+		xfiles, _  = select_files(cmdir,sexp,srun, pt)
+
+		fsum, _, _ = roi_sum_and_signal_histos(xfiles, xfn, ecorner, dkavg, ctx,
+		                                       nsigmaT, nsigmaS)
+		push!(PFLT, fsum)
+    end
+	PFLT
+end
+
+>>>>>>> c74c071 (A new version of ll_cmos.)
 # ╔═╡ 78de6bcd-4173-40e3-b500-499568289ba1
 function fixdark(nxdrk)
 	splt = split(nxdrk[1],"_")
@@ -1638,6 +1931,7 @@ end
 # ╠═7ce42aec-b319-4de9-b70c-84046d45a600
 # ╠═58269465-ba8c-4840-bbfc-0a27897f3e2a
 # ╠═0b1c5662-ec4f-486e-9ee6-7fa6ba953e45
+# ╠═777fe093-f1d2-4298-934f-0386b8c93210
 # ╠═b98ad447-6055-46e5-bb4f-9e67f9c3176a
 # ╠═88853edb-dc1f-4e7a-a0ba-1868276d1ada
 # ╠═57d96432-4318-4291-8255-bfa5d6d3635c
@@ -1699,20 +1993,33 @@ end
 # ╠═479f8f86-372c-4b91-9f73-e57a85d3d194
 # ╠═406cc319-e7a9-4c68-b732-774b7d1a7e59
 # ╠═2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
-# ╠═92e48fe8-2207-478d-a57a-eee82bde1667
-# ╠═60ddba5b-aaf0-46e7-9f52-79e70b19139a
 # ╠═da7e09c2-cf28-414d-bca2-3b9a35275857
 # ╠═e9e8e58a-e1db-49f1-8429-420271fb1852
-# ╠═eac4c715-03ec-4b52-92e5-4dfc4de6b7be
+# ╠═03b663a3-8e01-4720-ad55-b9085ee5115d
+# ╠═205fd30f-6a4e-473f-9eb5-e826b8c480b1
+# ╠═ed8ab0b7-9fc5-4cb3-8436-79a056a5667f
 # ╠═54bd1f6c-2b10-47a1-838f-b428fe6b7635
+<<<<<<< HEAD
 # ╠═452e7864-5603-42a9-ad24-b4d826008d87
 # ╠═ff6d0b8b-af3c-4632-96bc-17702e3b76d1
 # ╠═a6c7f9cf-e2ae-4965-8607-a7e79ff43a74
+=======
+# ╠═aa820b03-361a-4fc1-beb2-9e8b9d1419ee
+>>>>>>> c74c071 (A new version of ll_cmos.)
 # ╠═b842a9b8-1642-480c-a5b0-0b5228832c16
 # ╠═a48af8f4-4ed2-45cd-b4e8-9b3106c885f3
 # ╠═e38d2a94-008e-46db-a35e-176bb5ae297a
 # ╠═902e4aaf-346c-4698-81a9-6872713fb18e
 # ╠═1794afb6-6ef0-46d6-b182-d54362b9a07d
+<<<<<<< HEAD
+=======
+# ╠═1b6bd414-ddc4-4e6c-a4be-2e1d8fe623ef
+# ╠═6461b6c0-4741-4da6-8db2-5c0a809d3eea
+# ╠═1658ecd9-8949-4052-9874-a31248c45821
+# ╠═f649a197-c7a8-407d-9e11-6fd811c9d375
+# ╠═be87f23e-18b0-4927-ba6d-902180f05489
+# ╠═902e4aaf-346c-4698-81a9-6872713fb18e
+>>>>>>> c74c071 (A new version of ll_cmos.)
 # ╠═b2d6792d-9de4-4d7e-beb3-879459d3709c
 # ╠═50e69dc7-0027-4d0c-bfa8-f6778a5754f3
 # ╠═82ddd81b-8aea-4711-97d9-a645121786f8
@@ -1784,6 +2091,7 @@ end
 # ╠═dfc058a5-a988-4244-801d-7685dbe47e1b
 # ╠═136289e4-f0ca-48f4-8ea0-463f7c49dbbf
 # ╠═0d02c70b-af32-442e-adb8-fd5a666ba574
+# ╠═eac4c715-03ec-4b52-92e5-4dfc4de6b7be
 # ╠═78de6bcd-4173-40e3-b500-499568289ba1
 # ╠═f9ea012f-9aae-4a8b-89d9-0f86802bb14f
 # ╠═1be45690-2ce1-45fb-bbc6-f9f4f1bf11e4
