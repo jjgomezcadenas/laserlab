@@ -47,9 +47,6 @@ end
 # ╔═╡ f7bb5111-2fc9-49df-972a-0737182da98c
 ENV["JLaserLab"]
 
-# ╔═╡ 5358aad5-955c-4395-973c-add579491383
-
-
 # ╔═╡ 06b8ed45-43bc-464f-89c0-dc0406312b81
 import Unitful:
     nm, μm, mm, cm, m, km,
@@ -81,9 +78,28 @@ lfi = ingredients("../src/LaserLab.jl")
 # ╔═╡ 5edc41bc-b912-44bf-9be5-a013f27a75ab
 PlutoUI.TableOfContents(title="Laser Lab CMOS analysis", indent=true)
 
-# ╔═╡ c9aaf1cc-80c4-475b-8a81-e00918d91b1e
+# ╔═╡ 90c97a39-b35f-44ba-9646-f0bb9eead338
 md"""
-# Analysis for a single point
+# G2SL Characteristics
+"""
+
+# ╔═╡ d30e1ceb-2e90-438e-8554-228aa5dc2a59
+begin
+g2df = lfi.LaserLab.load_df_from_csv("/Users/jjgomezcadenas/LaserLab/Proyectos/FLUORI/G2/G2SL/BOLD_104_SIL_GB_onquartz", 
+"Emisi_espec_G2SIL_quartz.csv", lfi.LaserLab.enG)
+	g2df = select!(g2df, [:L, :I])
+end
+
+# ╔═╡ 8bda9d8a-c928-431d-a441-ca64bacf7651
+begin
+	plot(g2df.L,g2df.I, lw=2, label="G2SL")
+	xlabel!("λ (nm)")
+	ylabel!("arbitrary units")
+end
+
+# ╔═╡ 2be5dcc0-e7c4-412b-990a-d7edb9967186
+md"""
+- In the spectrum shown above, signal below 500 nm is most likely an artifact.
 """
 
 # ╔═╡ 7ce42aec-b319-4de9-b70c-84046d45a600
@@ -93,7 +109,7 @@ md"""
 
 # ╔═╡ 58269465-ba8c-4840-bbfc-0a27897f3e2a
 md"""
-### Filter central value in nm
+### Filter central values in nm
 """
 
 # ╔═╡ 0b1c5662-ec4f-486e-9ee6-7fa6ba953e45
@@ -108,8 +124,45 @@ begin
 	println("Filter central values (nm) = ", filtnm.center, " width (nm) =", filtnm.width)
 end
 
-# ╔═╡ 777fe093-f1d2-4298-934f-0386b8c93210
-typeof(filtnm)
+# ╔═╡ b07466c0-dfcd-4c10-ae86-45e71a832476
+md"""
+### Effect of filters in spectrum
+"""
+
+# ╔═╡ 2c75e750-854e-459f-91a6-ba135ae263cf
+begin
+	wr=396.0:1.0:850.0
+	fg2 = lfi.LaserLab.dftof(wr, g2df, "I")
+	qs = [lfi.LaserLab.qpdf(fg2, filtnm.left[l], filtnm.right[l])/filtnm.width[l] for l in 1:length(xfnm)]
+	pqyd = plot(g2df.L,g2df.I, lw=2, label="G2SL")	
+	pfy = plot!(collect(wr), fg2.(wr), label="")
+	pqs = scatter!(xfnm, qs, label="Filters")
+	plot!(xfnm, qs, lw=2, label="")
+end
+
+
+# ╔═╡ c892d4f2-2678-41eb-8724-6d366178f491
+md"""
+- The plot shows the expected discretized distribution of G2SL passed by the filters of the laser setup.  
+"""
+
+# ╔═╡ eab79cba-ca3d-40d8-9961-257e711bb9ae
+begin
+	qwl = lfi.LaserLab.qpdf(fg2, 0.0, 850.0)
+	qflt = [lfi.LaserLab.qpdf(fg2, filtnm.left[l], filtnm.right[l]) for l in 1:length(xfnm)]
+	qx = qflt ./qwl
+	scatter(xfnm, qx, label="Fraction of total charge per filter", legend=:topleft)
+end
+
+# ╔═╡ e65eea70-46b3-4852-85d1-5edef9b21b37
+md"""
+- Plot shows the fraction of charge expected in each filter bin.
+"""
+
+# ╔═╡ c9aaf1cc-80c4-475b-8a81-e00918d91b1e
+md"""
+# Analysis for a single point
+"""
 
 # ╔═╡ b98ad447-6055-46e5-bb4f-9e67f9c3176a
 md"""
@@ -167,17 +220,6 @@ md"""
 	#### Experiment and run 
 	"""
 
-# ╔═╡ ec95a04a-bda9-429b-92f2-c79f28a322f0
-"""
-Given a list **xnames** (full path to files) returns the filter names
-"""
-function flt_names(xnames::Vector{String})
-		fxnm = [split(fn, "/")[end] for fn in xnames]
-		fxnb = [split(fn, "_")[2] for fn in fxnm]
-		fxint = sort([parse(Int64, ff) for ff in fxnb])
-		[string("Filter_", string(i), "_") for i in fxint]
-	end
-
 # ╔═╡ 308649b5-5c65-40dd-bc66-5b0273648341
 md"""
 ## Algorithm
@@ -190,6 +232,14 @@ md"""
 md"""
 ### Dark current 
 - Dark folder contains measurements of the dark current for each filter. 
+"""
+
+# ╔═╡ 347a0f01-fbee-4195-b3a3-55a29285298d
+md"""
+The measurements above:
+- Show a peak ~1600 (this is the pedestal that corresponds to the logical zero).
+- The peak has an rms (std) which is defined by the DC.
+- The distribution has long tails (noisy pixels).
 """
 
 # ╔═╡ a0b9922e-189f-445e-8508-130e8e561aba
@@ -593,12 +643,6 @@ function select_files(cmdir::String, sexp::String,srun::String, spoint::String,
 end
 
 
-# ╔═╡ def14fbe-f0cf-477f-910a-e8d2ede5eeaf
-fd1, nfd1 = select_files(cmdir,string(sexp),string(srun), "Dark")
-
-# ╔═╡ e071d45a-d94e-4932-944d-614deb62b4de
-fltn = flt_names(fd1)
-
 # ╔═╡ 077d7e4e-1b94-4b30-a70a-f3b5d3a6fc46
 ff1, nff1 = select_files(cmdir,string(sexp),string(srun), "Filter1")
 
@@ -642,22 +686,33 @@ begin
 	md""" ##### Select filter: $(@bind sfn Select(xfn))"""
 end
 
-# ╔═╡ 92a5b0b7-5dbb-4e98-a33e-bef1f6992b40
-md"""
-## Manipulation of images
+# ╔═╡ ec95a04a-bda9-429b-92f2-c79f28a322f0
 """
+Given a list **xnames** (full path to files) returns the filter names
+"""
+function flt_names(xnames::Vector{String})
+		fxnm = [split(fn, "/")[end] for fn in xnames]
+		fxnb = [split(fn, "_")[2] for fn in fxnm]
+		fxint = sort([parse(Int64, ff) for ff in fxnb])
+		[string("Filter_", string(i), "_") for i in fxint]
+	end
 
-# ╔═╡ fa052909-2ed8-4d90-8144-73147682df0e
+# ╔═╡ d71e7c72-d7ae-4915-bc36-aed347d09450
 """
-Returns true if coordinates x,y are inside the box defined by the corners of the edge
+Return the mean and std of a matrix if the elements are in an interval
 """
-function inedgex(vxe::NamedTuple{(:topleft, :botright)}, i::Int64,j::Int64)
-	if i <= vxe.topleft[1] &&  j >= vxe.topleft[2]   
-		if i >= vxe.botright[1] && j <= vxe.botright[2] 
-			return true
+function meanstd_interval(img::Matrix{Float64}, int::Tuple{Float64, Float64})
+	
+	sgn = Vector{Float64}(undef,0)
+
+	for i in 1:size(img)[1]
+		for j in 1:size(img)[2]
+			if img[i,j] > int[1] && img[i,j] < int[2]
+    			push!(sgn,img[i,j])
+			end
 		end
 	end
-	return false
+	mean(sgn), std(sgn)
 end
 
 # ╔═╡ 5f89baa6-d8f4-4d9c-a625-81cf9375f89c
@@ -692,40 +747,6 @@ function sum_interval(img::Matrix{Float64}, int::Tuple{Float64, Float64})
 	sumx
 end
 
-# ╔═╡ aa088449-b0e0-414f-9a96-1a2c5d6656ff
-"""
-Return the mean and std of a matrix above threshold
-"""
-function meanstd_thr(img::Matrix{Float64}, thr::Float64)
-	sgn = Vector{Float64}[]
-	for i in 1:size(img)[1]
-		for j in 1:size(img)[2]
-			if img[i,j] > thr
-    			push!(sgn,img[i,j])
-			end
-		end
-	end
-	mean(sgn), std(sgn)
-end
-
-# ╔═╡ d71e7c72-d7ae-4915-bc36-aed347d09450
-"""
-Return the mean and std of a matrix if the elements are in an interval
-"""
-function meanstd_interval(img::Matrix{Float64}, int::Tuple{Float64, Float64})
-	
-	sgn = Vector{Float64}(undef,1)
-
-	for i in 1:size(img)[1]
-		for j in 1:size(img)[2]
-			if img[i,j] > int[1] && img[i,j] < int[2]
-    			push!(sgn,img[i,j])
-			end
-		end
-	end
-	mean(sgn), std(sgn)
-end
-
 # ╔═╡ 03b663a3-8e01-4720-ad55-b9085ee5115d
 """
 Returns the regularised sum in the ROI. 
@@ -745,6 +766,179 @@ function roisum(roidks::Matrix{Float64},
 	stdf  = std(roi)
 	meanflt, stdflt = meanstd_interval(roi, (-nsigmaT*stdf,nsigmaT*stdf))
 	sum_interval(roi,(ctx, meanflt + nsigmaS*stdflt))
+end
+
+# ╔═╡ 84170688-fbc6-4676-84f1-126ecce4f5f2
+"""
+Indexes are colum wise in julia, so (x,y) coordinates corresponde to (second, first) index 
+"""
+function get_coord_from_indx(xyindx)
+	xyindx[2], xyindx[1]
+end
+
+# ╔═╡ 0ad139e9-85bc-421b-bdd7-e61711d47454
+"""
+Return a tuple ((x1,x1)...(xn,yn)) with the coordinates of the points in edge
+"""
+function indx_from_edge(iedge::Matrix{Float64}, isize=512)
+	indx = Vector{Tuple{Int, Int}}(undef, 0)
+	for i in 1:isize
+		for j in 1:isize
+			if iedge[i,j] == 1
+				push!(indx,(i,j))
+			end
+		end
+	end
+	indx
+end
+
+# ╔═╡ 65402da4-601a-4766-ba2c-6735f201ef6a
+"""
+Take the vector of indexes defining the edge (iedge) and return a matrix m(2, n),
+where n is the size of iedge and two vectors x(n), y(n). These objects are needed
+for DBDSCAN clustering 
+"""
+function edge_to_mtrx(iedge::Vector{Tuple{Int, Int}})
+	nedge = length(iedge)
+	medge = zeros(2, nedge )
+	xedge = zeros(nedge)
+	yedge = zeros(nedge)
+	for i in 1:nedge
+		medge[1, i] = iedge[i][1]
+		medge[2, i] = iedge[i][2]
+		xedge[i] = iedge[i][1]
+		yedge[i] = iedge[i][2]
+	end
+	medge, xedge, yedge
+end
+
+# ╔═╡ 9b118763-2739-4535-99c3-da6245ba1eae
+begin
+	img_edge = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
+	img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
+	mxedge, imxedge =findmax(img_edge)
+	vxmaxed, vymaxed = get_coord_from_indx(imxedge)
+	iedge = indx_from_edge(img_edgeb)  #indexed of the edge
+	medge, xedge, yedge = edge_to_mtrx(iedge)  # edge expressed as matrix, x,y
+	heatmap(img_edgeb)
+	#mosaicview(Gray.(f1img.imgn), Gray.(img_edgeb); nrow = 1)
+	#scatter!([vxmaxed], [vymaxed], label="edge max",markersize=3)
+end
+
+# ╔═╡ 1154dba4-fc68-48c4-ab55-c4a5687d0547
+scatter([yedge], [xedge], label="edge",markersize=2)
+
+# ╔═╡ ddf630eb-6be5-422e-9db5-b1a4348adf01
+clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
+
+# ╔═╡ 8414f6ab-c4f4-4f01-8082-80468ac4e04b
+md"""
+- DBSCAN found $(length(clusters)) clusters
+"""
+
+# ╔═╡ 0ca0299c-6c33-4e35-9642-66e77b1cedba
+begin
+	fcl = 1:length(clusters)
+	md""" ##### Select cluster  : $(@bind scl Select(fcl))"""
+end
+
+# ╔═╡ e956095a-e468-4456-9659-b1acd6bd507d
+"""
+Given vector xedge and yedge containing (x,y) coordinates of the edge and the
+clusters object returned by DBDSCAN, returns vectors of cluster points, cx, yc (for cluster number nc)
+
+"""
+function getclusters(iedge::Vector{Tuple{Int, Int}}, 
+	                 clusters::Vector{DbscanCluster}, nc::Int64)
+	cs = clusters[nc].size
+	ci = clusters[nc].core_indices
+	cb = clusters[nc].boundary_indices
+	
+	xc = Vector{Int64}(undef, cs)
+	yc = Vector{Int64}(undef, cs)
+	ii=1
+	for (i, indx) in enumerate(ci)
+		xc[ii] = iedge[indx][1]
+		yc[ii] = iedge[indx][2]
+		ii+=1
+	end
+	for (i, indx) in enumerate(cb)
+		xc[ii] = iedge[indx][1]
+		yc[ii] = iedge[indx][2]
+		ii+=1
+	end
+	xc,yc
+end
+
+# ╔═╡ cf1adbfc-e494-44e2-a6d6-7b89fb9a6be6
+xc1, yc1 = getclusters(iedge, clusters, scl);
+
+# ╔═╡ 8946f9d0-7108-4af5-90a7-8f338f59009b
+md"""
+- Cluster $scl containd $(length(xc1)) points
+"""
+
+# ╔═╡ 58bdc137-fc29-4f5e-9ab0-d6f959cfa71c
+"""
+Given a vector defining an edge, of two vectors of coordinates, return the topleft and bottomright corners
+"""
+function find_edge_corners(xc1::Vector{Int}, yc1::Vector{Int})
+	zcorner = zip(xc1, yc1)
+	topy = maximum([ii[1] for ii in zcorner])
+	lfty = minimum([ii[2] for ii in zcorner])
+	boty = minimum([ii[1] for ii in zcorner])
+	rgty = maximum([ii[2] for ii in zcorner])
+
+	topy, lfty, boty, rgty
+	(topleft=(topy, lfty), botright=(boty, rgty))
+end
+
+
+# ╔═╡ e3b52355-a912-42ff-ac39-08a79a1ccee5
+ecorner = find_edge_corners(xc1, yc1);
+
+# ╔═╡ ca7eb636-f817-4a1a-8b25-7e5ff2d3d0e5
+md"""
+##### corners of selected cluster:
+- top-left =$(ecorner.topleft)
+- bottom-right =$(ecorner.botright)
+"""
+
+# ╔═╡ 1658ecd9-8949-4052-9874-a31248c45821
+"""
+Given point pt, return the edge corner of cluster scl
+crad, nmin and csize are parameters of the DBDSCAN algorithm 
+"""
+function select_edge_corners(cmdir::String, sexp::String, srun::String, pt::String,
+                             crad::Int64, nmin::Int64, csize::Int64, scl::Int64)
+
+		# get image
+		flt1, _   = select_files(cmdir, sexp, srun, "Filter1")
+		f1img     = lfi.LaserLab.select_image(flt1, pt)
+
+		#image edge
+		img_edge  = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
+		img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
+		iedge     = indx_from_edge(img_edgeb)  
+		medge, xedge, yedge = edge_to_mtrx(iedge)
+
+		#find clusters and return edge
+		clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
+		xc1, yc1 = getclusters(iedge, clusters, scl)
+		find_edge_corners(xc1, yc1)
+	end
+
+# ╔═╡ fa052909-2ed8-4d90-8144-73147682df0e
+"""
+Returns true if coordinates x,y are inside the box defined by the corners of the edge
+"""
+function inedgex(vxe::NamedTuple{(:topleft, :botright)}, i::Int64,j::Int64)
+	if i <= vxe.topleft[1] &&  j >= vxe.topleft[2]   
+		if i >= vxe.botright[1] && j <= vxe.botright[2] 
+			return true
+		end
+	end
+	return false
 end
 
 # ╔═╡ 369dcaf2-ce5d-4641-a8cb-274161749c19
@@ -796,6 +990,14 @@ function imgroix(img::Matrix{Float64},
 	roi, iroi
 end
 
+# ╔═╡ 1968c0dd-8cf9-476a-84a8-b92b37ac02ad
+roixx, iroixx = imgroix(f1img.img, ecorner, prtlv=0);
+
+# ╔═╡ a1817474-d089-4245-9263-70314969b43e
+md"""
+- ROI has dimensions: $(size(roixx)) 
+"""
+
 # ╔═╡ 205fd30f-6a4e-473f-9eb5-e826b8c480b1
 """
 Returns the sum of the signal in the ROI
@@ -826,17 +1028,26 @@ function signal_roi(xfiles::Vector{String}, xfn::Vector{String},
 
 end
 
-# ╔═╡ 8496f1e5-ad5a-4469-851e-0795c8cf6c6b
+# ╔═╡ f649a197-c7a8-407d-9e11-6fd811c9d375
 """
-Returns the indexes of the roi contained between the corners topleft and bottomright
-"""
-function indxroi(xc1::Vector{Int}, yc1::Vector{Int}, 
-	             ecorn::NamedTuple{(:topleft, :botright)})
-	
-	zcorner = zip(xc1, yc1)
-	findall(i->(i==true), [II[1] <= ecorn.topleft[1] && II[2] >= ecorn.topleft[2] && II[1] >= ecorn.botright[1] && II[2] <= ecorn.botright[2] for II in zcorner ])
-end
+Returns the sum of the signal in the ROI for all points
 
+"""
+function signal_roi_allpoints(cmdir::String, sexp::String, srun::String,
+	                          xpt::Vector{String}, xfn::Vector{String}, 
+	                          dkavg::Float64, ctx::Float64, 
+                              crad::Int64, nmin::Int64, csize::Int64, scl::Int64,
+	                          nsigmaT::Float64 = 5.0, nsigmaS::Float64 = 2.5)
+
+	function signal_pt(pt::String)
+		ecorn  = select_edge_corners(cmdir, sexp, srun, pt,
+                                      crad, nmin, csize, scl)
+		xfiles, _ = select_files(cmdir,sexp,srun, pt)
+		signal_roi(xfiles, xfn, ecorn, dkavg, ctx, nsigmaT, nsigmaS)
+	end
+	
+	map(pt->signal_pt(pt), xpt)
+end
 
 # ╔═╡ dfda19e3-e772-4458-b29d-2885a020f77b
 """
@@ -851,6 +1062,64 @@ function xy_from_tuplelist(iedge::Vector{Tuple{Int, Int}})
 	end
 	xedge, yedge
 end
+
+# ╔═╡ 939c1d23-35d3-41bf-a854-395457e9ad59
+begin
+	xxe, yye = xy_from_tuplelist(iroixx)
+	
+	exminc, eyminc = get_coord_from_indx(ecorner.topleft)
+	exmaxc, eymaxc = get_coord_from_indx(ecorner.botright)
+	
+	scatter([yedge], [xedge], label="edge",markersize=2)
+	scatter!([yc1], [xc1], label="cluster $scl",markersize=2)
+	
+	scatter!([ecorner.topleft[2]], [ecorner.topleft[1]], 
+		     label="top left clust $scl",markersize=4)
+	
+	scatter!([ecorner.botright[2]], [ecorner.botright[1]], 
+	         label="bottom right clust $scl",markersize=4)
+	hline!([ecorner.topleft[1]], label="")
+	vline!([ecorner.topleft[2]], label="")
+	hline!([ecorner.botright[1]], label="")
+	vline!([ecorner.botright[2]], label="")
+	scatter!([yc1], [xc1], label="ROI edge for clust $scl",markersize=4)
+	scatter!([yye], [xxe], label="ROI points for clust $scl",markersize=1)
+	
+	
+end
+
+# ╔═╡ 92a5b0b7-5dbb-4e98-a33e-bef1f6992b40
+md"""
+## Manipulation of images
+"""
+
+# ╔═╡ aa088449-b0e0-414f-9a96-1a2c5d6656ff
+"""
+Return the mean and std of a matrix above threshold
+"""
+function meanstd_thr(img::Matrix{Float64}, thr::Float64)
+	sgn = Vector{Float64}[]
+	for i in 1:size(img)[1]
+		for j in 1:size(img)[2]
+			if img[i,j] > thr
+    			push!(sgn,img[i,j])
+			end
+		end
+	end
+	mean(sgn), std(sgn)
+end
+
+# ╔═╡ 8496f1e5-ad5a-4469-851e-0795c8cf6c6b
+"""
+Returns the indexes of the roi contained between the corners topleft and bottomright
+"""
+function indxroi(xc1::Vector{Int}, yc1::Vector{Int}, 
+	             ecorn::NamedTuple{(:topleft, :botright)})
+	
+	zcorner = zip(xc1, yc1)
+	findall(i->(i==true), [II[1] <= ecorn.topleft[1] && II[2] >= ecorn.topleft[2] && II[1] >= ecorn.botright[1] && II[2] <= ecorn.botright[2] for II in zcorner ])
+end
+
 
 # ╔═╡ 0bf2d20e-dff6-48c2-b059-38b87ed46bb6
 """
@@ -913,7 +1182,9 @@ function histo_signal(iroi::Matrix{Float64}, nbin::Int=100)
 	lfi.LaserLab.hist1d(vroi, "signal in roi", nbin, mnvroi,mxvroi)
 end
 
-# ╔═╡ 0ed427c3-c451-4530-abc8-531184cecaa8
+
+
+# ╔═╡ 6b6a3651-62e8-4449-9f9d-d8cf3e9ee04a
 function histo_signal(iroi::Matrix{Float64}, nbin::Int, min::Float64, max::Float64)
 	vroi = mtrxtovct(iroi)
 	lfi.LaserLab.hist1d(vroi, "signal in roi", nbin, min,max)
@@ -921,6 +1192,8 @@ end
 
 # ╔═╡ 0ee6da42-aa03-4923-bee9-15b92b6583c5
 begin
+	fd1, nfd1 = select_files(cmdir,string(sexp),string(srun), "Dark")
+	fltn = flt_names(fd1)
 	DRK = [lfi.LaserLab.select_image(fd1, flt).img for flt in fltn];
 	HDRK = [histo_signal(drk) for drk in DRK]
 	PDRK = [HDRK[i][2] for i in 1:length(HDRK)]
@@ -943,8 +1216,7 @@ if zroi
 	xlabel!("counts")
 	ylabel!("frequency")
 	ylims!(10., 40.0)
-	pdall = plot(size=(750,750), pdavg, pdstd,
-		         layout=(1,2), titlefontsize=8)
+	plot( pdavg, pdstd, layout=(1,2), titlefontsize=8)
 end
 
 # ╔═╡ 7472f7b8-b50b-4832-b7f7-0134d1c5ed8f
@@ -955,14 +1227,9 @@ begin
 	plot(filtnm.center, STDX, lw=2, label=spointf1, title="std DC no tail")
 	scatter!(filtnm.center, STDX,label="")
 	ylims!(0., 25.0)
-	xlabel!("counts")
-	ylabel!("value in filter")
+	xlabel!("Filter (nm)")
+	ylabel!("STD DC counts")
 end
-
-# ╔═╡ 9e4e99fe-351d-4a4c-afb2-3a9ed749209c
-md""" 
-STD of dark current (tail suppressed) = $dkstdx
-"""
 
 # ╔═╡ dbc8bed9-ba70-443c-9bd3-eaf91336a603
 
@@ -971,38 +1238,159 @@ nsigma=promsel = Float64(spsigma)
 ctoff = dkstdx * nsigma	
 md"""
 - With nsigma = $nsigma
-- Cutoff value = $ctoff
+- Cutoff value (nsigma x dkstd) = $ctoff
 """
 end
 
-# ╔═╡ 3549eafe-70c4-49d5-a121-11b8d2860804
+# ╔═╡ 9957adcf-48e2-4930-849e-b7601f1d8346
+ctoff
+
+# ╔═╡ 952ecc28-e2d7-4833-b820-73689a950ea6
+nsigma* dkstdx
+
+# ╔═╡ 9e4e99fe-351d-4a4c-afb2-3a9ed749209c
+md""" 
+STD of dark current:
+
+- Not suppressing tails = $dkstd
+- Supressing tails = $dkstdx
+"""
+
+# ╔═╡ 406cc319-e7a9-4c68-b732-774b7d1a7e59
 begin
-	DKSUMZ = [sum_interval(drk .- dkavg, (-3.0* dkstd, 3.0* dkstd)) for drk in DRK]
-	dksumz = mean(DKSUMZ)
-	DKSUMT = [sum_interval(drk .- dkavg, (3.0* dkstd, 100.0* dkstd)) for drk in DRK]
-	dksumt = mean(DKSUMT)
-	pdksumz = plot(filtnm.center, DKSUMZ, lw=2, label=spointf1, title="sum DC no tail")
-	scatter!(filtnm.center, DKSUMZ,label="")
-	ylims!(-1.0e7, 1.0e7)
-	xlabel!("value in filter")
-	ylabel!("counts")
-	pdksumt = plot(filtnm.center, DKSUMT, lw=2, label=spointf1, title="sum DC int tail")
-	scatter!(filtnm.center, DKSUMT,label="")
-	ylims!(0.0, 1.0e6)
-	xlabel!("value in filter")
-	ylabel!("counts")
-	plot(size=(750,750), pdksumz, pdksumt, layout=(1,2), titlefontsize=8)
+	zimg = lfi.LaserLab.select_image(xfiles, string(sfn));
+	zcimg = zimg.img .- dkavg;
+	roiflt, iroiflt = imgroix(zcimg, ecorner, prtlv=0)
+	heatmap(zcimg)
 end
 
 # ╔═╡ 904d10aa-aea9-46e7-a558-73bcd061a0ec
 begin
 	HDRK2 = [histo_signal(drk .- dkavg, 100, -3.0* dkstd, 3.0* dkstd) for drk in DRK]
 	PDRK2 = [HDRK2[i][2] for i in 1:length(HDRK)]
-	AVG2 = [mean(drk) for drk in DRK]
-	STD2 = [std(drk) for drk in DRK]
-	dkavg2 = mean(AVG2)
-	dkstd2 = mean(STD2)
 	phdrk2 = plot(size=(750,750), PDRK2..., layout=(5,2), titlefontsize=8)
+end
+
+# ╔═╡ b81df45b-e64e-4a07-982f-368ae03353c2
+begin
+	roidks = roixx .- dkavg
+	hroi, proi = histo_signal(roidks, 50, 0.0, 5e+4)
+	plot(proi)
+end
+
+# ╔═╡ 918126c6-b25f-49b5-b5a2-3c15ba1d9cfd
+begin
+	ctx = nsigma * dkstdx
+	ntsigma = 5.0
+	nssigma = 3.0
+	#sumnf = roisum(roixx, dkavg, ctx)
+	#sumtl = sum(roidks)
+
+	meanwltt = mean(roidks)
+	stdwltt = std(roidks)
+	#meanwlt, stdwlt = meanstd_interval(roidks, (-ntsigma*stdwltt, ntsigma*stdwltt))
+	meanwlt, stdwlt = meanstd_interval(roidks, (0.0, ntsigma* stdwltt))
+	sumtl = sum_thr(roidks, 0.0)
+	sumnf = sum_interval(roidks,(ctx, meanwlt +nssigma*stdwlt))
+md"""
+- Number of sigmas for dc suppression = $nsigma
+- Number of sigmas to recompute mean/std no tails = $ntsigma
+- Number of sigmas to sum signal = $nssigma
+- std of dark current =$(round(dkstdx, sigdigits=3))
+
+- DC cutoff = $(round(ctoff, sigdigits=4))
+- signal mean (tails) =$(round(meanwltt, sigdigits=3))
+- signal std (tails) =$(round(stdwltt, sigdigits=3))
+- signal mean (no tails) =$(round(meanwlt, sigdigits=3))
+- signal std (no tails) =$(round(stdwlt, sigdigits=3))
+- Total signal (no cuts) = $(round(sumtl, sigdigits=2))
+- Total signal (no dc, no tails) = $(round(sumnf, sigdigits=2))
+"""
+end
+
+# ╔═╡ 3549eafe-70c4-49d5-a121-11b8d2860804
+begin
+	DKSUMZ = [sum_interval(drk .- dkavg, (ctx, nsigma* dkstdx)) for drk in DRK]
+	#dksumz = mean(DKSUMZ)
+	DKSUMT = [sum_thr(drk .- dkavg, 0.0) for drk in DRK]
+	#dksumt = mean(DKSUMT)
+	
+	pdksumz = plot(filtnm.center, DKSUMZ, lw=2, label=spointf1, title="sum DC no tail")
+	scatter!(filtnm.center, DKSUMZ,label="")
+	ylims!(-1.0e3, 1.0e3)
+	xlabel!("value in filter (nm)")
+	ylabel!(" Sum in filter DC/tail suppressed (counts)")
+	
+	pdksumt = plot(filtnm.center, DKSUMT, lw=2, label=spointf1, title="sum DC int tail")
+	scatter!(filtnm.center, DKSUMT,label="")
+	ylims!(0.0, 1.0e7)
+	xlabel!("Value in filter (nm)")
+	ylabel!("SUM in filter DC (counts)")
+	plot(size=(750,750), pdksumz, pdksumt, layout=(1,2), titlefontsize=8)
+end
+
+# ╔═╡ 2ad43913-db20-4c21-8a9d-cae776aa9b92
+ctx
+
+# ╔═╡ da7e09c2-cf28-414d-bca2-3b9a35275857
+begin
+	nflt = parse(Int64, sfn)
+	meanfltt = mean(roiflt)
+	stdfltt = std(roiflt)
+	meanflt, stdflt = meanstd_interval(roiflt, (-5.0*stdfltt, 5.0*stdfltt))
+	sumtt = sum_thr(roiflt, 0.0)
+	sumt = sum_interval(roiflt,(ctx, meanflt + 2.5*stdflt))
+
+	sumtf = sumt/filtnm.width[nflt]
+md"""
+##### Image for filter $sfn in ROI
+- average: $(round(meanfltt, sigdigits=2))    
+- std = $(round(stdfltt,sigdigits=3))
+- average (tail suppressed): $(round(meanflt, sigdigits=2))    
+- std (tail suppressed) = $(round(stdflt,sigdigits=3))
+
+- Total charge (no interval) : $(round(sumtt, sigdigits=3))
+
+- lower cutoff for sum = $(round(ctx, sigdigits=3))
+- upper cutoff for sum= $(round(meanflt + 2.5*stdflt, sigdigits=3))
+- Total charge (interval) = $(round(sumt, sigdigits=3))
+
+- Filter width = $(filtnm.width[nflt])
+- Charge/nm = $(round(sumtf, sigdigits=3))
+"""
+end
+
+# ╔═╡ 1b6bd414-ddc4-4e6c-a4be-2e1d8fe623ef
+if zrec
+	SPFLT = signal_roi_allpoints(cmdir, string(sexp), string(srun), 
+		                 string.(fpoints), string.(xfn),
+			             dkavg, ctx, crad, nmin, csize, scl)
+end
+
+# ╔═╡ 6461b6c0-4741-4da6-8db2-5c0a809d3eea
+if zrec
+	SPXFLT = []
+	for (i, sf) in enumerate(SPFLT)
+		lbl = string("Point",i)
+		sc = 1e+4
+		sgnorm = signalnorm(sf, sumnf, filtnm; scale=sc)
+		scstr = @sprintf "%.1E" sc
+		xlb = string(scstr, " x sgn/nm")
+		pfxx = plot(filtnm.center, sgnorm, lw=2, label=lbl, legend=:topleft, title="")
+		scatter!(filtnm.center, sgnorm, label="")
+		xlabel!("λ (nm)")
+		ylabel!(xlb)
+		push!(SPXFLT, pfxx)
+	end
+	plot(size=(1050,1050), SPXFLT..., layout=(4,4), titlefontsize=8)
+end
+
+# ╔═╡ 2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
+begin	
+	hroiz, proiz = histo_signal(roiflt,50)
+	#prz1 = plot(proiz)
+	hroizx, proizx = histo_signal(roiflt, 50, -5.0*stdfltt, 5.0*stdfltt)
+	plot(proiz, proizx, layout=(1,2), titlefontsize=8)
 end
 
 # ╔═╡ ed8ab0b7-9fc5-4cb3-8436-79a056a5667f
@@ -1027,45 +1415,38 @@ function signal_histos(xfiles::Vector{String}, xfn::Vector{String},
 	
 end
 
-# ╔═╡ 84170688-fbc6-4676-84f1-126ecce4f5f2
-"""
-Indexes are colum wise in julia, so (x,y) coordinates corresponde to (second, first) index 
-"""
-function get_coord_from_indx(xyindx)
-	xyindx[2], xyindx[1]
+# ╔═╡ aa820b03-361a-4fc1-beb2-9e8b9d1419ee
+if zroi
+	sfroi = signal_roi(xfiles, xfn, ecorner, dkavg, ctx)
+	pfhroi = signal_histos(xfiles, xfn, ecorner, dkavg)
+	psfroi = plot(filtnm.center, sfroi, lw=2, label=spointf1, title="Sum (no tails)")
+	scatter!(filtnm.center, sfroi, label="")
+	xlabel!("λ (nm)")
+	ylabel!("counts")
+	
+	psfroin = plot(filtnm.center, sfroi ./filtnm.width, lw=2, label=spointf1, title="Sum (per nm)")
+	scatter!(filtnm.center, sfroi ./filtnm.width, label="")
+	xlabel!("λ (nm)")
+	ylabel!("counts/nm")
+
+	psfroix = plot(filtnm.center, sfroi /sumnf, lw=2, label=spointf1, title="Sum (fraction of white light)")
+	scatter!(filtnm.center, sfroi /sumnf, label="")
+	xlabel!("λ (nm)")
+	ylabel!("fraction of WL")
+
+	psfroiy = plot(filtnm.center, (sfroi/sumnf) ./filtnm.width, lw=2, label=spointf1, title="Sum (fraction of white light per nm)")
+	scatter!(filtnm.center, (sfroi/sumnf) ./filtnm.width, label="")
+	xlabel!("λ (nm)")
+	ylabel!("fraction of WL/nm")
+
+	plot(size=(750,750), psfroi, psfroin, psfroix, psfroiy,
+		 layout=(2,2), titlefontsize=8)
 end
 
-# ╔═╡ 0ad139e9-85bc-421b-bdd7-e61711d47454
-"""
-Return a tuple ((x1,x1)...(xn,yn)) with the coordinates of the points in edge
-"""
-function indx_from_edge(iedge::Matrix{Float64}, isize=512)
-	indx = Vector{Tuple{Int, Int}}(undef, 0)
-	for i in 1:isize
-		for j in 1:isize
-			if iedge[i,j] == 1
-				push!(indx,(i,j))
-			end
-		end
-	end
-	indx
+# ╔═╡ b842a9b8-1642-480c-a5b0-0b5228832c16
+if zroi
+	plot(size=(750,750), pfhroi..., layout=(5,2), titlefontsize=10)
 end
-
-# ╔═╡ 58bdc137-fc29-4f5e-9ab0-d6f959cfa71c
-"""
-Given a vector defining an edge, of two vectors of coordinates, return the topleft and bottomright corners
-"""
-function find_edge_corners(xc1::Vector{Int}, yc1::Vector{Int})
-	zcorner = zip(xc1, yc1)
-	topy = maximum([ii[1] for ii in zcorner])
-	lfty = minimum([ii[2] for ii in zcorner])
-	boty = minimum([ii[1] for ii in zcorner])
-	rgty = maximum([ii[2] for ii in zcorner])
-
-	topy, lfty, boty, rgty
-	(topleft=(topy, lfty), botright=(boty, rgty))
-end
-
 
 # ╔═╡ 92900aa3-c295-4def-8700-384ddbea43d9
 """
@@ -1107,303 +1488,6 @@ function inedge(vxe, i::Int64,j::Int64)
 		end
 	end
 	return false
-end
-
-# ╔═╡ e956095a-e468-4456-9659-b1acd6bd507d
-"""
-Given vector xedge and yedge containing (x,y) coordinates of the edge and the
-clusters object returned by DBDSCAN, returns vectors of cluster points, cx, yc (for cluster number nc)
-
-"""
-function getclusters(iedge::Vector{Tuple{Int, Int}}, 
-	                 clusters::Vector{DbscanCluster}, nc::Int64)
-	cs = clusters[nc].size
-	ci = clusters[nc].core_indices
-	cb = clusters[nc].boundary_indices
-	
-	xc = Vector{Int64}(undef, cs)
-	yc = Vector{Int64}(undef, cs)
-	ii=1
-	for (i, indx) in enumerate(ci)
-		xc[ii] = iedge[indx][1]
-		yc[ii] = iedge[indx][2]
-		ii+=1
-	end
-	for (i, indx) in enumerate(cb)
-		xc[ii] = iedge[indx][1]
-		yc[ii] = iedge[indx][2]
-		ii+=1
-	end
-	xc,yc
-end
-
-# ╔═╡ 65402da4-601a-4766-ba2c-6735f201ef6a
-"""
-Take the vector of indexes defining the edge (iedge) and return a matrix m(2, n),
-where n is the size of iedge and two vectors x(n), y(n). These objects are needed
-for DBDSCAN clustering 
-"""
-function edge_to_mtrx(iedge::Vector{Tuple{Int, Int}})
-	nedge = length(iedge)
-	medge = zeros(2, nedge )
-	xedge = zeros(nedge)
-	yedge = zeros(nedge)
-	for i in 1:nedge
-		medge[1, i] = iedge[i][1]
-		medge[2, i] = iedge[i][2]
-		xedge[i] = iedge[i][1]
-		yedge[i] = iedge[i][2]
-	end
-	medge, xedge, yedge
-end
-
-# ╔═╡ 9b118763-2739-4535-99c3-da6245ba1eae
-begin
-	img_edge = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
-	img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
-	mxedge, imxedge =findmax(img_edge)
-	vxmaxed, vymaxed = get_coord_from_indx(imxedge)
-	iedge = indx_from_edge(img_edgeb)  #indexed of the edge
-	medge, xedge, yedge = edge_to_mtrx(iedge)  # edge expressed as matrix, x,y
-	heatmap(img_edgeb)
-	#mosaicview(Gray.(f1img.imgn), Gray.(img_edgeb); nrow = 1)
-	#scatter!([vxmaxed], [vymaxed], label="edge max",markersize=3)
-end
-
-# ╔═╡ 1154dba4-fc68-48c4-ab55-c4a5687d0547
-scatter([yedge], [xedge], label="edge",markersize=2)
-
-# ╔═╡ ddf630eb-6be5-422e-9db5-b1a4348adf01
-clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
-
-# ╔═╡ 8414f6ab-c4f4-4f01-8082-80468ac4e04b
-md"""
-- DBSCAN found $(length(clusters)) clusters
-"""
-
-# ╔═╡ 0ca0299c-6c33-4e35-9642-66e77b1cedba
-begin
-	fcl = 1:length(clusters)
-	md""" ##### Select cluster  : $(@bind scl Select(fcl))"""
-end
-
-# ╔═╡ cf1adbfc-e494-44e2-a6d6-7b89fb9a6be6
-xc1, yc1 = getclusters(iedge, clusters, scl);
-
-# ╔═╡ 8946f9d0-7108-4af5-90a7-8f338f59009b
-md"""
-- Cluster $scl containd $(length(xc1)) points
-"""
-
-# ╔═╡ e3b52355-a912-42ff-ac39-08a79a1ccee5
-ecorner = find_edge_corners(xc1, yc1);
-
-# ╔═╡ ca7eb636-f817-4a1a-8b25-7e5ff2d3d0e5
-md"""
-##### corners of selected cluster:
-- top-left =$(ecorner.topleft)
-- bottom-right =$(ecorner.botright)
-"""
-
-# ╔═╡ 1968c0dd-8cf9-476a-84a8-b92b37ac02ad
-roixx, iroixx = imgroix(f1img.img, ecorner, prtlv=0);
-
-# ╔═╡ a1817474-d089-4245-9263-70314969b43e
-md"""
-- ROI has dimensions: $(size(roixx)) 
-"""
-
-# ╔═╡ b81df45b-e64e-4a07-982f-368ae03353c2
-begin
-	roidks = roixx .- dkavg
-	hroi, proi = histo_signal(roidks, 50)
-	plot(proi)
-end
-
-# ╔═╡ 918126c6-b25f-49b5-b5a2-3c15ba1d9cfd
-begin
-	ctx = nsigma * dkstd
-	sumnf = roisum(roixx, dkavg, ctx)
-	sumtl = sum(roidks)
-md"""
-- std of dark current =$(round(dkstd, sigdigits=3))
-- Number of sigmas for dc suppression = $nsigma
-- Effective cutoff (in counts) = $(round(ctx, sigdigits=4))
-- Total signal (no filters) = $(round(sumnf, sigdigits=2))
-- Total signal (no filters, tails) = $(round(sumtl, sigdigits=2))
-"""
-end
-
-# ╔═╡ 406cc319-e7a9-4c68-b732-774b7d1a7e59
-begin
-	zimg = lfi.LaserLab.select_image(xfiles, string(sfn));
-	zcimg = zimg.img .- dkavg;
-	roiflt, iroiflt = imgroix(zcimg, ecorner, prtlv=0)
-	heatmap(zcimg)
-end
-
-# ╔═╡ da7e09c2-cf28-414d-bca2-3b9a35275857
-begin
-	nflt = parse(Int64, sfn)
-	meanfltt = mean(roiflt)
-	stdfltt = std(roiflt)
-	meanflt, stdflt = meanstd_interval(roiflt, (-5.0*stdfltt, 5.0*stdfltt))
-	sumtt = sum_thr(roiflt, 0.0)
-	sumt = sum_interval(roiflt,(ctx, meanflt + 2.5*stdflt))
-
-	sumtf = sumt/filtnm.width[nflt]
-md"""
-##### Image for filter $sfn in ROI
-- average: $(round(meanfltt, sigdigits=2))    
-- std = $(round(stdfltt,sigdigits=3))
-- average (tail suppressed): $(round(meanflt, sigdigits=2))    
-- std (tail suppressed) = $(round(stdflt,sigdigits=3))
-
-- Total charge (no interval) : $(round(sumtt, sigdigits=3))
-
-- lower cutoff for sum = $(round(ctx, sigdigits=3))
-- upper cutoff for sum= $(round(meanflt + 2.5*stdflt, sigdigits=3))
-- Total charge (interval) = $(round(sumt, sigdigits=3))
-
-- Filter width = $(filtnm.width[nflt])
-- Charge/nm = $(round(sumtf, sigdigits=3))
-"""
-end
-
-# ╔═╡ 2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
-begin	
-	hroiz, proiz = histo_signal(roiflt,50)
-	#prz1 = plot(proiz)
-	hroizx, proizx = histo_signal(roiflt, 50, -5.0*stdfltt, 5.0*stdfltt)
-	plot(proiz, proizx, layout=(1,2), titlefontsize=8)
-end
-
-# ╔═╡ aa820b03-361a-4fc1-beb2-9e8b9d1419ee
-if zroi
-	sfroi = signal_roi(xfiles, xfn, ecorner, dkavg, ctx)
-	pfhroi = signal_histos(xfiles, xfn, ecorner, dkavg)
-	psfroi = plot(filtnm.center, sfroi, lw=2, label=spointf1, title="Sum (no tails)")
-	scatter!(filtnm.center, sfroi, label="")
-	xlabel!("λ (nm)")
-	ylabel!("counts")
-	
-	psfroin = plot(filtnm.center, sfroi ./filtnm.width, lw=2, label=spointf1, title="Sum (per nm)")
-	scatter!(filtnm.center, sfroi ./filtnm.width, label="")
-	xlabel!("λ (nm)")
-	ylabel!("counts/nm")
-
-	psfroix = plot(filtnm.center, sfroi /sumnf, lw=2, label=spointf1, title="Sum (fraction of white light)")
-	scatter!(filtnm.center, sfroi /sumnf, label="")
-	xlabel!("λ (nm)")
-	ylabel!("fraction of WL")
-
-	psfroiy = plot(filtnm.center, (sfroi/sumnf) ./filtnm.width, lw=2, label=spointf1, title="Sum (fraction of white light per nm)")
-	scatter!(filtnm.center, (sfroi/sumnf) ./filtnm.width, label="")
-	xlabel!("λ (nm)")
-	ylabel!("fraction of WL/nm")
-
-	plot(size=(750,750), psfroi, psfroin, psfroix, psfroiy,
-		 layout=(2,2), titlefontsize=8)
-end
-
-# ╔═╡ b842a9b8-1642-480c-a5b0-0b5228832c16
-if zroi
-	plot(size=(750,750), pfhroi..., layout=(5,2), titlefontsize=10)
-end
-
-# ╔═╡ 939c1d23-35d3-41bf-a854-395457e9ad59
-begin
-	xxe, yye = xy_from_tuplelist(iroixx)
-	
-	exminc, eyminc = get_coord_from_indx(ecorner.topleft)
-	exmaxc, eymaxc = get_coord_from_indx(ecorner.botright)
-	
-	scatter([yedge], [xedge], label="edge",markersize=2)
-	scatter!([yc1], [xc1], label="cluster $scl",markersize=2)
-	
-	scatter!([ecorner.topleft[2]], [ecorner.topleft[1]], 
-		     label="top left clust $scl",markersize=4)
-	
-	scatter!([ecorner.botright[2]], [ecorner.botright[1]], 
-	         label="bottom right clust $scl",markersize=4)
-	hline!([ecorner.topleft[1]], label="")
-	vline!([ecorner.topleft[2]], label="")
-	hline!([ecorner.botright[1]], label="")
-	vline!([ecorner.botright[2]], label="")
-	scatter!([yc1], [xc1], label="ROI edge for clust $scl",markersize=4)
-	scatter!([yye], [xxe], label="ROI points for clust $scl",markersize=1)
-	
-	
-end
-
-# ╔═╡ 1658ecd9-8949-4052-9874-a31248c45821
-"""
-Given point pt, return the edge corner of cluster scl
-crad, nmin and csize are parameters of the DBDSCAN algorithm 
-"""
-function select_edge_corners(cmdir::String, sexp::String, srun::String, pt::String,
-                             crad::Int64, nmin::Int64, csize::Int64, scl::Int64)
-
-		# get image
-		flt1, _   = select_files(cmdir, sexp, srun, "Filter1")
-		f1img     = lfi.LaserLab.select_image(flt1, pt)
-
-		#image edge
-		img_edge  = Float64.(lfi.LaserLab.sujoy(f1img.imgn, four_connectivity=true))
-		img_edgeb = Float64.(lfi.LaserLab.binarize(img_edge, Otsu()))
-		iedge     = indx_from_edge(img_edgeb)  
-		medge, xedge, yedge = edge_to_mtrx(iedge)
-
-		#find clusters and return edge
-		clusters = dbscan(medge, crad, min_neighbors = nmin, min_cluster_size = csize)
-		xc1, yc1 = getclusters(iedge, clusters, scl)
-		find_edge_corners(xc1, yc1)
-	end
-
-# ╔═╡ f649a197-c7a8-407d-9e11-6fd811c9d375
-"""
-Returns the sum of the signal in the ROI for all points
-
-"""
-function signal_roi_allpoints(cmdir::String, sexp::String, srun::String,
-	                          xpt::Vector{String}, xfn::Vector{String}, 
-	                          dkavg::Float64, ctx::Float64, 
-                              crad::Int64, nmin::Int64, csize::Int64, scl::Int64,
-	                          nsigmaT::Float64 = 5.0, nsigmaS::Float64 = 2.5)
-
-	function signal_pt(pt::String)
-		ecorn  = select_edge_corners(cmdir, sexp, srun, pt,
-                                      crad, nmin, csize, scl)
-		xfiles, _ = select_files(cmdir,sexp,srun, pt)
-		signal_roi(xfiles, xfn, ecorn, dkavg, ctx, nsigmaT, nsigmaS)
-	end
-	
-	map(pt->signal_pt(pt), xpt)
-end
-
-# ╔═╡ 1b6bd414-ddc4-4e6c-a4be-2e1d8fe623ef
-if zrec
-	SPFLT = signal_roi_allpoints(cmdir, string(sexp), string(srun), 
-		                 string.(fpoints), string.(xfn),
-			             dkavg, ctx, crad, nmin, csize, scl)
-end
-
-# ╔═╡ 6461b6c0-4741-4da6-8db2-5c0a809d3eea
-if zrec
-	SPXFLT = []
-	for (i, sf) in enumerate(SPFLT)
-		lbl = string("Point",i)
-		sc = 1e+4
-		sgnorm = signalnorm(sf, sumnf, filtnm; scale=sc)
-		scstr = @sprintf "%.1E" sc
-		xlb = string(scstr, " x sgn/nm")
-		pfxx = plot(filtnm.center, sgnorm, lw=2, label=lbl, legend=:topleft, title="")
-		scatter!(filtnm.center, sgnorm, label="")
-		xlabel!("λ (nm)")
-		ylabel!(xlb)
-		push!(SPXFLT, pfxx)
-	end
-	plot(size=(1050,1050), SPXFLT..., layout=(3,3), titlefontsize=8)
 end
 
 # ╔═╡ 44107b67-1a43-4b78-a928-71f96b5d6ab8
@@ -1807,16 +1891,23 @@ end
 # ╠═f7bb5111-2fc9-49df-972a-0737182da98c
 # ╠═981730a6-61fc-484b-ba3c-66920ee7cf83
 # ╠═8e7ec382-c738-11ec-3aae-b50d60f15c4f
-# ╠═5358aad5-955c-4395-973c-add579491383
 # ╠═06b8ed45-43bc-464f-89c0-dc0406312b81
 # ╠═8833b198-03e4-4679-8949-0c76546cb847
 # ╠═6163ba69-1237-4b49-988e-9a73cfef67f6
 # ╠═5edc41bc-b912-44bf-9be5-a013f27a75ab
-# ╠═c9aaf1cc-80c4-475b-8a81-e00918d91b1e
+# ╠═90c97a39-b35f-44ba-9646-f0bb9eead338
+# ╠═d30e1ceb-2e90-438e-8554-228aa5dc2a59
+# ╠═8bda9d8a-c928-431d-a441-ca64bacf7651
+# ╠═2be5dcc0-e7c4-412b-990a-d7edb9967186
 # ╠═7ce42aec-b319-4de9-b70c-84046d45a600
 # ╠═58269465-ba8c-4840-bbfc-0a27897f3e2a
 # ╠═0b1c5662-ec4f-486e-9ee6-7fa6ba953e45
-# ╠═777fe093-f1d2-4298-934f-0386b8c93210
+# ╠═b07466c0-dfcd-4c10-ae86-45e71a832476
+# ╠═2c75e750-854e-459f-91a6-ba135ae263cf
+# ╠═c892d4f2-2678-41eb-8724-6d366178f491
+# ╠═eab79cba-ca3d-40d8-9961-257e711bb9ae
+# ╠═e65eea70-46b3-4852-85d1-5edef9b21b37
+# ╠═c9aaf1cc-80c4-475b-8a81-e00918d91b1e
 # ╠═b98ad447-6055-46e5-bb4f-9e67f9c3176a
 # ╠═88853edb-dc1f-4e7a-a0ba-1868276d1ada
 # ╠═57d96432-4318-4291-8255-bfa5d6d3635c
@@ -1826,12 +1917,10 @@ end
 # ╠═e87f48e3-5e5a-44d5-83de-c520e522e33a
 # ╠═50ea2ecc-970f-4630-8c7e-acf5e69cc4c9
 # ╠═f26bb6e0-45ac-4419-bcb2-46e2cac1f75b
-# ╠═ec95a04a-bda9-429b-92f2-c79f28a322f0
 # ╠═308649b5-5c65-40dd-bc66-5b0273648341
 # ╠═4218a405-5cb5-464f-9ce1-5d23daeabbef
-# ╠═def14fbe-f0cf-477f-910a-e8d2ede5eeaf
-# ╠═e071d45a-d94e-4932-944d-614deb62b4de
 # ╠═0ee6da42-aa03-4923-bee9-15b92b6583c5
+# ╠═347a0f01-fbee-4195-b3a3-55a29285298d
 # ╠═e39d2f51-717a-43d0-90b2-25579e625844
 # ╠═904d10aa-aea9-46e7-a558-73bcd061a0ec
 # ╠═7472f7b8-b50b-4832-b7f7-0134d1c5ed8f
@@ -1840,6 +1929,9 @@ end
 # ╠═0d846a7e-cd53-40a9-8fd5-c5be630790bb
 # ╠═dbc8bed9-ba70-443c-9bd3-eaf91336a603
 # ╠═3549eafe-70c4-49d5-a121-11b8d2860804
+# ╠═2ad43913-db20-4c21-8a9d-cae776aa9b92
+# ╠═952ecc28-e2d7-4833-b820-73689a950ea6
+# ╠═9957adcf-48e2-4930-849e-b7601f1d8346
 # ╠═b270c34c-177b-41ba-8024-56576770b45c
 # ╠═077d7e4e-1b94-4b30-a70a-f3b5d3a6fc46
 # ╠═c69c8b9d-50bf-46ce-8614-1fee1661e424
@@ -1937,28 +2029,29 @@ end
 # ╠═2498aa42-2c24-47e3-bf5b-647377af0dbc
 # ╠═afeb42ca-b462-4320-b364-98a0b4730e33
 # ╠═46b1d54e-4ebf-45a2-b137-9690b7a51d38
-# ╠═92a5b0b7-5dbb-4e98-a33e-bef1f6992b40
-# ╠═fa052909-2ed8-4d90-8144-73147682df0e
+# ╠═ec95a04a-bda9-429b-92f2-c79f28a322f0
+# ╠═54664106-32d8-4ba9-b3e4-0a926a02309c
+# ╠═6b6a3651-62e8-4449-9f9d-d8cf3e9ee04a
+# ╠═d71e7c72-d7ae-4915-bc36-aed347d09450
 # ╠═5f89baa6-d8f4-4d9c-a625-81cf9375f89c
 # ╠═85d6c31f-2fc8-486b-98e9-e5b9e134df6a
-# ╠═aa088449-b0e0-414f-9a96-1a2c5d6656ff
-# ╠═d71e7c72-d7ae-4915-bc36-aed347d09450
-# ╠═369dcaf2-ce5d-4641-a8cb-274161749c19
-# ╠═8496f1e5-ad5a-4469-851e-0795c8cf6c6b
-# ╠═dfda19e3-e772-4458-b29d-2885a020f77b
-# ╠═0bf2d20e-dff6-48c2-b059-38b87ed46bb6
-# ╠═c3cb6332-0b65-4a49-aa63-a846df3a5277
-# ╠═54664106-32d8-4ba9-b3e4-0a926a02309c
-# ╠═0ed427c3-c451-4530-abc8-531184cecaa8
-# ╠═ae5cf21c-7656-4f9f-bd04-73e0e0d8fbee
 # ╠═84170688-fbc6-4676-84f1-126ecce4f5f2
 # ╠═0ad139e9-85bc-421b-bdd7-e61711d47454
+# ╠═65402da4-601a-4766-ba2c-6735f201ef6a
+# ╠═e956095a-e468-4456-9659-b1acd6bd507d
 # ╠═58bdc137-fc29-4f5e-9ab0-d6f959cfa71c
+# ╠═369dcaf2-ce5d-4641-a8cb-274161749c19
+# ╠═fa052909-2ed8-4d90-8144-73147682df0e
+# ╠═dfda19e3-e772-4458-b29d-2885a020f77b
+# ╠═92a5b0b7-5dbb-4e98-a33e-bef1f6992b40
+# ╠═aa088449-b0e0-414f-9a96-1a2c5d6656ff
+# ╠═8496f1e5-ad5a-4469-851e-0795c8cf6c6b
+# ╠═0bf2d20e-dff6-48c2-b059-38b87ed46bb6
+# ╠═c3cb6332-0b65-4a49-aa63-a846df3a5277
+# ╠═ae5cf21c-7656-4f9f-bd04-73e0e0d8fbee
 # ╠═92900aa3-c295-4def-8700-384ddbea43d9
 # ╠═f52ea16e-2aaa-41c4-802d-1481ad1f1fb2
 # ╠═aeb87084-72fe-4e82-acfc-0a92bd534bcd
-# ╠═e956095a-e468-4456-9659-b1acd6bd507d
-# ╠═65402da4-601a-4766-ba2c-6735f201ef6a
 # ╠═44107b67-1a43-4b78-a928-71f96b5d6ab8
 # ╠═89b2979a-6e18-40df-8ac4-866e3a0639d6
 # ╠═fda4ec0c-ca4f-48e3-ac98-85644cc2ba67
