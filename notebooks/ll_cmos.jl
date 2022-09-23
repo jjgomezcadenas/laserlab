@@ -334,6 +334,9 @@ md"""
 ### Analysis for Filters 2-11
 """
 
+# ╔═╡ 647529a4-93ed-49e2-a08b-064c989b8be8
+
+
 # ╔═╡ e9e8e58a-e1db-49f1-8429-420271fb1852
 md"""
 ## Spectrum using ROI
@@ -384,15 +387,17 @@ end
 
 # ╔═╡ 3e359ff2-de6b-41f6-99ff-102c446f3828
 function spectratodf(xfn::Vector{String}, fpoints::Vector{String},
-	                  filtnm::NamedTuple,
-                      outdir::String, fn::String, SPFLT::Vector{Vector{Float64}})
-
+	                 filtnm::NamedTuple,
+                     outdir::String, fn::String, 
+					 sumtldc::Float64,
+	                 SPFLT::Vector{Vector{Float64}})
+	
 	
 	df = DataFrame("point"=>[],"fltn" => [], "cflt" => [], "wflt" => [],
 		      "sum"=> [], "snorm"=> [])	
 	
 	for (i, sf) in enumerate(SPFLT)
-		sgnorm = signalnorm(sf, filtnm)
+		sgnorm = signalnorm(sf, sumtldc, filtnm)
 		for (j, flt) in enumerate(xfn)
 			push!(df,[fpoints[i], flt, filtnm.center[j], filtnm.width[j],
 				sf[j], sgnorm[j]])
@@ -641,12 +646,6 @@ if zread
 	g2sdf = lfi.LaserLab.load_df_from_csv(csvdir, string(srun,".csv"), lfi.LaserLab.enG)
 end
 
-# ╔═╡ 8226971c-3ba9-48d9-98d8-fc80f52f592a
-g2sdfp = groupby(g2sdf, :point)
-
-# ╔═╡ e6538d3c-0a22-4b5d-9835-bee946c11f3d
-keys(g2sdfp)
-
 # ╔═╡ afeb42ca-b462-4320-b364-98a0b4730e33
 """
 Returns dirs defined by cmdir, sexp and srun (point by convention)
@@ -723,11 +722,12 @@ begin
 	md""" ##### Select filter: $(@bind sfn Select(xfn))"""
 end
 
-# ╔═╡ 24e2c737-1306-4a4e-951c-41fe422bd1b8
-g2sdfp[(spoint,)]
-
-# ╔═╡ 4eedd212-1728-4dab-a4e4-a8ef06262cb1
-spoint
+# ╔═╡ 8226971c-3ba9-48d9-98d8-fc80f52f592a
+if zread
+	g2sdfp = groupby(g2sdf, :point)
+	keys(g2sdfp)
+	g2sdfp[(spoint,)]
+end
 
 # ╔═╡ ec95a04a-bda9-429b-92f2-c79f28a322f0
 """
@@ -788,6 +788,27 @@ function sum_interval(img::Matrix{Float64}, int::Tuple{Float64, Float64})
 		end
 	end
 	sumx
+end
+
+# ╔═╡ bad60e47-24e0-4425-8617-c423d08f9925
+"""
+Compute the DC substracted signal for White Light (not filters)
+"""
+function signal_wl(roidks::Matrix{Float64}, drk0::Matrix{Float64},  
+	                pxroi::Integer, 
+	                dkavg::Float64, dkctx::Float64, 
+	                nsigmaT::Float64 = 5.0)
+	
+	meanflt = mean(roidks)
+	stdflt = std(roidks)
+	
+	cty = meanflt + nsigmaT*stdflt
+	sflt = sum_interval(roidks,(dkctx, cty)) 
+	sdk = sum_interval(drk0,(dkctx, cty)) 
+	szdk = size(drk0)
+	fn = pxroi / (szdk[1] * szdk[2])
+	sflt - sdk*fn 
+	
 end
 
 # ╔═╡ 03b663a3-8e01-4720-ad55-b9085ee5115d
@@ -1038,7 +1059,7 @@ roixx, iroixx = imgroix(f1img.img, ecorner, prtlv=0);
 
 # ╔═╡ ee766da0-081c-43b6-8861-bebc53bb3c0e
 """
-Computes the signal for a given filter
+Computes the DC subtracted signal for a given filter
 """
 function signal_flt(xfiles::Vector{String}, drk0::Matrix{Float64}, flt::String, 
 	                pxroi::Integer, ecorn::NamedTuple{(:topleft, :botright)},
@@ -1047,16 +1068,10 @@ function signal_flt(xfiles::Vector{String}, drk0::Matrix{Float64}, flt::String,
 	
 	fltimg = lfi.LaserLab.select_image(xfiles, flt)
 	fltcimg = fltimg.img .- dkavg
-	fltroi, iroiflt = imgroix(fltcimg, ecorn)
-	meanflt = mean(fltroi)
-	stdflt = std(fltroi)
+	fltroi, _ = imgroix(fltcimg, ecorn)
+
+	signal_wl(fltroi, drk0, pxroi, dkavg, dkctx, nsigmaT)
 	
-	cty = meanflt + nsigmaT*stdflt
-	sflt = sum_interval(fltroi,(dkctx, cty)) 
-	sdk = sum_interval(drk0,(dkctx, cty)) 
-	szdk = size(drk0)
-	fn = pxroi / (szdk[1] * szdk[2])
-	sflt - sdk*fn 
 	
 end
 
@@ -1343,15 +1358,6 @@ if zrec
 			             dkavg, dkctx, pxroi, crad, nmin, csize, scl)
 end
 
-# ╔═╡ ca489720-d5eb-4c17-8cee-daee4d57eca7
-sdf = spectratodf(xfn, string.(fpoints), filtnm, "out", "fn", SPFLT);
-
-# ╔═╡ b2eed2e4-b09f-42ec-8b4e-d641eba06f2b
-if zsave
-	dfpath = joinpath(csvdir,string(srun,".csv"))
-	CSV.write(dfpath, sdf)
-end
-
 # ╔═╡ 904d10aa-aea9-46e7-a558-73bcd061a0ec
 begin
 	HDRK2 = [histo_signal(drk .- dkavg, 100, -nsigma* dkstd, nsigma* dkstd) for drk in DRK]
@@ -1396,7 +1402,7 @@ begin
 	
 
 	meanwlt = mean(roidks)
-	stdwlt = std(roidks)
+	stdwlt = std(roidks)	
 	sumtl = sum_thr(roidks, dkctx)
 	sumnf = sum_interval(roidks,(dkctx, meanwlt +ntsigma*stdwlt))
 	sumtldc = sumtl - sumdc * dcf
@@ -1491,6 +1497,18 @@ if zrec
 	end
 	plot(size=(1050,1050), SPXFLT..., layout=(4,4), titlefontsize=8)
 end
+
+# ╔═╡ ca489720-d5eb-4c17-8cee-daee4d57eca7
+sdf = spectratodf(xfn, string.(fpoints), filtnm, "out", "fn", sumtldc, SPFLT);
+
+# ╔═╡ b2eed2e4-b09f-42ec-8b4e-d641eba06f2b
+if zsave
+	dfpath = joinpath(csvdir,string(srun,".csv"))
+	CSV.write(dfpath, sdf)
+end
+
+# ╔═╡ 0e18a969-1951-452f-8e52-9b5741722165
+signal_wl(roidks, drk0, pxroi, dkavg, dkctx)
 
 # ╔═╡ 2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
 begin	
@@ -2044,6 +2062,7 @@ end
 # ╠═cecdf185-4a1b-481e-8bc7-a8c4bb7d4990
 # ╠═b81df45b-e64e-4a07-982f-368ae03353c2
 # ╠═918126c6-b25f-49b5-b5a2-3c15ba1d9cfd
+# ╠═0e18a969-1951-452f-8e52-9b5741722165
 # ╠═a5dc8f3a-420b-4676-93e2-b6d947f26d4c
 # ╠═d389f99a-14c2-408f-ad7b-838e00225357
 # ╠═f13173e1-088c-4f5c-ae6a-f9aebcd6bc57
@@ -2051,6 +2070,7 @@ end
 # ╠═406cc319-e7a9-4c68-b732-774b7d1a7e59
 # ╠═2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
 # ╠═da7e09c2-cf28-414d-bca2-3b9a35275857
+# ╠═647529a4-93ed-49e2-a08b-064c989b8be8
 # ╠═e9e8e58a-e1db-49f1-8429-420271fb1852
 # ╠═aad6dea8-4936-4719-8c7b-e689d5686b7b
 # ╠═54bd1f6c-2b10-47a1-838f-b428fe6b7635
@@ -2071,13 +2091,11 @@ end
 # ╠═be3df2f9-a520-49fa-b736-f1afce2d702d
 # ╠═5372d130-7a46-44ae-9552-bdc1459cdbf8
 # ╠═8226971c-3ba9-48d9-98d8-fc80f52f592a
-# ╠═e6538d3c-0a22-4b5d-9835-bee946c11f3d
-# ╠═24e2c737-1306-4a4e-951c-41fe422bd1b8
-# ╠═4eedd212-1728-4dab-a4e4-a8ef06262cb1
 # ╠═3e359ff2-de6b-41f6-99ff-102c446f3828
 # ╠═46ce9381-8cfc-4dc3-9011-ff79491a9c9f
 # ╠═ed8ab0b7-9fc5-4cb3-8436-79a056a5667f
 # ╠═ee766da0-081c-43b6-8861-bebc53bb3c0e
+# ╠═bad60e47-24e0-4425-8617-c423d08f9925
 # ╠═205fd30f-6a4e-473f-9eb5-e826b8c480b1
 # ╠═f649a197-c7a8-407d-9e11-6fd811c9d375
 # ╠═03b663a3-8e01-4720-ad55-b9085ee5115d
