@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.4
+# v0.19.11
 
 using Markdown
 using InteractiveUtils
@@ -15,13 +15,15 @@ macro bind(def, element)
 end
 
 # ╔═╡ 61849c40-2a3b-4d53-a445-59492ad616e1
-using Pkg; Pkg.activate("/Users/jj/JuliaProjects/LaserLab/")
+using Pkg; Pkg.activate(ENV["JLaserLab"])
 
 # ╔═╡ 33dffd80-d690-11ec-0727-2552b82290be
 begin
 	using PlutoUI
 	using CSV
 	using DataFrames
+	using Images
+	using ImageBinarization
 	using Colors
 	using Plots
 	using Printf
@@ -35,6 +37,10 @@ begin
 	using Unitful 
 	using UnitfulEquivalences 
 	using PhysicalConstants
+	using Peaks
+	using FFTW
+	using DSP
+	using Clustering
 	import Glob
 end
 

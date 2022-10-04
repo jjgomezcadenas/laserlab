@@ -211,8 +211,7 @@ end
            xmin::T=typemin(T), xmax::T=typemax(T),
            ymin::T=typemin(T), ymax::T=typemax(T)) where T <: Real
 
-return a 2d histogram and its corresponding graphics (plots)
-given data x, y, labels xl and yl and limits for each axis.
+ggiven data x, y, labels xl and yl and limits for each axis.
 """
 function hist2d(x::Vector{T},y::Vector{T}, nbins::Integer,
                 xl::String, yl::String,
@@ -225,8 +224,6 @@ function hist2d(x::Vector{T},y::Vector{T}, nbins::Integer,
     mask = select_data.(x, y)
     data = (y[mask], x[mask])
     h    = fit(Histogram, data, nbins=nbins)
-    ye   = centers(edges(h, 1))
-    xe   = centers(edges(h, 2))
     hm   = heatmap(xe, ye, h.weights)
     xlabel!(xl)
     ylabel!(yl)

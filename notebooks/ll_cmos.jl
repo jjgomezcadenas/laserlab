@@ -78,6 +78,19 @@ lfi = ingredients("../src/LaserLab.jl")
 # ╔═╡ 5edc41bc-b912-44bf-9be5-a013f27a75ab
 PlutoUI.TableOfContents(title="Laser Lab CMOS analysis", indent=true)
 
+# ╔═╡ 8aab7219-484d-4f44-83d2-aac35fa757a3
+md"""
+# Scheme
+- Not Band Pass Filter (NBPF): Two wheels with filters, from 2 to 11. No band pass filter applied. 
+- Band Pass Filter: First wheel includes a BPF and filters 3 to 6. Second wheel filters 7 to 11. When taking data with second wheel, first wheel includes BPF. 
+"""
+
+# ╔═╡ cbb96ace-055e-43f9-80c9-2b56130cb143
+schema = ["BPF", "NBPF"]
+
+# ╔═╡ 20a7cef1-8ded-436a-b73d-19c919030c48
+md""" Select scheme : $(@bind sch Select(schema))"""
+
 # ╔═╡ 90c97a39-b35f-44ba-9646-f0bb9eead338
 md"""
 # G2SL Characteristics
@@ -108,10 +121,19 @@ md"""
 ### Filter central values in nm
 """
 
-# ╔═╡ 0b1c5662-ec4f-486e-9ee6-7fa6ba953e45
-begin
+# ╔═╡ cc2ec737-93f6-430e-93d5-80534caf36de
+if sch == "BPF"
+	xfnm = [438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0]
+	wfnm = [24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0]
+else
 	xfnm = [420.0,438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0,810.0]
 	wfnm = [10.0, 24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0, 10.0]
+end
+
+# ╔═╡ 0b1c5662-ec4f-486e-9ee6-7fa6ba953e45
+begin
+	#xfnm = [420.0,438.0,465.0,503.0,550.0,600.0,650.0,692.0,732.0,810.0]
+	#wfnm = [10.0, 24.0, 30.0, 40.0, 49.0, 52.0, 60.0, 40.0, 68.0, 10.0]
 	filtnm = (center=xfnm,
 	width  = wfnm,
 	left = xfnm .- 0.5*wfnm,
@@ -124,9 +146,6 @@ end
 md"""
 ### Effect of filters in spectrum
 """
-
-# ╔═╡ 775f155c-566e-4531-9c0d-c6e5e0c72b16
-1+1
 
 # ╔═╡ 2c75e750-854e-459f-91a6-ba135ae263cf
 begin
@@ -204,8 +223,8 @@ md"""
 
 # ╔═╡ 0b4d2c08-a677-492c-b5da-982d3d5096fc
 begin
-	odir    = "/Users/jjgomezcadenas/LaserLab/Proyectos/pdata/CMOS2/ITO"
-    cmdir   ="/Users/jjgomezcadenas/LaserLab/Proyectos/data/CMOS2/ITO"
+	odir    = "/Users/jjgomezcadenas/LaserLab/Proyectos/pdata/3CMOS/ITO"
+    cmdir   ="/Users/jjgomezcadenas/LaserLab/Proyectos/data/3CMOS/ITO"
 	
 	dfiles  = "*.csv"
 	dplots  = "*.png"
@@ -227,9 +246,16 @@ md"""
 # ╔═╡ 308649b5-5c65-40dd-bc66-5b0273648341
 md"""
 ## Algorithm
+- Find the position of the measured points
 - Measure the dark current (filter and point independent)
 - Select the spot (filter independent)
 - For each point, measure the response for all the filters
+"""
+
+# ╔═╡ 127e58b0-4a98-4581-8288-373775f71a9c
+md"""
+### Position of points 
+- Positions folder contains measurements of the poistions of each point. 
 """
 
 # ╔═╡ 4218a405-5cb5-464f-9ce1-5d23daeabbef
@@ -257,17 +283,38 @@ The measurements above:
 - The distribution has long tails (noisy pixels) which push the values of std towards high values.
 """
 
-# ╔═╡ a0b9922e-189f-445e-8508-130e8e561aba
-md"""
-In order to supress the DK, a cutoff is needed. It can be set in terms of 
-nsigma x std, where std refers to the standard deviation of the dc and nsigma is set by hand
-"""
+# ╔═╡ 8f3748a2-7a59-4a1b-bc54-8db5c4f7a168
+filtnm.width
 
 # ╔═╡ 11444de2-1f6d-42dd-a31f-c24a123d8124
 md""" Select nsigma to sum signal: $(@bind sigmao NumberField(1.0:100.0, default=5.0))"""
 
-# ╔═╡ 8dbd1f8d-3af9-4201-b560-20e839d8ac82
-#md""" Select nsigma to sum signal: $(@bind sigmas NumberField(1.0:100.0, #default=5.0))"""
+# ╔═╡ bdcb6e4b-2b6b-4117-936e-f1efe834ce5f
+md"""
+### Outlayers
+"""
+
+# ╔═╡ 69ba0cac-b2e5-433d-aaff-47c959a9a7b2
+begin
+	
+	#heatmap(otly,c=[:red,:blue,:green])
+end
+
+# ╔═╡ b1ea663e-62ca-4288-b497-0eb565c80aa7
+
+
+# ╔═╡ 521fac4c-6bc8-45f6-bda3-180fe3d17386
+md""" Select frequency for the noisy pixels: $(@bind pxcut NumberField(1.0:10.0, default=3.0))"""
+
+# ╔═╡ 92f37038-f543-44dc-ae61-758ede89cfbb
+function denoisepxl!(imgroi::Matrix{<:Real}, npx)
+	
+	for px in npx
+		i = px[1]
+		j = px[2]
+		imgroi[i,j] =0
+	end
+end
 
 # ╔═╡ b270c34c-177b-41ba-8024-56576770b45c
 md"""
@@ -334,9 +381,6 @@ md"""
 ### Analysis for Filters 2-11
 """
 
-# ╔═╡ 647529a4-93ed-49e2-a08b-064c989b8be8
-
-
 # ╔═╡ e9e8e58a-e1db-49f1-8429-420271fb1852
 md"""
 ## Spectrum using ROI
@@ -368,9 +412,6 @@ md""" Check to save data for all points: $(@bind zsave CheckBox())"""
 md"""
 ## Read and analyse data from file
 """
-
-# ╔═╡ 25689c8b-b090-4d71-b69e-1b4a7493c9c3
-
 
 # ╔═╡ be3df2f9-a520-49fa-b736-f1afce2d702d
 md""" Check to read data from file: $(@bind zread CheckBox())"""
@@ -639,6 +680,38 @@ begin
 	"""
 	#sexp = "AYN_05_Ba"
 	#srun = "AYN_05_Ba2_45x_G2SL_rep2_P9_220901"
+end
+
+# ╔═╡ 34125038-bbea-4095-be62-66d6282a6f45
+begin
+	ppath = joinpath(cmdir,sexp,srun, "Positions")
+	pfb = readdir(ppath)[1]
+	pdf = lfi.LaserLab.load_df_from_csv(ppath, pfb, lfi.LaserLab.enG; header=0)
+	zp = pdf.Column1
+	xp = pdf.Column2
+	yp = pdf.Column3
+	scatter(xp, xp, zp, xlabel="X (mm)", ylabel="Y (mm)", zlabel="Z (mm)")
+	#xlabel!("x (mm)")
+	#ylabel!("y (mm)")
+	#zlabel!("z (mm)")
+end
+
+# ╔═╡ 70fa2dc0-4b38-4e4e-90d6-5d18e660b52b
+begin
+	scatter(xp, yp, label="")
+	xlabel!("x (mm)")
+	ylabel!("y (mm)")
+end
+
+# ╔═╡ ac1920d7-5682-44f4-ac0c-a10d72bbbfa2
+begin
+	xzp1 = scatter(xp, zp, label="")
+	xlabel!("x (mm)")
+	ylabel!("z (mm)")
+	yzp1 = scatter(yp, zp, label="")
+	xlabel!("y (mm)")
+	ylabel!("z (mm)")
+	plot(xzp1,yzp1)
 end
 
 # ╔═╡ 5372d130-7a46-44ae-9552-bdc1459cdbf8
@@ -1225,12 +1298,12 @@ end
 """
 Given a roi matrix, return the indexes
 """
-function indx_from_roimtrx(imgroi)
+function indx_from_roimtrx(imgroi::Matrix{<:Real}, ctx::Float64=0.0)
 	INDX = []
 	sz= size(imgroi)
 	for i in 1:sz[1]
 		for j in 1:sz[2]
-			if imgroi[i,j] != 0.0 
+			if imgroi[i,j] > ctx 
 				push!(INDX, (i,j))
 			end
 		end
@@ -1278,7 +1351,11 @@ end
 begin
 	fd1, nfd1 = select_files(cmdir,string(sexp),string(srun), "Dark")
 	fltn = flt_names(fd1)
-	DRK = [lfi.LaserLab.select_image(fd1, flt).img for flt in fltn]
+	if sch == "BPF"
+		DRK = [lfi.LaserLab.select_image(fd1, flt).img for flt in fltn[2:end-1]]
+	else
+		DRK = [lfi.LaserLab.select_image(fd1, flt).img for flt in fltn]
+	end
 	HDRK = [histo_signal(drk) for drk in DRK]
 	PDRK = [HDRK[i][2] for i in 1:length(HDRK)]
 	AVG = [mean(drk) for drk in DRK]
@@ -1290,18 +1367,21 @@ begin
 	phdrk = plot(size=(750,750), PDRK..., layout=(5,2), titlefontsize=8)
 end
 
+# ╔═╡ d48a3d9c-9dae-4701-9e68-f91235b4cadf
+AVG
+
 # ╔═╡ e39d2f51-717a-43d0-90b2-25579e625844
-if zroi
+begin
 	pdavg = plot(filtnm.center, AVG, lw=2, label=spointf1, title="mean")
 	scatter!(filtnm.center, AVG,label="")
-	ylims!(1600., 1700.0)
+	ylims!(1550., 1750.0)
 	xlabel!("counts")
 	ylabel!("frequency")
 	pdstd = plot(filtnm.center, STD, lw=2, label=spointf1, title="std")
 	scatter!(filtnm.center, STD,label="")
 	xlabel!("counts")
 	ylabel!("frequency")
-	ylims!(10., 40.0)
+	ylims!(10., 60.0)
 	plot( pdavg, pdstd, layout=(1,2), titlefontsize=8)
 end
 
@@ -1328,6 +1408,59 @@ STD of dark current:
 - Cutoff in terms of corrected std for DC (tail suppressed) = $(round(dkctx, sigdigits=3))
 """
 end
+
+# ╔═╡ 0bdc7c7b-8314-408f-8300-d7b76d6acfc2
+begin
+	mtrx0 = DRK[1] .- dkavg
+	ctx0 = mean(mtrx0) + nsigma * dkstd
+	xytl0 = indx_from_roimtrx(mtrx0, ctx0)
+	#println(length(xytl0))
+	#mtl, xytl = find_outlayers(DRK[2], dkavg, dkstd)
+	#heatmap(mtl)
+	XX = []
+	YY = []
+	#mtl0, xytl0 = find_outlayers(DRK[1], dkavg, dkstd)
+	xtl0 = [xx[1] for xx in xytl0]
+	ytl0 = [xx[2] for xx in xytl0]
+	append!(XX, xtl0)
+	append!(YY, ytl0)
+	pxytl = scatter(xtl0, ytl0, label="1")
+	for i in 2:length(DRK)
+		#mtl, xytl = find_outlayers(DRK[i], dkavg, dkstd)
+		mtrx1 = DRK[i] .- dkavg
+		ctx1 = mean(mtrx1) + nsigma * dkstd
+		xytl = indx_from_roimtrx(mtrx1, ctx1)
+		#println(length(xytl))
+		xtl = [xx[1] for xx in xytl]
+		ytl = [xx[2] for xx in xytl]
+		append!(XX, xtl)
+		append!(YY, ytl)
+		pxytl = scatter!(pxytl, xtl, ytl, label=string(i))
+	end
+	pxytl
+end
+
+# ╔═╡ dc410566-9dae-47e2-bbfa-d399a76211d8
+begin
+	IXX = [x for x in XX]
+
+	hxx, phxx = lfi.LaserLab.hist1d(IXX , "noisy pixel index in x", 512, 0, 512)
+	IYY = [x for x in YY]
+	hyy, phyy = lfi.LaserLab.hist1d(IYY , "noisy pixel index in x", 512, 0, 512)
+	plot(phxx, phyy)
+end
+
+# ╔═╡ 800cf528-19c1-4826-b32f-ecb1b7498418
+begin
+	hxy, hmxy = lfi.LaserLab.hist2d(IXX,IYY, 512, "ix", "iy", 0, 512, 0, 512)
+	hmxy
+end
+
+# ╔═╡ 04dc8e68-ce34-4586-a968-7a1f77d8f859
+npx = indx_from_roimtrx(hxy.weights, pxcut)
+
+# ╔═╡ ea3bad65-ab27-4c60-875e-9ae72654d147
+length(npx)
 
 # ╔═╡ a1817474-d089-4245-9263-70314969b43e
 begin
@@ -1358,6 +1491,24 @@ if zrec
 			             dkavg, dkctx, pxroi, crad, nmin, csize, scl)
 end
 
+# ╔═╡ 6461b6c0-4741-4da6-8db2-5c0a809d3eea
+if zrec
+	SPXFLT = []
+	for (i, sf) in enumerate(SPFLT)
+		#lbl = string("Point",fpoints[i])
+		#sgnorm = signalnorm(sf, sumtldc, filtnm)
+		sgnorm = signalnorm(sf, 1.0, filtnm)
+		#scstr = @sprintf "%.1E" sc
+		#xlb = string(scstr, " x countsF/countsT/nm")
+		pfxx = plot(filtnm.center, sgnorm, lw=2, label=fpoints[i], legend=:topleft, title="")
+		scatter!(filtnm.center, sgnorm, label="")
+		xlabel!("λ (nm)")
+		ylabel!("countsF/countsT/nm")
+		push!(SPXFLT, pfxx)
+	end
+	plot(size=(1050,1050), SPXFLT..., layout=(3,3), titlefontsize=8)
+end
+
 # ╔═╡ 904d10aa-aea9-46e7-a558-73bcd061a0ec
 begin
 	HDRK2 = [histo_signal(drk .- dkavg, 100, -nsigma* dkstd, nsigma* dkstd) for drk in DRK]
@@ -1365,25 +1516,16 @@ begin
 	phdrk2 = plot(size=(750,750), PDRK2..., layout=(5,2), titlefontsize=8)
 end
 
-# ╔═╡ 3549eafe-70c4-49d5-a121-11b8d2860804
+# ╔═╡ 43fd628d-aac7-4e92-ab62-59e132fadce7
 begin
-	HPDRKX = [histo_signal(drk .- dkavg) for drk in DRK]
-	HDRKX = [HDRK[i][1] for i in 1:length(HPDRKX)]
-	SUMDCT = [sum_interval(DRK[i] .- dkavg,(dkctx, HDRKX[i].edges[1][end])) for i in 1:length(DRK)]
-	DKSUMZ = [sum_thr(drk .- dkavg, 0.0) for drk in DRK]
-	
-	pdksumz = plot(filtnm.center, DKSUMZ, lw=2, label=spointf1, title="sum DC no tail")
-	scatter!(filtnm.center, DKSUMZ,label="")
-	ylims!(0.0, 5.0e6)
-	xlabel!("value in filter (nm)")
-	ylabel!(" Sum in filter (counts)")
-	
-	pdksumt = plot(filtnm.center, SUMDCT, lw=2, label=spointf1, title="sum DC int tail")
-	scatter!(filtnm.center, SUMDCT,label="")
-	ylims!(0.0, 1.0e6)
-	xlabel!("Value in filter (nm)")
-	ylabel!("SUM in filter  (counts)")
-	plot( pdksumz, pdksumt, layout=(1,2), titlefontsize=8)
+	ddrk = DRK[1] .- dkavg
+	hdrk1, pphdrk1 = histo_signal(ddrk, 100, -10* dkstd, 10* dkstd)
+	denoisepxl!(ddrk, npx)
+	hdrk2, pphdrk2 = histo_signal(ddrk, 100, -10* dkstd, 10* dkstd)
+	#HDRK2 = [histo_signal(drk .- dkavg, 100, -nsigma* dkstd, nsigma* dkstd) for drk in DRK]
+	#PDRK2 = [HDRK2[i][2] for i in 1:length(HDRK)]
+	#phdrk2 = plot(size=(750,750), PDRK2..., layout=(5,2), titlefontsize=8)
+	plot(pphdrk1, pphdrk2)
 end
 
 # ╔═╡ b81df45b-e64e-4a07-982f-368ae03353c2
@@ -1426,7 +1568,12 @@ begin
 	nflt = parse(Int64, sfn)
 	meanflt = mean(roiflt)
 	stdflt = std(roiflt)
-	
+
+	if sch == "BPF"
+		iflt = nflt-2
+	else
+		iflt = nflt-1
+	end
 	
 	cty = meanflt + ntsigma*stdflt
 	sumtt = sum_thr(roiflt, dkctx)
@@ -1437,7 +1584,7 @@ begin
 	sumdcflt = sum_interval(drk0,(dkctx, cty))  * dcf
 
 	sumflts = sumt - sumdcflt
-	sumtf = sumflts/filtnm.width[nflt]
+	sumtf = sumflts/filtnm.width[iflt]
 md"""
 ##### Image for filter $sfn in ROI
 - mean: $(round(meanflt, sigdigits=2))    
@@ -1449,7 +1596,7 @@ md"""
 - Total charge (DC tail subtracted) = $(round(sumflts, sigdigits=3))
 
 
-- Filter width = $(filtnm.width[nflt])
+- Filter width = $(filtnm.width[iflt])
 - Charge/nm = $(round(sumtf, sigdigits=3))
 """
 end
@@ -1481,28 +1628,9 @@ if zroi
 		 layout=(2,2), titlefontsize=8)
 end
 
-# ╔═╡ 6461b6c0-4741-4da6-8db2-5c0a809d3eea
-if zrec
-	SPXFLT = []
-	for (i, sf) in enumerate(SPFLT)
-		#lbl = string("Point",fpoints[i])
-		sgnorm = signalnorm(sf, sumtldc, filtnm)
-		#scstr = @sprintf "%.1E" sc
-		#xlb = string(scstr, " x countsF/countsT/nm")
-		pfxx = plot(filtnm.center, sgnorm, lw=2, label=fpoints[i], legend=:topleft, title="")
-		scatter!(filtnm.center, sgnorm, label="")
-		xlabel!("λ (nm)")
-		ylabel!("countsF/countsT/nm")
-		push!(SPXFLT, pfxx)
-	end
-	plot(size=(1050,1050), SPXFLT..., layout=(4,4), titlefontsize=8)
-end
-
-# ╔═╡ ca489720-d5eb-4c17-8cee-daee4d57eca7
-sdf = spectratodf(xfn, string.(fpoints), filtnm, "out", "fn", sumtldc, SPFLT);
-
 # ╔═╡ b2eed2e4-b09f-42ec-8b4e-d641eba06f2b
 if zsave
+	sdf = spectratodf(xfn, string.(fpoints), filtnm, "out", "fn", sumtldc, SPFLT);
 	dfpath = joinpath(csvdir,string(srun,".csv"))
 	CSV.write(dfpath, sdf)
 end
@@ -1512,10 +1640,13 @@ signal_wl(roidks, drk0, pxroi, dkavg, dkctx)
 
 # ╔═╡ 2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
 begin	
-	hroiz, proiz = histo_signal(roiflt,25)
+	denoisepxl!(zcimg, npx)
+	roiflt2, iroiflt2 = imgroix(zcimg, ecorner, prtlv=0)
+	hroiz, proiz = histo_signal(roiflt,25, -300., 300.)
+	hroiz2, proiz2 = histo_signal(roiflt2,25, -300., 300.)
 	#hroizx, proizx = histo_signal(roiflt, 50, meanflt-ntsigma*stdflt, meanflt + ntsigma*stdflt)
 	#plot(proiz, proizx, layout=(1,2), titlefontsize=8)
-	plot(proiz)
+	plot(proiz, proiz2)
 end
 
 # ╔═╡ ed8ab0b7-9fc5-4cb3-8436-79a056a5667f
@@ -1546,6 +1677,32 @@ if zroi
 	pfhroi = [PFH[2] for PFH in PFHROI]
 	fhroi = [PFH[1] for PFH in PFHROI]
 	plot(size=(750,750), pfhroi..., layout=(5,2), titlefontsize=10)
+end
+
+# ╔═╡ 09b261e7-ac50-4c8b-9b68-cc3df5b4dcea
+"""
+Find outlayers in the dark current matrices
+"""
+function find_outlayers(drkk::Matrix{<:Real}, dkavg::Float64, dkstd::Float64, 
+	                    nsigma=5)
+	mtrx = drkk .- dkavg
+	sz = size(mtrx)
+	mxy = zeros(sz[1], sz[2])
+	vxy = []
+	ctx = mean(mtrx) + nsigma* dkstd
+
+	#println(" mean =", mean(mtrx), " dkstd = ", dkstd, " ctx = ", ctx)
+	ii = 0
+	jj = 0
+	for i in 1:sz[1]
+		for j in 1:sz[2]
+			if mtrx[i,j] > ctx
+				mxy[i,j] = mtrx[i,j]
+				push!(vxy, (i,j))			
+			end
+		end
+	end
+	mxy, vxy
 end
 
 # ╔═╡ 92900aa3-c295-4def-8700-384ddbea43d9
@@ -1995,14 +2152,17 @@ end
 # ╠═8833b198-03e4-4679-8949-0c76546cb847
 # ╠═6163ba69-1237-4b49-988e-9a73cfef67f6
 # ╠═5edc41bc-b912-44bf-9be5-a013f27a75ab
+# ╠═8aab7219-484d-4f44-83d2-aac35fa757a3
+# ╠═cbb96ace-055e-43f9-80c9-2b56130cb143
+# ╠═20a7cef1-8ded-436a-b73d-19c919030c48
 # ╠═90c97a39-b35f-44ba-9646-f0bb9eead338
 # ╠═d30e1ceb-2e90-438e-8554-228aa5dc2a59
 # ╠═2be5dcc0-e7c4-412b-990a-d7edb9967186
 # ╠═7ce42aec-b319-4de9-b70c-84046d45a600
 # ╠═58269465-ba8c-4840-bbfc-0a27897f3e2a
+# ╠═cc2ec737-93f6-430e-93d5-80534caf36de
 # ╠═0b1c5662-ec4f-486e-9ee6-7fa6ba953e45
 # ╠═b07466c0-dfcd-4c10-ae86-45e71a832476
-# ╠═775f155c-566e-4531-9c0d-c6e5e0c72b16
 # ╠═2c75e750-854e-459f-91a6-ba135ae263cf
 # ╠═c892d4f2-2678-41eb-8724-6d366178f491
 # ╠═eab79cba-ca3d-40d8-9961-257e711bb9ae
@@ -2018,19 +2178,33 @@ end
 # ╠═50ea2ecc-970f-4630-8c7e-acf5e69cc4c9
 # ╠═f26bb6e0-45ac-4419-bcb2-46e2cac1f75b
 # ╠═308649b5-5c65-40dd-bc66-5b0273648341
+# ╠═127e58b0-4a98-4581-8288-373775f71a9c
+# ╠═34125038-bbea-4095-be62-66d6282a6f45
+# ╠═70fa2dc0-4b38-4e4e-90d6-5d18e660b52b
+# ╠═ac1920d7-5682-44f4-ac0c-a10d72bbbfa2
 # ╠═4218a405-5cb5-464f-9ce1-5d23daeabbef
 # ╠═0d846a7e-cd53-40a9-8fd5-c5be630790bb
 # ╠═ecf6de74-6f8b-4195-abc4-156a906ff8be
 # ╠═0ee6da42-aa03-4923-bee9-15b92b6583c5
 # ╠═347a0f01-fbee-4195-b3a3-55a29285298d
+# ╠═8f3748a2-7a59-4a1b-bc54-8db5c4f7a168
+# ╠═d48a3d9c-9dae-4701-9e68-f91235b4cadf
 # ╠═e39d2f51-717a-43d0-90b2-25579e625844
 # ╠═904d10aa-aea9-46e7-a558-73bcd061a0ec
 # ╠═7472f7b8-b50b-4832-b7f7-0134d1c5ed8f
 # ╠═9e4e99fe-351d-4a4c-afb2-3a9ed749209c
-# ╠═a0b9922e-189f-445e-8508-130e8e561aba
 # ╠═11444de2-1f6d-42dd-a31f-c24a123d8124
-# ╠═8dbd1f8d-3af9-4201-b560-20e839d8ac82
-# ╠═3549eafe-70c4-49d5-a121-11b8d2860804
+# ╠═bdcb6e4b-2b6b-4117-936e-f1efe834ce5f
+# ╠═69ba0cac-b2e5-433d-aaff-47c959a9a7b2
+# ╠═0bdc7c7b-8314-408f-8300-d7b76d6acfc2
+# ╠═b1ea663e-62ca-4288-b497-0eb565c80aa7
+# ╠═dc410566-9dae-47e2-bbfa-d399a76211d8
+# ╠═800cf528-19c1-4826-b32f-ecb1b7498418
+# ╠═521fac4c-6bc8-45f6-bda3-180fe3d17386
+# ╠═04dc8e68-ce34-4586-a968-7a1f77d8f859
+# ╠═ea3bad65-ab27-4c60-875e-9ae72654d147
+# ╠═92f37038-f543-44dc-ae61-758ede89cfbb
+# ╠═43fd628d-aac7-4e92-ab62-59e132fadce7
 # ╠═b270c34c-177b-41ba-8024-56576770b45c
 # ╠═077d7e4e-1b94-4b30-a70a-f3b5d3a6fc46
 # ╠═c69c8b9d-50bf-46ce-8614-1fee1661e424
@@ -2070,7 +2244,6 @@ end
 # ╠═406cc319-e7a9-4c68-b732-774b7d1a7e59
 # ╠═2d6fba42-0e9e-4714-bc79-d47b9bab6c5c
 # ╠═da7e09c2-cf28-414d-bca2-3b9a35275857
-# ╠═647529a4-93ed-49e2-a08b-064c989b8be8
 # ╠═e9e8e58a-e1db-49f1-8429-420271fb1852
 # ╠═aad6dea8-4936-4719-8c7b-e689d5686b7b
 # ╠═54bd1f6c-2b10-47a1-838f-b428fe6b7635
@@ -2084,10 +2257,8 @@ end
 # ╠═6461b6c0-4741-4da6-8db2-5c0a809d3eea
 # ╠═3dcb5067-7435-4b46-9ad2-8c829ad93132
 # ╠═19508bac-7623-40c7-abc4-85fabc8bde4c
-# ╠═ca489720-d5eb-4c17-8cee-daee4d57eca7
 # ╠═b2eed2e4-b09f-42ec-8b4e-d641eba06f2b
 # ╠═10efc662-04d2-41e4-b383-8d4d01f79bb3
-# ╠═25689c8b-b090-4d71-b69e-1b4a7493c9c3
 # ╠═be3df2f9-a520-49fa-b736-f1afce2d702d
 # ╠═5372d130-7a46-44ae-9552-bdc1459cdbf8
 # ╠═8226971c-3ba9-48d9-98d8-fc80f52f592a
@@ -2159,6 +2330,7 @@ end
 # ╠═0bf2d20e-dff6-48c2-b059-38b87ed46bb6
 # ╠═c3cb6332-0b65-4a49-aa63-a846df3a5277
 # ╠═ae5cf21c-7656-4f9f-bd04-73e0e0d8fbee
+# ╠═09b261e7-ac50-4c8b-9b68-cc3df5b4dcea
 # ╠═92900aa3-c295-4def-8700-384ddbea43d9
 # ╠═f52ea16e-2aaa-41c4-802d-1481ad1f1fb2
 # ╠═aeb87084-72fe-4e82-acfc-0a92bd534bcd
