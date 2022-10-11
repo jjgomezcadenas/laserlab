@@ -223,8 +223,8 @@ md"""
 
 # ╔═╡ 0b4d2c08-a677-492c-b5da-982d3d5096fc
 begin
-	odir    = "/Users/jjgomezcadenas/LaserLab/Proyectos/pdata/3CMOS/ITO"
-    cmdir   ="/Users/jjgomezcadenas/LaserLab/Proyectos/data/3CMOS/ITO"
+	odir    = "/Users/jjgomezcadenas/LaserLab/Proyectos/pdata/4CMOS"
+    cmdir   ="/Users/jjgomezcadenas/LaserLab/Proyectos/data/4CMOS"
 	
 	dfiles  = "*.csv"
 	dplots  = "*.png"
@@ -283,9 +283,6 @@ The measurements above:
 - The distribution has long tails (noisy pixels) which push the values of std towards high values.
 """
 
-# ╔═╡ 8f3748a2-7a59-4a1b-bc54-8db5c4f7a168
-filtnm.width
-
 # ╔═╡ 11444de2-1f6d-42dd-a31f-c24a123d8124
 md""" Select nsigma to sum signal: $(@bind sigmao NumberField(1.0:100.0, default=5.0))"""
 
@@ -300,9 +297,6 @@ begin
 	#heatmap(otly,c=[:red,:blue,:green])
 end
 
-# ╔═╡ b1ea663e-62ca-4288-b497-0eb565c80aa7
-
-
 # ╔═╡ 521fac4c-6bc8-45f6-bda3-180fe3d17386
 md""" Select frequency for the noisy pixels: $(@bind pxcut NumberField(1.0:10.0, default=3.0))"""
 
@@ -314,6 +308,18 @@ function denoisepxl!(imgroi::Matrix{<:Real}, npx)
 		j = px[2]
 		imgroi[i,j] =0
 	end
+end
+
+# ╔═╡ 43fd628d-aac7-4e92-ab62-59e132fadce7
+begin
+	#ddrk = DRK[1] .- dkavg
+	#hdrk1, pphdrk1 = histo_signal(ddrk, 100, -10* dkstd, 10* dkstd)
+	#denoisepxl!(ddrk, npx)
+	#hdrk2, pphdrk2 = histo_signal(ddrk, 100, -10* dkstd, 10* dkstd)
+	#HDRK2 = [histo_signal(drk .- dkavg, 100, -nsigma* dkstd, nsigma* dkstd) for drk in DRK]
+	#PDRK2 = [HDRK2[i][2] for i in 1:length(HDRK)]
+	#phdrk2 = plot(size=(750,750), PDRK2..., layout=(5,2), titlefontsize=8)
+	#plot(pphdrk1, pphdrk2)
 end
 
 # ╔═╡ b270c34c-177b-41ba-8024-56576770b45c
@@ -1303,8 +1309,8 @@ function indx_from_roimtrx(imgroi::Matrix{<:Real}, ctx::Float64=0.0)
 	sz= size(imgroi)
 	for i in 1:sz[1]
 		for j in 1:sz[2]
-			if imgroi[i,j] > ctx 
-				push!(INDX, (i,j))
+			if imgroi[i,j] >= ctx 
+				push!(INDX, (i,j, imgroi[i,j]))
 			end
 		end
 	end
@@ -1351,11 +1357,11 @@ end
 begin
 	fd1, nfd1 = select_files(cmdir,string(sexp),string(srun), "Dark")
 	fltn = flt_names(fd1)
-	if sch == "BPF"
-		DRK = [lfi.LaserLab.select_image(fd1, flt).img for flt in fltn[2:end-1]]
-	else
+	#if sch == "BPF"
+	#	DRK = [lfi.LaserLab.select_image(fd1, flt).img for flt in fltn[2:end-1]]
+	#else
 		DRK = [lfi.LaserLab.select_image(fd1, flt).img for flt in fltn]
-	end
+	#end
 	HDRK = [histo_signal(drk) for drk in DRK]
 	PDRK = [HDRK[i][2] for i in 1:length(HDRK)]
 	AVG = [mean(drk) for drk in DRK]
@@ -1367,8 +1373,8 @@ begin
 	phdrk = plot(size=(750,750), PDRK..., layout=(5,2), titlefontsize=8)
 end
 
-# ╔═╡ d48a3d9c-9dae-4701-9e68-f91235b4cadf
-AVG
+# ╔═╡ 04404c95-6610-4388-82d0-5bbb71fff4cc
+length(DRK)
 
 # ╔═╡ e39d2f51-717a-43d0-90b2-25579e625844
 begin
@@ -1437,7 +1443,7 @@ begin
 		append!(YY, ytl)
 		pxytl = scatter!(pxytl, xtl, ytl, label=string(i))
 	end
-	pxytl
+	#pxytl
 end
 
 # ╔═╡ dc410566-9dae-47e2-bbfa-d399a76211d8
@@ -1446,18 +1452,22 @@ begin
 
 	hxx, phxx = lfi.LaserLab.hist1d(IXX , "noisy pixel index in x", 512, 0, 512)
 	IYY = [x for x in YY]
-	hyy, phyy = lfi.LaserLab.hist1d(IYY , "noisy pixel index in x", 512, 0, 512)
-	plot(phxx, phyy)
-end
-
-# ╔═╡ 800cf528-19c1-4826-b32f-ecb1b7498418
-begin
 	hxy, hmxy = lfi.LaserLab.hist2d(IXX,IYY, 512, "ix", "iy", 0, 512, 0, 512)
 	hmxy
 end
 
 # ╔═╡ 04dc8e68-ce34-4586-a968-7a1f77d8f859
 npx = indx_from_roimtrx(hxy.weights, pxcut)
+
+# ╔═╡ 6d703fff-50fb-4dd7-9678-998b3311039f
+begin
+	nfq = [nn[3] for nn in npx]
+	hfq, hpfq = lfi.LaserLab.hist1d(nfq, "repetition reate", 10, 0,8)
+	plot(hpfq)
+end
+
+# ╔═╡ 6a9cca3f-8eb4-41c1-bf79-632175dfe7a5
+hfq
 
 # ╔═╡ ea3bad65-ab27-4c60-875e-9ae72654d147
 length(npx)
@@ -1516,16 +1526,11 @@ begin
 	phdrk2 = plot(size=(750,750), PDRK2..., layout=(5,2), titlefontsize=8)
 end
 
-# ╔═╡ 43fd628d-aac7-4e92-ab62-59e132fadce7
+# ╔═╡ 3d422c10-1843-4056-a422-bb7ee2f31810
 begin
-	ddrk = DRK[1] .- dkavg
-	hdrk1, pphdrk1 = histo_signal(ddrk, 100, -10* dkstd, 10* dkstd)
-	denoisepxl!(ddrk, npx)
-	hdrk2, pphdrk2 = histo_signal(ddrk, 100, -10* dkstd, 10* dkstd)
-	#HDRK2 = [histo_signal(drk .- dkavg, 100, -nsigma* dkstd, nsigma* dkstd) for drk in DRK]
-	#PDRK2 = [HDRK2[i][2] for i in 1:length(HDRK)]
-	#phdrk2 = plot(size=(750,750), PDRK2..., layout=(5,2), titlefontsize=8)
-	plot(pphdrk1, pphdrk2)
+	HDRKX2 = [histo_signal(drk .- dkavg, 100, nsigma* dkstd, 50*nsigma* dkstd) for drk in DRK]
+	PDRKX2 = [HDRKX2[i][2] for i in 1:length(HDRKX2)]
+	phdrkx2 = plot(size=(750,750), PDRKX2..., layout=(5,2), titlefontsize=8)
 end
 
 # ╔═╡ b81df45b-e64e-4a07-982f-368ae03353c2
@@ -2186,22 +2191,22 @@ end
 # ╠═0d846a7e-cd53-40a9-8fd5-c5be630790bb
 # ╠═ecf6de74-6f8b-4195-abc4-156a906ff8be
 # ╠═0ee6da42-aa03-4923-bee9-15b92b6583c5
+# ╠═04404c95-6610-4388-82d0-5bbb71fff4cc
 # ╠═347a0f01-fbee-4195-b3a3-55a29285298d
-# ╠═8f3748a2-7a59-4a1b-bc54-8db5c4f7a168
-# ╠═d48a3d9c-9dae-4701-9e68-f91235b4cadf
 # ╠═e39d2f51-717a-43d0-90b2-25579e625844
 # ╠═904d10aa-aea9-46e7-a558-73bcd061a0ec
+# ╠═3d422c10-1843-4056-a422-bb7ee2f31810
 # ╠═7472f7b8-b50b-4832-b7f7-0134d1c5ed8f
 # ╠═9e4e99fe-351d-4a4c-afb2-3a9ed749209c
 # ╠═11444de2-1f6d-42dd-a31f-c24a123d8124
 # ╠═bdcb6e4b-2b6b-4117-936e-f1efe834ce5f
 # ╠═69ba0cac-b2e5-433d-aaff-47c959a9a7b2
 # ╠═0bdc7c7b-8314-408f-8300-d7b76d6acfc2
-# ╠═b1ea663e-62ca-4288-b497-0eb565c80aa7
 # ╠═dc410566-9dae-47e2-bbfa-d399a76211d8
-# ╠═800cf528-19c1-4826-b32f-ecb1b7498418
 # ╠═521fac4c-6bc8-45f6-bda3-180fe3d17386
 # ╠═04dc8e68-ce34-4586-a968-7a1f77d8f859
+# ╠═6d703fff-50fb-4dd7-9678-998b3311039f
+# ╠═6a9cca3f-8eb4-41c1-bf79-632175dfe7a5
 # ╠═ea3bad65-ab27-4c60-875e-9ae72654d147
 # ╠═92f37038-f543-44dc-ae61-758ede89cfbb
 # ╠═43fd628d-aac7-4e92-ab62-59e132fadce7
