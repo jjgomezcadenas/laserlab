@@ -874,14 +874,14 @@ end
 Compute the DC substracted signal for White Light (not filters)
 """
 function signal_wl(roidks::Matrix{Float64}, drk0::Matrix{Float64},  
-	                pxroi::Integer, 
+	    		    pxroi::Integer,
 	                dkavg::Float64, dkctx::Float64, 
 	                nsigmaT::Float64 = 5.0)
 	
 	meanflt = mean(roidks)
 	stdflt = std(roidks)
 	
-	cty = meanflt + nsigmaT*stdflt
+	cty = meanflt + nsigmaT * stdflt
 	sflt = sum_interval(roidks,(dkctx, cty)) 
 	sdk = sum_interval(drk0,(dkctx, cty)) 
 	szdk = size(drk0)
@@ -1141,14 +1141,15 @@ roixx, iroixx = imgroix(f1img.img, ecorner, prtlv=0);
 Computes the DC subtracted signal for a given filter
 """
 function signal_flt(xfiles::Vector{String}, drk0::Matrix{Float64}, flt::String, 
-	                pxroi::Integer, ecorn::NamedTuple{(:topleft, :botright)},
+	                ecorn::NamedTuple{(:topleft, :botright)},
 	                dkavg::Float64, dkctx::Float64, 
 	                nsigmaT::Float64 = 5.0)
 	
 	fltimg = lfi.LaserLab.select_image(xfiles, flt)
 	fltcimg = fltimg.img .- dkavg
 	fltroi, _ = imgroix(fltcimg, ecorn)
-
+	pxroi = length(fltroi)
+	
 	signal_wl(fltroi, drk0, pxroi, dkavg, dkctx, nsigmaT)
 	
 	
@@ -1165,7 +1166,7 @@ This guarantees that the impact of hot pixels is mimimised.
 
 """
 function signal_roi(xfiles::Vector{String}, drk0::Matrix{Float64}, 
-                    xfn::Vector{String}, pxroi::Integer,
+                    xfn::Vector{String}, 
 					ecorn::NamedTuple{(:topleft, :botright)},
 	                dkavg::Float64, dkctx::Float64, 
 	                nsigmaT::Float64 = 5.0)
@@ -1185,8 +1186,8 @@ function signal_roi(xfiles::Vector{String}, drk0::Matrix{Float64},
 		
 	#end
 	
-	map(flt->signal_flt(xfiles, drk0, flt, pxroi,
-	                ecorner, dkavg, dkctx), xfn)
+	map(flt->signal_flt(xfiles, drk0, flt, 
+	                ecorn, dkavg, dkctx), xfn)
 
 end
 
@@ -1198,7 +1199,7 @@ Returns the sum of the signal in the ROI for all points
 function signal_roi_allpoints(cmdir::String, sexp::String, srun::String,
 	                          xpt::Vector{String}, xfn::Vector{String},
 	                          drk0::Matrix{Float64},
-	                          dkavg::Float64, dkctx::Float64, pxroi::Integer,
+	                          dkavg::Float64, dkctx::Float64, 
                               crad::Int64, nmin::Int64, csize::Int64, scl::Int64,
 	                          nsigmaT::Float64 = 5.0)
 
@@ -1206,7 +1207,11 @@ function signal_roi_allpoints(cmdir::String, sexp::String, srun::String,
 		ecorn  = select_edge_corners(cmdir, sexp, srun, pt,
                                       crad, nmin, csize, scl)
 		xfiles, _ = select_files(cmdir,sexp,srun, pt)
-		signal_roi(xfiles, drk0, xfn, pxroi, ecorn, dkavg, dkctx, nsigmaT)
+		sr = signal_roi(xfiles, drk0, xfn, ecorn, dkavg, dkctx, nsigmaT)
+		println("pt =", pt)
+		println("ecorn =", ecorn)
+		println("sroi =", sr)
+		sr
 	end
 	
 	map(pt->signal_pt(pt), xpt)
@@ -1498,7 +1503,7 @@ sfroi = signal_roi(xfiles, drk0, xfn, pxroi, ecorner, dkavg, dkctx)
 if zrec
 	SPFLT = signal_roi_allpoints(cmdir, string(sexp), string(srun), 
 		                 string.(fpoints), string.(xfn), drk0, 
-			             dkavg, dkctx, pxroi, crad, nmin, csize, scl)
+			             dkavg, dkctx, crad, nmin, csize, scl)
 end
 
 # ╔═╡ 6461b6c0-4741-4da6-8db2-5c0a809d3eea
