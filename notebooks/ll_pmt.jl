@@ -304,7 +304,6 @@ end
 # ╔═╡ 5d2cce97-ad00-46be-b086-8c4a35cdb008
 begin
 	promsel = Float64(spcut)  #prominence cut
-	 
 	md"
 	- Peak Prominence cut = $sprom8n5k1m
 	"
