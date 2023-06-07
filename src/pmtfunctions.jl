@@ -291,9 +291,12 @@ function select_filtered_peaks(wvfm::NamedTuple{(:time, :ampl)}, thrp::Float64;
 	wfdf = DataFrame(time=wvfm.time, ampl=wvfm.ampl)
     #amplth = wvfm.ampl[wvfm.ampl .> thrp]
 
+	#println("select_filtered_peaks: promsel =", promsel)
 	wvfmFlt = filter(row -> row[:ampl] > thrp, wfdf)
 	pks, _ = findmaxima(wvfmFlt.ampl)
 	peaks2, proms = peakproms(pks, wvfmFlt.ampl; minprom=promsel)
+
+	#println("select_filtered_peaks: proms =", proms)
 	#pks, _ = findmaxima(amplth)
 	#peaks2, proms = peakproms(pks,amplth; minprom=promsel)
 	

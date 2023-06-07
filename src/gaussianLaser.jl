@@ -43,7 +43,7 @@ import Unitful:
 
 
 
-	"""
+"""
 	W(gl::GaussianLaser)
 
 returns the beam width: ``W(z) = W_0 \\sqrt{1 + (z/z_0)^2}``
