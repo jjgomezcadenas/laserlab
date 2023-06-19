@@ -107,9 +107,6 @@ begin
 	lfiles = Glob.glob(dfiles, lpath)
 end
 
-# ╔═╡ a34ebaea-bc17-4c66-b486-bc44e5c71b02
-lfiles
-
 # ╔═╡ 740681e5-7dc2-4fa1-bfb7-1ee5557ab885
 begin
 	path = joinpath(pmtdir,sexp)
@@ -135,6 +132,9 @@ md""" Select max filter frequency (in MHz): $(@bind ffmhz NumberField(0:1500, de
 
 # ╔═╡ afeb9110-2058-4f09-9d27-4872f813256e
 md""" Click to plot waveforms: $(@bind zpwf CheckBox(default=true))"""
+
+# ╔═╡ c7c09a33-5b65-4d8f-a8de-6201d8a53522
+1/40
 
 # ╔═╡ 99e8afb0-f38e-4b79-88d2-6e43828b6e2b
 md""" Select prominence cut: $(@bind spcut NumberField(0.0:10.0, default=2.5))"""
@@ -274,9 +274,6 @@ end
 # ╔═╡ b45847ef-a983-4f07-ac27-9cfb0ccfd350
 lwvfm = get_wvfm(pmtdir,lfiles[1]) 
 
-# ╔═╡ d6110c4f-6936-4eac-a775-6558538b82ad
-lwvfm.time[end]
-
 # ╔═╡ 61413efa-86fc-456c-be71-f9a32da61e9e
 begin
 	
@@ -304,13 +301,10 @@ md" - Parameters:
 end
 
 # ╔═╡ 2e70957e-13c5-4124-9030-ed6499128283
-ttw = tw/1.0μs
+tl/1.0μs
 
 # ╔═╡ bbb97133-8857-4d71-8a25-181e0705b671
 lpeaks.xs
-
-# ╔═╡ d0971928-49ef-4fe5-a76e-6f1e3e5368e3
-lpeaks.xs[end]
 
 # ╔═╡ c821e8e5-0df8-4018-b01a-227e9ce360a4
 length(lpeaks.xs)
@@ -340,13 +334,7 @@ begin
 end
 
 # ╔═╡ 13be4894-e112-4300-a4a1-dd058f3fbc4a
-lfi.LaserLab.plot_waveform(lwvfm, stats; sct=true, window=true, ws=3000, we=30000, trace=false)
-
-# ╔═╡ ad2586a9-ae87-4ed3-ba3b-a5dbe5ae1d92
-length(wvfm.time) 
-
-# ╔═╡ 65ad61a5-b427-40e2-9f5e-9d7fb08f5ac1
-wvfm.time[end]
+lfi.LaserLab.plot_waveform(lwvfm, stats; sct=true, window=true, ws=3000, we=20000, trace=false)
 
 # ╔═╡ 92e61e22-5666-43d9-a965-ef1d030a644b
 begin
@@ -393,14 +381,8 @@ fpeaks
 # ╔═╡ 23435290-c689-4052-ba9c-a6123888e2c8
 fpeaks.xs
 
-# ╔═╡ 497903a3-05c3-4ab3-aeee-4c45279145e1
-fpeaks.proms
-
 # ╔═╡ 7cd95e32-fba3-4ffe-8dc9-c25de9f26dd5
-rate = length(fpeaks.xs) /tw
-
-# ╔═╡ a79baadf-4634-4087-95df-16c2d5f5d4ea
-uconvert(kHz, rate)
+rate = 1e+3*length(fpeaks.xs) /200.0
 
 # ╔═╡ cb8c269e-67f7-4239-bd56-066fce1886d2
 if zprom
@@ -421,18 +403,15 @@ end
 # ╔═╡ 51aadb55-65bf-484b-bb95-759647dc4d5b
 ffhz
 
-# ╔═╡ a661eac7-14a9-4878-8bed-cd5af2c46ea2
-wvfm
-
 # ╔═╡ 00778f59-2f53-48db-82a0-2adc18fd1aab
 if zpwf
-	pwvfm = lfi.LaserLab.plot_waveform(wvfm, stats; sct=false, window=false, ws=1, we=2500, trace=false)
+	pwvfm = lfi.LaserLab.plot_waveform(wvfm, stats; sct=true, window=false, ws=50000, we=53000, trace=false)
 	
 	#plot(size=(850,550), pwvfm, pfft, pfwvfm, layout=(1,3), titlefontsize=8)
 end
 
 # ╔═╡ 007ee36b-d7a7-421b-855c-0123933c3496
-lfi.LaserLab.plot_fft(wvfm,tw; sct=true, window=true, ws=1, we=371000)
+lfi.LaserLab.plot_fft(wvfm,tw; sct=true, window=true, ws=1, we=271000)
 
 # ╔═╡ 3335c616-9948-4498-afa1-b0589b3cbf08
 wvfm
@@ -563,7 +542,10 @@ begin
 end
 
 # ╔═╡ 8436f3b4-43eb-40bd-afa4-ad3dd87310ea
-pmtdf = lfi.LaserLab.load_df_from_csv(csvdir, string(sflt,".csv"), lfi.LaserLab.enG)
+pmtdf2 = lfi.LaserLab.load_df_from_csv(csvdir, string(sflt,".csv"), lfi.LaserLab.enG)
+
+# ╔═╡ 4a0e49d1-9d38-4ae4-9224-678eee5b19d3
+pmtdf = filter(row -> row[:pr] > zpcut, pmtdf2)
 
 # ╔═╡ 39f8b749-3c41-4bff-9140-22c0be92e8dc
 begin
@@ -681,7 +663,7 @@ function runsel(csvf::Vector{String}, fi::Integer, fe::Integer;
 	df.ws    = reduce(vcat,[spks[i].widths  for i in 1:length(spks)])
 	df.ts   = reduce(vcat,[subtract_laser(spks[i].xs, t0peaks) for i in 1:length(spks)])
 	df.vs   = reduce(vcat,[spks[i].ys  for i in 1:length(spks)])
-	rate   = [length(spks[i].xs)/tw  for i in 1:length(spks)]
+	rate   = [length(spks[i].xs)/tw2  for i in 1:length(spks)]
 	df, rate
 end
 
@@ -694,15 +676,12 @@ if ztimes
 end
 
 
-# ╔═╡ 7b14e2f5-13ed-4167-a08b-0bae2eaad1ec
-ratekHz = uconvert.(kHz, xrate)
-
 # ╔═╡ 7b83eb23-c530-47da-9fab-b29d741cc4a7
-mean(ratekHz/kHz)
+mean(xrate*1e+3)
 
 # ╔═╡ 3f586e94-251d-48f6-844c-c707c3aa2c7d
 begin
-	hrate = lfi.LaserLab.h1d(ratekHz/kHz, 10, 0.0, 100.0)
+	hrate = lfi.LaserLab.h1d(xrate*1e+3, 30, 0.0, 30.0)
 	prate = lfi.LaserLab.plot_h1d(hrate, "rate kHz")
 end
 
@@ -816,26 +795,21 @@ end
 # ╠═ce8097c9-9608-49c8-aa5b-7338d090d743
 # ╠═d8a104e7-2e5c-4531-8cb3-1f984e18205c
 # ╠═61a7be9d-c7e5-4011-9167-d037db6e1740
-# ╠═a34ebaea-bc17-4c66-b486-bc44e5c71b02
 # ╠═b45847ef-a983-4f07-ac27-9cfb0ccfd350
-# ╠═d6110c4f-6936-4eac-a775-6558538b82ad
 # ╠═13be4894-e112-4300-a4a1-dd058f3fbc4a
 # ╠═61413efa-86fc-456c-be71-f9a32da61e9e
 # ╠═bbb97133-8857-4d71-8a25-181e0705b671
-# ╠═d0971928-49ef-4fe5-a76e-6f1e3e5368e3
 # ╠═c821e8e5-0df8-4018-b01a-227e9ce360a4
 # ╠═48a64967-f68e-4d8f-b482-c84cbbd04bdf
 # ╠═740681e5-7dc2-4fa1-bfb7-1ee5557ab885
 # ╠═7aa5e292-c7e6-4a92-bec7-4f90195814a4
 # ╠═d3009c78-6318-4b5c-adfe-fb5905414081
 # ╠═65585926-07ba-4792-b943-136bf7e3c1c3
-# ╠═ad2586a9-ae87-4ed3-ba3b-a5dbe5ae1d92
-# ╠═65ad61a5-b427-40e2-9f5e-9d7fb08f5ac1
 # ╠═b30c1537-465b-4938-97be-17219bef9402
 # ╠═92e61e22-5666-43d9-a965-ef1d030a644b
 # ╠═afeb9110-2058-4f09-9d27-4872f813256e
-# ╠═a661eac7-14a9-4878-8bed-cd5af2c46ea2
 # ╠═00778f59-2f53-48db-82a0-2adc18fd1aab
+# ╠═c7c09a33-5b65-4d8f-a8de-6201d8a53522
 # ╠═007ee36b-d7a7-421b-855c-0123933c3496
 # ╠═89596cfe-f271-4b44-93ca-bd4871bca989
 # ╠═3335c616-9948-4498-afa1-b0589b3cbf08
@@ -845,9 +819,7 @@ end
 # ╠═79c9268c-8949-4a3c-aa06-228c80603ebd
 # ╠═2e70957e-13c5-4124-9030-ed6499128283
 # ╠═23435290-c689-4052-ba9c-a6123888e2c8
-# ╠═497903a3-05c3-4ab3-aeee-4c45279145e1
 # ╠═7cd95e32-fba3-4ffe-8dc9-c25de9f26dd5
-# ╠═a79baadf-4634-4087-95df-16c2d5f5d4ea
 # ╠═4a23e02e-1190-4958-bb72-00118be36c7b
 # ╠═d557f2b0-7ccf-45c7-a93b-5bf499cfafad
 # ╠═900433fb-a3a0-4606-8459-f8ce5c120b66
@@ -865,7 +837,7 @@ end
 # ╠═67dac32c-11df-4843-9e52-e4845bc1a2d4
 # ╠═799cb553-5093-4efc-91c6-5dc4161e6961
 # ╠═8436f3b4-43eb-40bd-afa4-ad3dd87310ea
-# ╠═7b14e2f5-13ed-4167-a08b-0bae2eaad1ec
+# ╠═4a0e49d1-9d38-4ae4-9224-678eee5b19d3
 # ╠═7b83eb23-c530-47da-9fab-b29d741cc4a7
 # ╠═3f586e94-251d-48f6-844c-c707c3aa2c7d
 # ╠═39f8b749-3c41-4bff-9140-22c0be92e8dc
