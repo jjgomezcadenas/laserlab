@@ -66,3 +66,5 @@ function imgtest()
     LaserLab.imgroi(tmrx, edcorn; isize=xsz) == tmrx
     LaserLab.imgbox(tmrx, vx, rx; isize=xsz) == tmrx
 end
+
+

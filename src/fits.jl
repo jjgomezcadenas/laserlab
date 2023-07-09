@@ -46,7 +46,7 @@ fit_expo(tdata::Vector{Float64}, vdata::Vector{Float64}; pa0=[0.0, 0.5], i0=1)
 
 """
 function fit_expo(tdata::Vector{Float64}, vdata::Vector{Float64}; pa0=[0.0, 0.5], i0=1)
-	tfun(t, N, λ) = N*exp(-t/λ)
+	tfun(t, N, λ) = N * exp(-t/λ)
 	pfun(t, p) = p[1] * exp.(-t/p[2])
 	il = length(tdata)
 	fit = curve_fit(pfun, tdata[i0:il], vdata[i0:il], pa0)

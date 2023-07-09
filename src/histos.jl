@@ -11,42 +11,69 @@ struct Histo1d
 	centers::Vector{Float64}
 end
 
-
-"""Take an object of type Hisgoram and return a Histo1d"""
+"""
+Take an object of type Histogram and return a Histo1d
+"""
 get_histo1d(h::Histogram) = Histo1d(edges(h), h.weights, centers(h))
 
+"""
+Returns a Histo1d struct
 
-"""Returns a Histo1d struct""" 
+""" 
+function h1d(x::Vector{T}, nbins::Integer,
+             xmin::T=typemin(T), xmax::T=typemax(T), norm=false) where T
+
+    h = hist1d(x, nbins, xmin, xmax, norm)
+    Histo1d(edges(h), h.weights, centers(h))
+end
+
 h1d(x::Vector{Float64}, bins::Vector{Float64}, norm=false) = get_histo1d(hist1d(x, bins, norm))
 
 
-"""Return a Histo1d struct"""
-function h1d(x::Vector{T}, nbins::Integer, xmin::T=typemin(T), xmax::T=typemax(T), norm=false) where T
-    get_histo1d(hist1d(x, nbins, xmin, xmax, norm))
-end
-
 """plot a h1d histogram"""
-function plot_h1d(h::Histo1d, xs::String; i0=1, il=-1,
-                  markersize::Int64=3, fwl::Bool=false,
-                  label::String="", legend::Bool=false)
+function plot_h1dx(h; xs="edges value", ys ="weights values",
+                   yl=(1.0,10^4), xl=(0.0,100.0),
+                   ylog=false, xlog=false,
+                   ylim=false, xlim=false,
+                   markersize=3, fwl=false,
+                   label="", legend=false)
 
     xg = h.centers
     yg = h.weights
 
-    if il == -1 
-        il = length(xg)
-    end
-    p  = scatter(xg[i0:il], yg[i0:il], yerr=sqrt.(abs.(yg[i0:il])),
-                 markersize=markersize, label=label, legend=legend)
-    if fwl
-        p = plot!(p, xg[i0:il], yg[i0:il], yerr=sqrt.(abs.(yg[i0:il])), fmt=:png,
-                  linewidth=1, label=label, legend=legend)
+    marker = (:circle, markersize, 0.6, :black)
+
+    xaxis =(xs)
+    if xlim && xlog
+    xaxis = (xs, xl, :log)
+    elseif xlim
+    xaxis = (xs, xl)
+    elseif xlog
+    xaxis = (xs, :log)
     end
 
-    xlabel!(xs)
-    ylabel!("frequency")
-    return p
-end
+    yaxis =(ys)
+    if ylim && ylog
+    yaxis = (ys, yl, :log)
+    elseif ylim
+    yaxis = (ys, yl)
+    elseif ylog
+    yaxis = (ys, :log)
+    end
+
+
+    p = scatter(xg, yg, yerr=sqrt.(abs.(yg)), 
+    xaxis =xaxis, yaxis = yaxis, 
+    markersize=markersize, label=label, legend=legend)
+    if fwl
+    p = plot!(p, xg, yg, 
+        xaxis =xaxis, yaxis = yaxis, fmt=:png,
+        linewidth=1, label=label, legend=legend)
+    end
+
+    p
+    end
+
 
 """
     digitize(x, bins)
@@ -69,6 +96,7 @@ end
     hist1d(h::Histogram, xs::String; datap = true, markersize=3, fwl=false)
 
 return a 1d histogram and its corresponding graphics (plots)
+
 """
 function hist1d(x::Vector{<:Real}, bins::Vector{<:Real}, norm=false)
     h = fit(Histogram, x, bins)
@@ -81,10 +109,20 @@ end
 
 function hist1d(x::Vector{T}, nbins::Integer,
                 xmin::T=typemin(T), xmax::T=typemax(T), norm=false) where T
-    xx   = in_range(x, xmin, xmax)
-    bins = collect(LinRange(xmin, xmax, nbins + 1))
-    h    = hist1d(xx, bins, norm)
-    return h
+    
+    dx = (xmax - xmin) /nbins
+
+    edges = [xmin + i * dx for i in 0:nbins]
+    h = fit(Histogram, x, edges)
+    if norm
+        h = StatsBase.normalize(h, mode=:density)
+    end
+    h
+
+    #xx   = in_range(x, xmin, xmax)
+    #bins = collect(LinRange(xmin, xmax, nbins + 1))
+    #h    = hist1d(xx, bins, norm)
+    #return h
 end
 
 

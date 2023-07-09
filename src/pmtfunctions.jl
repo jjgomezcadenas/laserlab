@@ -121,7 +121,7 @@ function readtimestamp(s::IOStream, pos::Int)
 	readbytes!(s, bytes)
 	years = collect(reinterpret(Int16, bytes))[1]
 	
-	(year=years,month=months,day=days,hour=hours,minute=minutes,second=seconds)
+	(year=years,month=months,day=days,hour=hours,minutes=minutes,second=seconds)
 end
 
 

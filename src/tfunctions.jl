@@ -57,28 +57,28 @@ reads a weveform specifying directory and file name
 Waveform as a data frame. Defaults: amplitude in mV (signal positive), time in μs.
 
 """
-function read_waveform(wdir::String, wname::String; wmus::Float64, wsym::Bool=true, 
-	                   sign=-1.0, vf= 1e+3, tf=1e+6)
+# function read_waveform(wdir::String, wname::String; wmus::Float64, wsym::Bool=true, 
+# 	                   sign=-1.0, vf= 1e+3, tf=1e+6)
 	
-	wvfm = load_df_from_csv(wdir, wname, enG,5)
-	shift_waveform!(wvfm, wmus, wsym, sign, vf, tf)
+# 	wvfm = load_df_from_csv(wdir, wname, enG,5)
+# 	shift_waveform!(wvfm, wmus, wsym, sign, vf, tf)
 	
-end
+# end
 
 
-"""
-	read_waveform(csvf::Vector{String}, fnumber::Integer; wmus::Float64, wsym::Bool)
+# """
+# 	read_waveform(csvf::Vector{String}, fnumber::Integer; wmus::Float64, wsym::Bool)
 
-  Like previous method but takes a vector of strings with the name of the files 
-  and an integer with the index of the file to be read
+#   Like previous method but takes a vector of strings with the name of the files 
+#   and an integer with the index of the file to be read
 
-"""
-function read_waveform(csvf::Vector{String}, fnumber::Integer; wmus::Float64, 
-	                   wsym::Bool)
+# """
+# function read_waveform(csvf::Vector{String}, fnumber::Integer; wmus::Float64, 
+# 	                   wsym::Bool)
 	
-	wvfm = DataFrame(CSV.File(csvf[fnumber], header=5, delim=enG.delim, decimal=enG.decimal))
-	shift_waveform!(wvfm, wmus, wsym)
-end
+# 	wvfm = DataFrame(CSV.File(csvf[fnumber], header=5, delim=enG.delim, decimal=enG.decimal))
+# 	shift_waveform!(wvfm, wmus, wsym)
+# end
 
 
 """
@@ -311,24 +311,24 @@ Returns
 A vector of SPeaks 
 
 """
-function select_peaks(csvf::Vector{String}, i0::Integer, il::Integer; 
-	                  wmus::Float64, wsym::Bool, flhz::Float64, promsel::Number, 
-	                  nsigma=2.0, filtertype="Butterworth")
+# function select_peaks(csvf::Vector{String}, i0::Integer, il::Integer; 
+# 	                  wmus::Float64, wsym::Bool, flhz::Float64, promsel::Number, 
+# 	                  nsigma=2.0, filtertype="Butterworth")
 
-	SPK = []
-	for fileNumber in i0:il
-		wvfm = read_waveform(csvf,fileNumber; wmus=wmus, wsym=wsym)
-		filter_signal_lp!(wvfm, wmus; filtertype=filtertype, flhz=flhz, n=4)
-		_, _, thrp, _ = wstats(wvfm; nsigma=nsigma, waveform="filtered")
-		result = select_filtered_peaks(wvfm, thrp; promsel = promsel, wsel=0.0)
+# 	SPK = []
+# 	for fileNumber in i0:il
+# 		wvfm = read_waveform(csvf,fileNumber; wmus=wmus, wsym=wsym)
+# 		filter_signal_lp!(wvfm, wmus; filtertype=filtertype, flhz=flhz, n=4)
+# 		_, _, thrp, _ = wstats(wvfm; nsigma=nsigma, waveform="filtered")
+# 		result = select_filtered_peaks(wvfm, thrp; promsel = promsel, wsel=0.0)
 
-		if result != Nothing
-			_, speaks = result
-			push!(SPK,speaks)
-		end
-	end
-	SPK
-end
+# 		if result != Nothing
+# 			_, speaks = result
+# 			push!(SPK,speaks)
+# 		end
+# 	end
+# 	SPK
+# end
 
 """
 	proms(csvf::Vector{String}, fi::Integer, fe::Integer; 
@@ -352,17 +352,17 @@ Returns
 A vector of proms and a vector of widths  
 
 """
-function proms(csvf::Vector{String}, fi::Integer, fe::Integer; 
-	wmus::Float64, wsym::Bool, flhz::Float64, promsel::Number, 
-	nsigma=2.0, filtertype="Butterworth")
+# function proms(csvf::Vector{String}, fi::Integer, fe::Integer; 
+# 	wmus::Float64, wsym::Bool, flhz::Float64, promsel::Number, 
+# 	nsigma=2.0, filtertype="Butterworth")
 
-	spks0 = select_peaks(csvf, fi, fe; wmus=wmus, wsym=wsym, flhz=flhz,
-				promsel=promsel, nsigma=nsigma, filtertype=filtertype)
+# 	spks0 = select_peaks(csvf, fi, fe; wmus=wmus, wsym=wsym, flhz=flhz,
+# 				promsel=promsel, nsigma=nsigma, filtertype=filtertype)
 
-	sP = reduce(vcat,[spks0[i].proms for i in 1:length(spks0)])
-	sW = reduce(vcat,[spks0[i].widths for i in 1:length(spks0)])
-	return sP, sW
-end
+# 	sP = reduce(vcat,[spks0[i].proms for i in 1:length(spks0)])
+# 	sW = reduce(vcat,[spks0[i].widths for i in 1:length(spks0)])
+# 	return sP, sW
+# end
 
 
 """
@@ -387,7 +387,7 @@ A vector of proms and a vector of widths
 """
 function runsel(csvf::Vector{String}, fi::Integer, fe::Integer;
 	            wmus::Float64, wsym::Bool, flhz::Float64, promsel::Number, tlmus::Float64)
-				
+
 
 	spks = select_peaks(csvf, fi, fe; wmus=wmus, wsym=wsym, flhz=flhz, promsel=promsel)
 	df = DataFrame()
