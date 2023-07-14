@@ -84,7 +84,7 @@ returns the beam Intensity: ``I(\\rho, z) = I_0 ( W_0 / W(z))^2 \\exp{-2 \\rho^2
 """
 function I(gl::GaussianLaser)
 	Wz = W(gl)
-	Irz(ρ::Unitful.Length, z::Unitful.Length) = gl.I0 * (gl.w0 / Wz(z))^2 * exp(-2.0 * ρ^2/Wz(z)^2)
+	Irz(ρ::Unitful.Length, z::Unitful.Length) = 2.0 * gl.laser.P / (π * Wz(z))^2 * exp(-2.0 * ρ^2/Wz(z)^2)
 	return Irz
 end
 

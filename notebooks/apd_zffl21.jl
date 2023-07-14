@@ -80,25 +80,58 @@ md"""
 rdir ="/Users/jjgomezcadenas/BoldLab/BOLD/APD/"
 
 # ╔═╡ f5c90393-faa4-47dc-a55b-9d66dd1d2c25
-dsamples=Dict("IrSL_VS026_B1(2.5e-6M)"=>(name="IrSl", dep="spinCoating?", 
-                                         c=2.5e-6, Ba2=false, 
+dsamples=Dict("ZFFL21_C"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.0e-6, Ba2=false, 
                                          grass=false),
-	"IrSL_VS026_C1(1.25e-6M)"=>(name="IrSl", dep="spinCoating?", 
-                                         c=1.25e-6, Ba2=false, 
+	"ZFFL21_C.2"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.0e-6, Ba2=false, 
                                          grass=false),
-	"IrSL_VS029_F1(1e-7M)"=>(name="IrSl", dep="spinCoating?", 
-                                         c=1.0e-7, Ba2=false, 
+	"ZFFL21_D"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.05e-7, Ba2=false, 
                                          grass=false),
+	"ZFFL21_E"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.0e-8, Ba2=false, 
+                                         grass=false),
+	"ZFFL21_C.3"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.0e-6, Ba2=false, 
+                                         grass=false),
+	"ZFFL21_D.3"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.05e-7, Ba2=false, 
+                                         grass=false),
+	"ZFFL21_E.3"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.0e-8, Ba2=false, 
+                                         grass=false),
+	"ZFFL21_F.3"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.0e-9, Ba2=false, 
+                                         grass=false),
+	"ZFFL21_G.3"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.0e-10, Ba2=false, 
+                                         grass=false),
+	"ZFFL21_H.3"=>(name="QUINN", dep="spinCoating", 
+                                         c=1.0e-11, Ba2=false, 
+                                         grass=false),
+	"CleanQUARTZ_07072023"=>(name="Quartz", dep="clean", 
+                                         c=0, Ba2=false, 
+                                         grass=false)
+
+	
 	
 )
 
 # ╔═╡ 14192a57-c137-4a61-9074-98d6a0211ef9
 dftpar=Dict(
-	"Filter0"=>(nbins=244, dtmax=500.0, tmax=60.0, ymax=1*10^3, dymax=1*10^5, i0=[20,23, 80], l0=[23,98,98], dcut=50.0)
+	"ZFFL21_C_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=5*10^4, dymax=2*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"ZFFL21_C.2_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=5*10^4, dymax=2*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"ZFFL21_D_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=1*10^4, dymax=1*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"ZFFL21_E_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=5*10^3, dymax=1*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"ZFFL21_C.3_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=5*10^4, dymax=2*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"ZFFL21_D.3_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=1*10^4, dymax=1*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"ZFFL21_E.3_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=5*10^3, dymax=1*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"ZFFL21_F.3_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=1*10^3, dymax=2*10^4, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"ZFFL21_G.3_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=1*10^3, dymax=1*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"ZFFL21_H.3_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=1*10^3, dymax=1*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
+	"CleanQUARTZ_07072023_Filter0"=>(nbins=100, dtmax=1000.0, tmax=120.0, ymax=2*10^3, dymax=1*10^5, i0=[5,10, 15], l0=[7,15,100], dcut=150.0),
 )
-
-# ╔═╡ 773448d8-4955-459a-ad8d-c9846b16059f
-
 
 # ╔═╡ 12a7c46a-ed5a-40fa-bb07-9dd3811d9dcd
 md""" Select sample : $(@bind sample Select(sort(collect(keys(dsamples)))))"""
@@ -132,11 +165,6 @@ begin
 	ff = readdir(sdflt)
 	xfiles = readdir(sdflt)
 	files = filter(x -> x != ".DS_Store", xfiles)
-	#if length(ff) == 1 
-	#	files = readdir(sdflt)
-	#else
-	#	files = readdir(sdflt)[2:end]
-	#end
 	md""" Select file : $(@bind file Select(files))"""
 end
 
@@ -150,7 +178,7 @@ end
 
 # ╔═╡ 9ae4acf2-a712-4c50-963d-e33754c01f20
 begin
-	sexp = string(xfilter)
+	sexp = string(sample, "_", xfilter)
 	zdat = dftpar[sexp]
 
 	md"""
@@ -197,7 +225,7 @@ h1dtns  = lfi.LaserLab.h1d(PhotonDF.dtime *ttrns, zdat.nbins, 0.0, zdat.dtmax)
 # ╔═╡ 5f143f8b-b72f-4c21-8bfc-17cf061653c9
 pp =lfi.LaserLab.plot_h1dx(h1dtns; xs = "dt (ns)", ys = "a.u", 
                            xlim=true, xl = (0.0, zdat.dtmax),
-						   ylim=true, yl=(1,zdat.dymax), ylog=true,
+						   ylim=true, yl=(1,zdat.dymax), ylog=false,
 						   markersize=2, fwl=true)
 
 # ╔═╡ c15de41a-15c5-4034-a0d4-77888b7784b5
@@ -212,8 +240,8 @@ imx = argmax(vdata)
 # ╔═╡ bfc13b99-e9cf-455f-8269-1e6234bf0e58
 vdata[imx-3:imx+5]
 
-# ╔═╡ 7d7ec498-1fe3-47db-b993-b0e699b6d435
-
+# ╔═╡ df977c06-e6b2-47cf-bc93-87fc788473c6
+#cdc, stdc, ydc = tfit_bkg(tdata, vdata; i0=zdat.i0[3], l0=zdat.l0[3], pa0=[100.0, 0.5])
 
 # ╔═╡ 1f524d20-d336-4ae5-be00-781c057c1f9c
 h1ts  = lfi.LaserLab.h1d(PhotonDF.timeTag * tns*1e-9, zdat.nbins, 0.0, zdat.tmax)
@@ -247,6 +275,9 @@ begin
 						   ylim=false, yl=(0,zdat.dymax), markersize=2, fwl=true)
 end
 
+# ╔═╡ dfb87e1b-4966-4bd0-bc31-886665ccb4ac
+#csgn3, stdsgn3, ysgn3 = tfit_sgn(h1dtfns.centers, h1dtfns.weights; cbkg = [0.0,0.0], i0=50, l0=100, pa0=[100.0, 50.5])
+
 # ╔═╡ 033e6f4f-3f50-474e-b92e-4bd52c1cb653
 begin
 	h2ts  = lfi.LaserLab.h1d(pdf.timeTag * tns*1e-9, zdat.nbins, 0.0, zdat.tmax)
@@ -255,13 +286,21 @@ begin
 						   ylim=true, yl=(1,zdat.ymax), markersize=2, fwl=true)
 end
 
+# ╔═╡ 5f7027d2-521b-47f0-9573-d301e249d585
+begin
+	h3ts  = lfi.LaserLab.h1d(pdf.timeTag * tns*1e-9, 20, 0.0, zdat.tmax)
+	p3ts =lfi.LaserLab.plot_h1dx(h2ts; xs = "t (s)", ys = "a.u", 
+                           xlim=true, xl = (0.0, zdat.tmax),
+						   ylim=true, yl=(1,100), markersize=2, fwl=true)
+end
+
 # ╔═╡ 6d9fb048-a608-4905-aaf5-b8bd90b239ab
 md"""
 ### Quartz combined analysis
 """
 
 # ╔═╡ b00caa31-64bb-4a74-a31c-b7ad98445746
-
+xsamples =["ZFFL21_C.2", "ZFFL21_C.3", "ZFFL21_D.3", "ZFFL21_E.3", "ZFFL21_F.3", "ZFFL21_G.3", "ZFFL21_H.3"]
 
 # ╔═╡ dff3ed15-5130-4e76-a0a6-6bf686e2ce16
 #(sgntot = zsgn, sgnflttot = zsgnflt, sgn = dsgn, esgn = edsgn, sgnflt=dsgnflt,
@@ -288,9 +327,6 @@ function tfit_bkg(xdata, ydata; i0, l0, pa0=[100.0, 0.5])
 	tfit(xdata[i0:l0], ydata[i0:l0], pa0, ffun, mffun)
 end
 
-# ╔═╡ df977c06-e6b2-47cf-bc93-87fc788473c6
-cdc, stdc, ydc = tfit_bkg(tdata, vdata; i0=zdat.i0[3], l0=zdat.l0[3], pa0=[100.0, 0.5])
-
 # ╔═╡ 235d81bf-5166-4276-b61c-1e7586f4d8bf
 function tfit_sgn(xdata, ydata; cbkg, i0, l0, pa0=[100.0, 0.5])
 	
@@ -308,23 +344,23 @@ csgn1, stdsgn1, ysgn1 = tfit_sgn(tdata, vdata; cbkg = [0.0,0.0], i0=zdat.i0[1], 
 # ╔═╡ 785d56f4-e681-404a-b9b6-c139f7379745
 csgn2, stdsgn2, ysgn2 = tfit_sgn(tdata, vdata; cbkg = [0.0,0.0], i0=zdat.i0[2], l0=zdat.l0[2], pa0=[100.0, 50.5])
 
+# ╔═╡ 7d7ec498-1fe3-47db-b993-b0e699b6d435
+csgn3, stdsgn3, ysgn3 = tfit_sgn(tdata, vdata; cbkg = [0.0,0.0], i0=zdat.i0[3], l0=zdat.l0[3], pa0=[100.0, 50.5])
+
 # ╔═╡ 106dfd23-4fea-48b5-9d55-2b4d49186c93
 begin
 	pp2 = plot(pp, tdata, ysgn1)
 	pp3 = plot(pp2, tdata, ysgn2)
-	plot(pp3, tdata, ydc)
+	plot(pp3, tdata, ysgn3)
 end
 
 # ╔═╡ 0096d481-0f1c-4e61-95c1-3d90184de56a
 md"""
 ### Fit results
-- Fast exp: $(csgn1[2]) +- $(stdsgn1[2])
-- Slow exp: $(csgn2[2]) +- $(stdsgn2[2])
-- DC: $(cdc[1]) +- $(stdc[1])
+- exp1: $(csgn1[2]) +- $(stdsgn1[2])
+- exp2: $(csgn2[2]) +- $(stdsgn2[2])
+- exp3: $(csgn3[2]) +- $(stdsgn3[2])
 """
-
-# ╔═╡ dfb87e1b-4966-4bd0-bc31-886665ccb4ac
-csgn3, stdsgn3, ysgn3 = tfit_sgn(h1dtfns.centers, h1dtfns.weights; cbkg = [0.0,0.0], i0=50, l0=100, pa0=[100.0, 50.5])
 
 # ╔═╡ 8e1d8113-204c-4421-9024-2b3922a6cc7d
 ppf2 = plot(ppf, h1dtfns.centers, ysgn3)
@@ -383,26 +419,58 @@ function fsgn(rdir, sample, filters, wfnm, zdat, file="default.ptu")
 	 esgnflt=edsgnflt)
 end
 
-# ╔═╡ 5c729ea7-3249-4978-adc2-7e7ffbab4083
-res = fsgn(rdir, sample, filters, wfnm, zdat)
+# ╔═╡ 0883e1f1-4a94-4762-be8a-c97a99f2627f
+function csgn(rdir, samples, zdat, file="default.ptu")
+	dtcut = zdat.dcut
 
-# ╔═╡ 58f02181-a279-4eab-952d-00d532220297
-md"""
-- Total signal (per second and nm) = $(res.sgntot)
-- Total filters signal (per second and nm) = $(res.sgnflttot)
-- cut efficiency : = $(res.sgnflttot / res.sgntot)
-"""
+	println(samples)
+	dsgn=zeros(length(samples))
+	dsgnflt=zeros(length(samples))
+	edsgn=zeros(length(samples))
+	edsgnflt=zeros(length(samples))
+	
+	i=0
+	for sample in samples
+		i+=1
+		println(sample)
+		sdir = string(rdir, sample)
+		sdflt = joinpath(sdir, "Filter0")
+		zpath = joinpath(sdflt,file)
 
-# ╔═╡ 8092d0f3-2c11-46fe-9f02-a6b9a1c8488f
-begin
-	scatter(xfnm, res.sgn, yerr=res.esgn, ylim=(0,100), label="QUIN 1e-6 after cut", xlabel="filter center (nm)", ylabel ="counts/second/nm")
-	plot!(xfnm, res.sgn, ylim=(0,70), label="")
+		println("i = ", i, " zpath = ", zpath)
+		
+		PhotonDF, tagDict =  lfi.LaserLab.readHH(zpath, 100, true, false, false)
+		h1ts  = lfi.LaserLab.h1d(PhotonDF.timeTag * tns*1e-9, zdat.nbins, 0.0, 
+			                     zdat.tmax)
+		pdf = filter(:dtime  => x -> x * ttrns >= dtcut,  PhotonDF)
+		h2ts  = lfi.LaserLab.h1d(pdf.timeTag * tns*1e-9, zdat.nbins, 0.0, zdat.tmax)
+		
+		dsgn[i]  = sum(h1ts.weights) /(zdat.tmax) 
+		dsgnflt[i] = sum(h2ts.weights) /(zdat.tmax )
+		edsgn[i]  = sqrt(sum(h1ts.weights))/(zdat.tmax) 
+		edsgnflt[i] = sqrt(sum(h2ts.weights))/(zdat.tmax ) 
+		
+	end
+	(sgn = dsgn, esgn = edsgn, sgnflt=dsgnflt,
+	 esgnflt=edsgnflt)
 end
 
-# ╔═╡ 9538bc58-add7-4ebc-ade7-206f877f1107
+# ╔═╡ 5c729ea7-3249-4978-adc2-7e7ffbab4083
+res = csgn(rdir, xsamples, zdat)
+
+# ╔═╡ 58be53d0-1edb-4aa0-97da-d73766b3f663
+res
+
+# ╔═╡ 1132f573-90fb-4be7-873d-05a22699ee4c
+res.sgn[1]/res.sgn[4]
+
+# ╔═╡ 111362b5-95ff-472c-a047-7ec6106ffa62
 begin
-	scatter(xfnm, res.sgnflt, yerr=res.esgnflt, ylim=(0,100), label="QUIN 1e-6 after cut", xlabel="filter center (nm)", ylabel ="counts/second/nm")
-	plot!(xfnm, res.sgnflt, ylim=(0,70), label="")
+	yaxis = ("counts/second", (1,5.0e+4), :log)
+	scatter(xsamples, res.sgn, yerr=res.esgn, yaxis=yaxis, label="QUIN ",  xlabel="sample")
+	plot!(xsamples, res.sgnflt, yaxis=yaxis, label="")
+	scatter!(xsamples, res.sgnflt, yerr=res.esgnflt, yaxis=yaxis, label="QUIN-cut ",  xlabel="sample")
+	plot!(xsamples, res.sgnflt, yaxis=yaxis, label="")
 end
 
 # ╔═╡ Cell order:
@@ -418,7 +486,6 @@ end
 # ╠═e3a9b4c9-778e-4c64-bd83-a9c9d32cee8e
 # ╠═f5c90393-faa4-47dc-a55b-9d66dd1d2c25
 # ╠═14192a57-c137-4a61-9074-98d6a0211ef9
-# ╠═773448d8-4955-459a-ad8d-c9846b16059f
 # ╠═12a7c46a-ed5a-40fa-bb07-9dd3811d9dcd
 # ╠═507702eb-f000-48be-99da-b19180dcda6e
 # ╠═c792b017-9c33-4d03-853a-9672f8eaf481
@@ -454,16 +521,18 @@ end
 # ╠═dfb87e1b-4966-4bd0-bc31-886665ccb4ac
 # ╠═8e1d8113-204c-4421-9024-2b3922a6cc7d
 # ╠═033e6f4f-3f50-474e-b92e-4bd52c1cb653
+# ╠═5f7027d2-521b-47f0-9573-d301e249d585
 # ╠═6d9fb048-a608-4905-aaf5-b8bd90b239ab
 # ╠═b00caa31-64bb-4a74-a31c-b7ad98445746
 # ╠═5c729ea7-3249-4978-adc2-7e7ffbab4083
 # ╠═dff3ed15-5130-4e76-a0a6-6bf686e2ce16
-# ╠═58f02181-a279-4eab-952d-00d532220297
-# ╠═8092d0f3-2c11-46fe-9f02-a6b9a1c8488f
-# ╠═9538bc58-add7-4ebc-ade7-206f877f1107
+# ╠═58be53d0-1edb-4aa0-97da-d73766b3f663
+# ╠═1132f573-90fb-4be7-873d-05a22699ee4c
+# ╠═111362b5-95ff-472c-a047-7ec6106ffa62
 # ╠═adef1149-cbf5-4403-88b0-e51196030cec
 # ╠═3204a561-8244-466e-9dbe-e1302ef363d9
 # ╠═37a64b1f-93f6-4402-a32a-be1207352d86
 # ╠═235d81bf-5166-4276-b61c-1e7586f4d8bf
 # ╠═0cf824bc-506b-4b37-881c-97b051735653
 # ╠═a349f303-3005-4c97-809b-3dde8af05ccb
+# ╠═0883e1f1-4a94-4762-be8a-c97a99f2627f

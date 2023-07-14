@@ -256,52 +256,8 @@ md"""
 ### Quartz combined analysis
 """
 
-# ╔═╡ a349f303-3005-4c97-809b-3dde8af05ccb
-function fquartz(rdir, sample, filters, zdat, file="default.ptu")
-	dtcut = zdat.dcut
-	
-	dsgn=zeros(10)
-	dsgnflt=zeros(10)
-
-	sdir = string(rdir, sample)
-	xfilters = readdir(sdir)
-	filters = filter(x -> x != ".DS_Store", xfilters)
-	i=0
-	for xfilter in filters
-		if xfilter == "Filter10"
-			continue 
-		end
-		i+=1
-		println("filter =", xfilter, " index = ", i)
-		sdflt = joinpath(sdir, xfilter)
-		zpath = joinpath(sdflt,file)
-		
-		PhotonDF, tagDict =  lfi.LaserLab.readHH(zpath, 100, true, false, false)
-		h1ts  = lfi.LaserLab.h1d(PhotonDF.timeTag * tns*1e-9, zdat.nbins, 0.0, 
-			                     zdat.tmax)
-		dsgn[i]  = sum(h1ts.weights) /zdat.tmax 
-	
-		pdf = filter(:dtime  => x -> x * ttrns >= dtcut,  PhotonDF)
-		h2ts  = lfi.LaserLab.h1d(pdf.timeTag * tns*1e-9, zdat.nbins, 0.0, zdat.tmax)
-		dsgnflt[i] = sum(h2ts.weights) /zdat.tmax 
-	end
-	dsgn, dsgnflt
-end
-
 # ╔═╡ b00caa31-64bb-4a74-a31c-b7ad98445746
 
-
-# ╔═╡ 5c729ea7-3249-4978-adc2-7e7ffbab4083
-dsgn, dsgnflt = fquartz(rdir, sample, filters, zdat)
-
-# ╔═╡ dff3ed15-5130-4e76-a0a6-6bf686e2ce16
-dsgn
-
-# ╔═╡ 8092d0f3-2c11-46fe-9f02-a6b9a1c8488f
-scatter(collect(1:10), dsgn, ylim=(0,800), label="quartz no cut")
-
-# ╔═╡ 9538bc58-add7-4ebc-ade7-206f877f1107
-scatter(collect(1:10), dsgnflt, ylim=(0,100), label="quartz no cut")
 
 # ╔═╡ adef1149-cbf5-4403-88b0-e51196030cec
 md"""
@@ -370,6 +326,50 @@ function tfit_sgn2(xdata, ydata; cbkg, csgn, i0, l0, pa0=[100.0, 0.5])
 
 	tfit(xdata[i0:l0], ydata[i0:l0], pa0, ffun, mffun)
 end
+
+# ╔═╡ a349f303-3005-4c97-809b-3dde8af05ccb
+function fquartz(rdir, sample, filters, zdat, file="default.ptu")
+	dtcut = zdat.dcut
+	
+	dsgn=zeros(10)
+	dsgnflt=zeros(10)
+
+	sdir = string(rdir, sample)
+	xfilters = readdir(sdir)
+	filters = filter(x -> x != ".DS_Store", xfilters)
+	i=0
+	for xfilter in filters
+		if xfilter == "Filter10"
+			continue 
+		end
+		i+=1
+		println("filter =", xfilter, " index = ", i)
+		sdflt = joinpath(sdir, xfilter)
+		zpath = joinpath(sdflt,file)
+		
+		PhotonDF, tagDict =  lfi.LaserLab.readHH(zpath, 100, true, false, false)
+		h1ts  = lfi.LaserLab.h1d(PhotonDF.timeTag * tns*1e-9, zdat.nbins, 0.0, 
+			                     zdat.tmax)
+		dsgn[i]  = sum(h1ts.weights) /zdat.tmax 
+	
+		pdf = filter(:dtime  => x -> x * ttrns >= dtcut,  PhotonDF)
+		h2ts  = lfi.LaserLab.h1d(pdf.timeTag * tns*1e-9, zdat.nbins, 0.0, zdat.tmax)
+		dsgnflt[i] = sum(h2ts.weights) /zdat.tmax 
+	end
+	dsgn, dsgnflt
+end
+
+# ╔═╡ 5c729ea7-3249-4978-adc2-7e7ffbab4083
+dsgn, dsgnflt = fquartz(rdir, sample, filters, zdat)
+
+# ╔═╡ dff3ed15-5130-4e76-a0a6-6bf686e2ce16
+dsgn
+
+# ╔═╡ 8092d0f3-2c11-46fe-9f02-a6b9a1c8488f
+scatter(collect(1:10), dsgn, ylim=(0,800), label="quartz no cut")
+
+# ╔═╡ 9538bc58-add7-4ebc-ade7-206f877f1107
+scatter(collect(1:10), dsgnflt, ylim=(0,100), label="quartz no cut")
 
 # ╔═╡ Cell order:
 # ╠═1459f36b-afa4-405e-a9e8-e6ae32ea752e
