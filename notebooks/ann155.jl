@@ -84,31 +84,52 @@ md"""
 # ╔═╡ 81549a07-5eda-466d-bafb-24f530041d8c
 begin
 	acnpath = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ACN/Filter0/default.ptu"
-	rpath = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ANN155_10e-6"
-	rpathba = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ANN155_Ba_10e-6"
 	PhotonDFAcn, tagDictAcn =  lfi.LaserLab.readHH(acnpath, 100, true, false)
-	ttrns = tagDictAcn["MeasDesc_Resolution"]* 1e+9
-	tns   = tagDictAcn["MeasDesc_GlobalResolution"] * 1e+9
+	ttrnsacn = tagDictAcn["MeasDesc_Resolution"]* 1e+9
+	tnsacn   = tagDictAcn["MeasDesc_GlobalResolution"] * 1e+9
 
 	md"""
 	#### Time bins:
-	- dt  time bin(units of ns for time difference) = $ttrns
-	- tag time bin(units of ns for time ) = $tns
+	- dt  time bin(units of ns for time difference) = $ttrnsacn
+	- tag time bin(units of ns for time ) = $tnsacn
 	"""
 end
 
 
 # ╔═╡ 391fe36a-79b2-49f4-a3f1-c3f4ed83dea6
-samples=["ANN155.1", "ANN155+Ba.1"]
+samples=[ 
+"ANN155", "ANN155.1",           
+"ANN155_10e-6",    
+"ANN155_10e-6_after_degas",    
+"ANN155_10e-6_before_degas"]
+
+# ╔═╡ ca0b6daa-ff0c-499a-a64f-fe6dd5f93d74
+samplesba=[ 
+"ANN155+Ba", 
+"ANN155+Ba.1",            
+"ANN155_10e-6_Ba_after_degas",  
+"ANN155_10e-6_Ba_before_degas",     
+"ANN155_Ba_10e-6"]
 
 # ╔═╡ ab612ed4-56f1-41b1-afc1-581f386fd0a7
 md""" Select sample : $(@bind sample Select(samples))"""
 
+# ╔═╡ 45e75283-429f-440a-8569-56e79cabccda
+md""" Select sample Ba : $(@bind sampleba Select(samplesba))"""
+
 # ╔═╡ e3a9b4c9-778e-4c64-bd83-a9c9d32cee8e
-rxdir ="/Users/jjgomezcadenas/BoldLab/BOLD/APD/"
+
 
 # ╔═╡ 711e562b-a17a-4a20-a03c-236118991ea3
-rdir = string(rxdir, sample)
+begin
+	rxdir ="/Users/jjgomezcadenas/BoldLab/BOLD/APD/"
+	rdir = string(rxdir, sample)
+	rdirba = string(rxdir, sampleba)
+end
+
+# ╔═╡ 0738a3bd-ddcc-4e90-b519-432bf66d6161
+#rpath = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ANN155_10e-6_after_degas"
+#	rpathba = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ANN155_10e-6_Ba_after_degas/"
 
 # ╔═╡ 14192a57-c137-4a61-9074-98d6a0211ef9
 dftpar=Dict(
@@ -147,8 +168,8 @@ dftparacn=Dict(
 # ╔═╡ f2c68ebb-fc5f-4dcf-a3b0-d327b7511dbd
 begin
 	zxdat =dftparacn["Filter0"]
-	h1dtnAcn  = lfi.LaserLab.h1d(PhotonDFAcn.dtime *ttrns, zxdat.nbins, zxdat.dcut, zxdat.dtmax)
-	h1tsAcn  = lfi.LaserLab.h1d(PhotonDFAcn.timeTag * tns*1e-9, zxdat.nbins, 0.0, zdat.tmax)
+	h1dtnAcn  = lfi.LaserLab.h1d(PhotonDFAcn.dtime *ttrnsacn, zxdat.nbins, zxdat.dcut, zxdat.dtmax)
+	h1tsAcn  = lfi.LaserLab.h1d(PhotonDFAcn.timeTag * tnsacn*1e-9, zxdat.nbins, 0.0, zdat.tmax)
 	pacndt =lfi.LaserLab.plot_h1dx(h1dtnAcn; xs = "dt (ns)", ys = "a.u", 
                            xlim=true, xl = (0.0, zxdat.dtmax),
 						   ylim=true, yl=(1,zxdat.dymax), ylog=false,
@@ -170,12 +191,16 @@ end
 # ╔═╡ c792b017-9c33-4d03-853a-9672f8eaf481
 begin
 	xfilters = readdir(rdir)
-	filters = sort(filter(x -> x != ".DS_Store" && x != "info.txt", xfilters))
-	md""" Select filter : $(@bind xfilter Select(filters))"""
+	filters = sort(filter(x -> x != ".DS_Store" && x != "Info.txt", xfilters))
+	md""" Select filter for free molecule : $(@bind xfilter Select(filters))"""
 end
 
-# ╔═╡ af625f50-0d7f-4392-bfab-7402e4acbc48
-xfilter
+# ╔═╡ 1284ccc9-ea32-4fa7-8350-5ba96fbdacf3
+begin
+	xfiltersba = readdir(rdirba)
+	filtersba = sort(filter(x -> x != ".DS_Store" && x != "info.txt", xfiltersba))
+	md""" Select filter for chelated molecule : $(@bind xfilterba Select(filters))"""
+end
 
 # ╔═╡ 220f711c-957f-4174-b3c7-f4de4d910328
 begin
@@ -192,18 +217,39 @@ begin
 	md""" Select file : $(@bind file Select(files))"""
 end
 
+# ╔═╡ 7f2ed729-c09b-4b63-98aa-16b85200911b
+begin
+	sdfltba = joinpath(rdirba, xfilterba)
+	ffba = readdir(sdfltba)
+	xfilesba = readdir(sdfltba)
+	filesba = filter(x -> x != ".DS_Store", xfilesba)
+	md""" Select file Ba : $(@bind fileba Select(filesba))"""
+end
+
 # ╔═╡ c07044d5-7bde-42c2-b104-7035487c41e2
 flts = ["Filter0","Filter3","Filter4","Filter5","Filter6","Filter7",
 	"Filter8","Filter9"]
 
+# ╔═╡ 69acf984-964b-4589-9b65-c15450c5d1a0
+#NEVT, NEVTBA = getnorm(rpath,file, flts)
+
+# ╔═╡ 155a4254-bb97-4761-a6bd-9e0fe1c04422
+#begin
+#	efff = NEVT[2:end] ./ NEVT[1]
+#	effb = NEVTBA[2:end] ./ NEVTBA[1]
+#	peff = scatter(flts[2:end], efff, label="ANN155")
+#	pefba = scatter(flts[2:end], effb, label="ANN155+BA")
+#	plot(peff, pefba, layout = (1, 2), size=(850,550))
+#end
+
 # ╔═╡ ffd49f31-6a3d-4800-b257-0f1841c50706
 begin
-	zpath = joinpath(rpath, xfilter, file)
-	zpathba = joinpath(rpathba, xfilter, file)
+	zpath = joinpath(rdir, xfilter, file)
+	zpathba = joinpath(rdirba, xfilterba, fileba)
 
 	md"""
-	- path to ANN155 =$zpath
-	- path to ANN155+Ba =$zpathba
+	- path to free ANN =$zpath
+	- path to ANN+ Ba =$zpathba
 	"""
 end
 
@@ -220,35 +266,50 @@ fDict = Dict("fctime"  =>tagDict["File_CreatingTime"],
             "tbin"    =>tagDict["MeasDesc_GlobalResolution"] * 1e+9,
             "dtbin"  =>tagDict["MeasDesc_Resolution"]* 1e+9)
 
+# ╔═╡ a888a973-bb71-4577-9024-b5b788891482
+fDictBa = Dict("fctime"  =>tagDictBa["File_CreatingTime"],
+            "acqtime"  =>tagDictBa["MeasDesc_AcquisitionTime"]*1e-3,
+            "nrecords" =>tagDictBa["TTResult_NumberOfRecords"],
+            "tbin"    =>tagDictBa["MeasDesc_GlobalResolution"] * 1e+9,
+            "dtbin"  =>tagDictBa["MeasDesc_Resolution"]* 1e+9)
+
+# ╔═╡ cd2fb65b-7e9c-4a3f-bc26-51dc87b1470f
+begin
+	ttrns = tagDict["MeasDesc_Resolution"]* 1e+9
+	tns   = tagDict["MeasDesc_GlobalResolution"] * 1e+9
+	ttrnsba = tagDictBa["MeasDesc_Resolution"]* 1e+9
+	tnsba   = tagDictBa["MeasDesc_GlobalResolution"] * 1e+9
+end
+
 # ╔═╡ 0caf7df2-a7e3-4369-a77c-e923d6bd0772
 begin
 	pdtf = histogram(PhotonDF.dtime * ttrns, label="ANN155")
-	pdtba = histogram(PhotonDFBa.dtime * ttrns,  label="ANN155+BA")
+	pdtba = histogram(PhotonDFBa.dtime * ttrnsba,  label="ANN155+BA")
 	plot(pdtf, pdtba)
 end
 
 # ╔═╡ b2d6bb5e-96f4-4fae-8717-7026c652b839
 begin
 	pttf = histogram(PhotonDF.timeTag * tns*1e-9, label="ANN155")
-	pttba = histogram(PhotonDFBa.timeTag * tns*1e-9,  label="ANN155+BA")
+	pttba = histogram(PhotonDFBa.timeTag * tnsba*1e-9,  label="ANN155+BA")
 	plot(pttf, pttba)
 end
 
 # ╔═╡ 1cedaad8-c2ae-4fba-8326-967d9e37ea9b
 begin
 h1dtns  = lfi.LaserLab.h1d(PhotonDF.dtime *ttrns, fdat.nbins, fdat.dcut, fdat.dtmax)
-h1dtnsba  = lfi.LaserLab.h1d(PhotonDFBa.dtime *ttrns, badat.nbins, badat.dcut, badat.dtmax)
+h1dtnsba  = lfi.LaserLab.h1d(PhotonDFBa.dtime *ttrnsba, badat.nbins, badat.dcut, badat.dtmax)
 end
 
 # ╔═╡ 5f143f8b-b72f-4c21-8bfc-17cf061653c9
 begin
 	ppdtf =lfi.LaserLab.plot_h1dx(h1dtns; xs = "dt (ns)", ys = "a.u", 
                            xlim=true, xl = (0.0, fdat.dtmax), label="ANN155",
-						   ylim=true, yl=(1,fdat.dymax), ylog=false, legend=true,
+						   ylim=false, yl=(1,fdat.dymax), ylog=false, legend=true,
 						   markersize=2, fwl=true)
 	ppdtba =lfi.LaserLab.plot_h1dx(h1dtnsba; xs = "dt (ns)", ys = "a.u", 
                            xlim=true, xl = (0.0, badat.dtmax), label="ANN155+Ba",
-						   ylim=true, yl=(1,badat.dymax), ylog=false, legend=true,
+						   ylim=false, yl=(1,badat.dymax), ylog=false, legend=true,
 						   markersize=2, fwl=true)
 	plot(ppdtf, ppdtba)
 end
@@ -372,18 +433,6 @@ function getnorm(rpath,file, flts)
 	NEVT, NEVTBA
 end
 
-# ╔═╡ 69acf984-964b-4589-9b65-c15450c5d1a0
-NEVT, NEVTBA = getnorm(rpath,file, flts)
-
-# ╔═╡ 155a4254-bb97-4761-a6bd-9e0fe1c04422
-begin
-	efff = NEVT[2:end] ./ NEVT[1]
-	effb = NEVTBA[2:end] ./ NEVTBA[1]
-	peff = scatter(flts[2:end], efff, label="ANN155")
-	pefba = scatter(flts[2:end], effb, label="ANN155+BA")
-	plot(peff, pefba, layout = (1, 2), size=(850,550))
-end
-
 # ╔═╡ dff3ed15-5130-4e76-a0a6-6bf686e2ce16
 function cut_scan(df, zdat, tns, srange=100:500:5100)
 	SGN = zeros(length(collect(srange)))
@@ -473,7 +522,7 @@ begin
 	y2b = [qint(expb, ti, ti+10) for ti in 1:10:5000]
 	y2f = [qint(expf, ti, ti+10) for ti in 1:10:5000]
 	rsn = y2b ./ sqrt.(y2f)
-	plot(xxt,rsn, lw=2, label="S/N", ylim=(0., 10^3))
+	plot(xxt,rsn, lw=2, label="S/N", ylim=(0., 10^4))
 end
 
 # ╔═╡ b5d2505d-d677-49d5-a8fb-6c96ab3d025f
@@ -608,22 +657,28 @@ md"""
 # ╠═f2c68ebb-fc5f-4dcf-a3b0-d327b7511dbd
 # ╠═7f195bc8-9ed0-4f80-8310-06a11a6c0e0e
 # ╠═391fe36a-79b2-49f4-a3f1-c3f4ed83dea6
+# ╠═ca0b6daa-ff0c-499a-a64f-fe6dd5f93d74
 # ╠═ab612ed4-56f1-41b1-afc1-581f386fd0a7
+# ╠═45e75283-429f-440a-8569-56e79cabccda
 # ╠═e3a9b4c9-778e-4c64-bd83-a9c9d32cee8e
 # ╠═711e562b-a17a-4a20-a03c-236118991ea3
+# ╠═0738a3bd-ddcc-4e90-b519-432bf66d6161
 # ╠═14192a57-c137-4a61-9074-98d6a0211ef9
 # ╠═79876fb7-7177-4277-acc6-71a8a5195868
 # ╠═8a57aa29-a9d9-47e5-b13b-34a62533e54d
 # ╠═c792b017-9c33-4d03-853a-9672f8eaf481
-# ╠═af625f50-0d7f-4392-bfab-7402e4acbc48
+# ╠═1284ccc9-ea32-4fa7-8350-5ba96fbdacf3
 # ╠═220f711c-957f-4174-b3c7-f4de4d910328
 # ╠═f08c25a5-3b2b-4b43-a021-035ba9539e46
+# ╠═7f2ed729-c09b-4b63-98aa-16b85200911b
 # ╠═c07044d5-7bde-42c2-b104-7035487c41e2
 # ╠═69acf984-964b-4589-9b65-c15450c5d1a0
 # ╠═155a4254-bb97-4761-a6bd-9e0fe1c04422
 # ╠═ffd49f31-6a3d-4800-b257-0f1841c50706
 # ╠═843c6950-d629-495b-9d9e-06d920d80229
 # ╠═11754d33-3316-4163-86c0-0ae25a7d679b
+# ╠═a888a973-bb71-4577-9024-b5b788891482
+# ╠═cd2fb65b-7e9c-4a3f-bc26-51dc87b1470f
 # ╠═0caf7df2-a7e3-4369-a77c-e923d6bd0772
 # ╠═b2d6bb5e-96f4-4fae-8717-7026c652b839
 # ╠═1cedaad8-c2ae-4fba-8326-967d9e37ea9b
