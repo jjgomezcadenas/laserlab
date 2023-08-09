@@ -1,7 +1,7 @@
 import Dates
 using PythonStructs
 
-function readHH(zpath, nevents, runall=false, verbose=false, summary=true)
+function readHH(zpath, nevents, runall=false, verbose=false, summary=true, empty=false)
 if summary
     println("Function readHH")
 end
@@ -137,7 +137,12 @@ end
     if recordType == rtHydraHarp2T3
     	println("HydraHarp V2 T3 data")
         println("running number of events = ", nevents) 
-        PhotonDF, LaserDF = readHT3(fid, 2, nevents)
+        if empty 
+            return nevents
+        else
+
+            PhotonDF, LaserDF = readHT3(fid, 2, nevents)
+        end
 
 	elseif recordType == rtHydraHarp2T2
 		println("HydraHarp V2 T2 data")

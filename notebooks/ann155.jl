@@ -22,7 +22,7 @@ begin
 	using PlutoUI
 	using CSV
 	using DataFrames
-	#using Dates
+	using QuadGK
 	using Plots
 	using Printf
 	using Markdown
@@ -84,8 +84,8 @@ md"""
 # ╔═╡ 81549a07-5eda-466d-bafb-24f530041d8c
 begin
 	acnpath = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ACN/Filter0/default.ptu"
-	rpath = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ANN155"
-	rpathba = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ANN155+Ba"
+	rpath = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ANN155_10e-6"
+	rpathba = "/Users/jjgomezcadenas/BoldLab/BOLD/APD/ANN155_Ba_10e-6"
 	PhotonDFAcn, tagDictAcn =  lfi.LaserLab.readHH(acnpath, 100, true, false)
 	ttrns = tagDictAcn["MeasDesc_Resolution"]* 1e+9
 	tns   = tagDictAcn["MeasDesc_GlobalResolution"] * 1e+9
@@ -99,7 +99,7 @@ end
 
 
 # ╔═╡ 391fe36a-79b2-49f4-a3f1-c3f4ed83dea6
-samples=["ANN155", "ANN155+Ba"]
+samples=["ANN155.1", "ANN155+Ba.1"]
 
 # ╔═╡ ab612ed4-56f1-41b1-afc1-581f386fd0a7
 md""" Select sample : $(@bind sample Select(samples))"""
@@ -112,7 +112,7 @@ rdir = string(rxdir, sample)
 
 # ╔═╡ 14192a57-c137-4a61-9074-98d6a0211ef9
 dftpar=Dict(
-	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=2*10^4, dymax=4*10^4, i0=[1,20, 1], l0=[90,30,30], dcut=100.0),
+	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=2*10^4, dymax=6*10^4, i0=[1,20, 1], l0=[90,30,30], dcut=100.0),
 	"Filter1"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^3, dymax=2*10^3, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
 	"Filter2"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^3, dymax=2*10^3, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
 	"Filter3"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^3, dymax=2*10^3, i0=[1,10, 15], l0=[7,100,100], dcut=100.0),
@@ -127,7 +127,7 @@ dftpar=Dict(
 
 # ╔═╡ 79876fb7-7177-4277-acc6-71a8a5195868
 dftparba=Dict(
-	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^4, dymax=1*10^5, i0=[1,20, 1], l0=[20,100,100], dcut=100.0),
+	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^4, dymax=2*10^5, i0=[1,20, 1], l0=[20,100,100], dcut=100.0),
 	"Filter1"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^3, dymax=5*10^3, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
 	"Filter2"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^3, dymax=5*10^3, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
 	"Filter3"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^4, dymax=5*10^3, i0=[1,10, 15], l0=[7,100,100], dcut=100.0),
@@ -191,6 +191,10 @@ begin
 	files = filter(x -> x != ".DS_Store", xfiles)
 	md""" Select file : $(@bind file Select(files))"""
 end
+
+# ╔═╡ c07044d5-7bde-42c2-b104-7035487c41e2
+flts = ["Filter0","Filter3","Filter4","Filter5","Filter6","Filter7",
+	"Filter8","Filter9"]
 
 # ╔═╡ ffd49f31-6a3d-4800-b257-0f1841c50706
 begin
@@ -281,14 +285,14 @@ begin
 	src=1:5:100 
 	yy = [sum(vdataba[i:end]) + eps for i in src]
 	xx = [sum(vdataf[i:end]) + eps for i in src]
-	stnba = abs.(yy./xx)
+	stnba = abs.(yy)./sqrt.(abs.(xx))
 	ster =sqrt.(stnba./abs.(xx))
 	#stnba= abs.([(sum(vdataba[i:end]) + eps) / (sum(vdataf[i:end]) + eps) for i in src])
 	
 	xt =[tdata[i] for i in src]
 	
 	#yer = sqrt.([stnba[i:end]^3 ./(sum(vdataf[i:end]) + eps) for i in src])
-	prf2ba = scatter(xt, stnba, yerr=ster, markersize=2, yaxis=:log, label="Ratio Ba/free")
+	prf2ba = scatter(xt, stnba, yerr=ster, markersize=2, yaxis=(:log, (10^3, 10^5)), label="Ratio Ba/free")
 
 	yy2 = [sum(vdataba[i:end]) + eps for i in src]
 	ytot =sum(vdataba)
@@ -299,6 +303,31 @@ begin
 
 	plot(prf2ba, peffba)
 	
+end
+
+# ╔═╡ f4e75f3d-fcb1-4cb1-a7f9-e0e79ddd232a
+stnba
+
+# ╔═╡ 55772fb1-6356-470a-bcf0-8196acb090ed
+effba
+
+# ╔═╡ b5479f38-58fd-44e0-9bf8-7914e141bece
+function fsgntn(csgnf, csgnba, csgnba2, xt=1000)
+	expf(t) = csgnf[1] * exp(-t/csgnf[2])
+	function expb(t) 
+		if t <= xt
+			return csgnba[1] * exp(-t/csgnba[2]) 
+		else
+			return csgnba2[1] * exp(-t/csgnba2[2]) 
+		end
+	end
+	expf, expb
+			
+end
+
+# ╔═╡ 67e9922a-0d15-436f-9e22-509ee65b1eb4
+function qint(f::Function, t0::Number, t1::Number)
+	return quadgk(f, t0, t1)[1]
 end
 
 # ╔═╡ 1f524d20-d336-4ae5-be00-781c057c1f9c
@@ -328,6 +357,32 @@ dtcut = zdat.dcut # in dt units
 md"""
 ## Functions
 """
+
+# ╔═╡ 702f4805-8e1f-4fb8-bada-e95777055cdf
+function getnorm(rpath,file, flts)
+	
+	NEVT = zeros(length(flts))
+	NEVTBA = zeros(length(flts))
+	for (i,xflt) in enumerate(flts)
+		zzpath = joinpath(rpath, xflt, file)
+		zzpathba = joinpath(rpathba, xflt, file)
+		NEVT[i]   =  lfi.LaserLab.readHH(zzpath, 100, true, false, true, true)
+		NEVTBA[i] =  lfi.LaserLab.readHH(zzpathba, 100, true, false, true, true)
+	end
+	NEVT, NEVTBA
+end
+
+# ╔═╡ 69acf984-964b-4589-9b65-c15450c5d1a0
+NEVT, NEVTBA = getnorm(rpath,file, flts)
+
+# ╔═╡ 155a4254-bb97-4761-a6bd-9e0fe1c04422
+begin
+	efff = NEVT[2:end] ./ NEVT[1]
+	effb = NEVTBA[2:end] ./ NEVTBA[1]
+	peff = scatter(flts[2:end], efff, label="ANN155")
+	pefba = scatter(flts[2:end], effb, label="ANN155+BA")
+	plot(peff, pefba, layout = (1, 2), size=(850,550))
+end
 
 # ╔═╡ dff3ed15-5130-4e76-a0a6-6bf686e2ce16
 function cut_scan(df, zdat, tns, srange=100:500:5100)
@@ -395,10 +450,30 @@ csgnba2, stdsgnba2, ysgnba2 = tfit_sgn(tdata, vdataba; cbkg = [0.0,0.0], i0=bada
 
 # ╔═╡ 200deb4a-c9da-4460-8f8f-99ed4ddc9820
 begin
-	zzpf = plot(p3dtfx, tdata, ysgnf)
-	zzpba = plot(p3dtfbax, tdata, ysgnba)
-	zzpba2 = plot(zzpba, tdata, ysgnba2)
+	zzpf = plot(p3dtfx, tdata, ysgnf, yaxis=:log, ylim=(1, 10^5))
+	zzpba = plot(p3dtfbax, tdata, ysgnba, yaxis=:log, ylim=(1, 10^5))
+	zzpba2 = plot(zzpba, tdata, ysgnba2, yaxis=:log, ylim=(1, 10^5))
 	plot(zzpf, zzpba2)
+end
+
+# ╔═╡ 4ba0ff3e-36c9-4878-8deb-4cabb7f27c39
+expf, expb = fsgntn(csgnf, csgnba, csgnba2)
+
+# ╔═╡ 428e28e0-583c-4226-9999-f256144feb62
+begin
+	xxt = 1:10:5000
+	yyb = expb.(xxt) 
+	yyf = expf.(xxt)
+	plot(xxt,yyb, lw=2, label="ANN155+Ba")
+	plot!(xxt,yyf, lw=2, label="ANN155")
+end
+
+# ╔═╡ c05365a6-f993-43f5-a2c3-b5c64ebeed01
+begin
+	y2b = [qint(expb, ti, ti+10) for ti in 1:10:5000]
+	y2f = [qint(expf, ti, ti+10) for ti in 1:10:5000]
+	rsn = y2b ./ sqrt.(y2f)
+	plot(xxt,rsn, lw=2, label="S/N", ylim=(0., 10^3))
 end
 
 # ╔═╡ b5d2505d-d677-49d5-a8fb-6c96ab3d025f
@@ -506,10 +581,15 @@ csgnba3, stdsgnba3, ysgnba3 = tfit_sgn2(tdata, vdataba, csgnba, csgnba2; i0=bada
 # ╔═╡ 0096d481-0f1c-4e61-95c1-3d90184de56a
 md"""
 ### Fit results
-- Free: exp1:  $(round(csgnf[2])) +- $(round(csgnf[2])) in range [ $(tdata[fdat.i0[1]]), $(tdata[fdat.l0[1]])] ns
-- Ba22+ : exp1: $(round(csgnba[2])) +- $(round(csgnba[2])) in range [ $(tdata[badat.i0[1]]), $(tdata[badat.l0[1]])] ns
-- Ba2+ : exp2: $(round(csgnba2[2])) +- $(round(csgnba2[2])) in range [ $(tdata[badat.i0[2]]), $(tdata[badat.l0[2]])] ns
-- intensity: N1 = $(round(csgnba3[1])), N2 = $(round(csgnba3[2]))
+- Free: exp1:  λ = $(round(csgnf[2])) +- $(round(stdsgnf[2])), N = $(round(csgnf[1])) +- $(round(stdsgnf[1])) in range [ $(tdata[fdat.i0[1]]), $(tdata[fdat.l0[1]])] ns
+
+- Ba22+ : exp1: λ1 = $(round(csgnba[2])) +- $(round(stdsgnba[2])), N1 = $(round(csgnba[1])) +- $(round(stdsgnba[1])) in range [ $(tdata[badat.i0[1]]), $(tdata[badat.l0[1]])] ns
+
+- Ba2+ : exp2: λ2 = $(round(csgnba2[2])) +- $(round(stdsgnba2[2])), N2 = $(round(csgnba2[1])) +- $(round(stdsgnba2[1])) in range [ $(tdata[badat.i0[2]]), $(tdata[badat.l0[2]])] ns
+
+- normalizations: N1 = $(round(csgnba[1]/(csgnba[1]+csgnba2[1]), digits=2)), N2 = $(round(csgnba2[1]/(csgnba[1]+csgnba2[1]), digits=2))
+
+- intensity double fit: N1 = $(round(csgnba3[1])), N2 = $(round(csgnba3[2]))
 - normalizations: N1 = $(round(csgnba3[1]/(csgnba3[1]+csgnba3[2]), digits=2)), N2 = $(round(csgnba3[2]/(csgnba3[1]+csgnba3[2]), digits=2))
 """
 
@@ -538,6 +618,9 @@ md"""
 # ╠═af625f50-0d7f-4392-bfab-7402e4acbc48
 # ╠═220f711c-957f-4174-b3c7-f4de4d910328
 # ╠═f08c25a5-3b2b-4b43-a021-035ba9539e46
+# ╠═c07044d5-7bde-42c2-b104-7035487c41e2
+# ╠═69acf984-964b-4589-9b65-c15450c5d1a0
+# ╠═155a4254-bb97-4761-a6bd-9e0fe1c04422
 # ╠═ffd49f31-6a3d-4800-b257-0f1841c50706
 # ╠═843c6950-d629-495b-9d9e-06d920d80229
 # ╠═11754d33-3316-4163-86c0-0ae25a7d679b
@@ -548,16 +631,24 @@ md"""
 # ╠═bcd73cbc-96c4-4cbf-9bc6-9c7bbc56a018
 # ╠═c15de41a-15c5-4034-a0d4-77888b7784b5
 # ╠═2cddd392-870c-4c8b-8f0c-a7d0c44502cb
+# ╠═f4e75f3d-fcb1-4cb1-a7f9-e0e79ddd232a
+# ╠═55772fb1-6356-470a-bcf0-8196acb090ed
 # ╠═c0448a2e-c467-4cd6-aa44-82b488d5cf06
 # ╠═6e481aaa-8fe3-4c37-a16b-1936e81b3576
 # ╠═45355282-c022-405a-aa02-8aa6900ec24c
 # ╠═abeeb9dd-70cc-4d6e-88e6-4f71623b4d90
 # ╠═200deb4a-c9da-4460-8f8f-99ed4ddc9820
+# ╠═b5479f38-58fd-44e0-9bf8-7914e141bece
+# ╠═67e9922a-0d15-436f-9e22-509ee65b1eb4
+# ╠═4ba0ff3e-36c9-4878-8deb-4cabb7f27c39
+# ╠═428e28e0-583c-4226-9999-f256144feb62
+# ╠═c05365a6-f993-43f5-a2c3-b5c64ebeed01
 # ╠═0096d481-0f1c-4e61-95c1-3d90184de56a
 # ╠═1f524d20-d336-4ae5-be00-781c057c1f9c
 # ╠═5c2c75d9-123e-46dc-a70b-126f7e881589
 # ╠═363898af-1ee7-4fa9-94db-393a777b0255
 # ╠═adef1149-cbf5-4403-88b0-e51196030cec
+# ╠═702f4805-8e1f-4fb8-bada-e95777055cdf
 # ╠═9186b77c-f41c-4d80-98b8-74490caa8869
 # ╠═dff3ed15-5130-4e76-a0a6-6bf686e2ce16
 # ╠═3204a561-8244-466e-9dbe-e1302ef363d9
