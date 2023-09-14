@@ -1,5 +1,5 @@
 import Dates
-using PythonStructs
+#using PythonStructs
 
 function readHH(zpath, nevents, runall=false, verbose=false, summary=true, empty=false)
 if summary

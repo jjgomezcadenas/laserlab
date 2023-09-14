@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.25
+# v0.19.27
 
 using Markdown
 using InteractiveUtils
@@ -34,6 +34,7 @@ begin
 	using Unitful 
 	using UnitfulEquivalences 
 	using PhysicalConstants
+	using LaTeXStrings
 end
 
 # ╔═╡ 74a2ea89-0b20-4d71-9461-82755b6ed6d8
@@ -98,8 +99,9 @@ end
 
 
 # ╔═╡ 391fe36a-79b2-49f4-a3f1-c3f4ed83dea6
-samples=[ 
-"ANN155", "ANN155.1",           
+samples=[ "ZFFL51_ANN265.2",  
+	"ANN155_10e-5_after_degas_remeasured",
+"ANN155", "ANN155.1",  "ANN155_10e-5_after_degas",         
 "ANN155_10e-6",    
 "ANN155_10e-6_after_degas",    
 "ANN155_10e-6_before_degas", "ANN155_10e-6_after_degas.2",
@@ -110,9 +112,10 @@ samples=[
 ]
 
 # ╔═╡ ca0b6daa-ff0c-499a-a64f-fe6dd5f93d74
-samplesba=[ 
+samplesba=[ "ZFFL51_ANN265_Ba.2",
+	"ANN155_10e-5_Ba_after_degas_remeasured",
 "ANN155+Ba", 
-"ANN155+Ba.1",            
+"ANN155+Ba.1",       "ANN155_10e-5_Ba_after_degas",     
 "ANN155_10e-6_Ba_after_degas",  
 "ANN155_10e-6_Ba_before_degas",     
 "ANN155_Ba_10e-6", "ANN155_10e-6_Ba_after_degas.2",
@@ -140,7 +143,7 @@ end
 
 # ╔═╡ 14192a57-c137-4a61-9074-98d6a0211ef9
 dftpar=Dict(
-	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=2*10^4, dymax=6*10^4, i0=[1,10, 1], l0=[20,100,100], dcut=100.0),
+	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^4, dymax=6*10^4, i0=[1,10, 1], l0=[20,100,100], dcut=100.0),
 	"Filter1"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^3, dymax=2*10^3, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
 	"Filter2"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^3, dymax=2*10^3, i0=[5,10, 15], l0=[7,15,100], dcut=100.0),
 	"Filter3"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^3, dymax=2*10^3, i0=[1,10, 15], l0=[7,100,100], dcut=100.0),
@@ -171,29 +174,6 @@ dftparba=Dict(
 # ╔═╡ 8a57aa29-a9d9-47e5-b13b-34a62533e54d
 dftparacn=Dict(
 	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=3*10^3, dymax=3*10^3, i0=[1,20, 1], l0=[20,100,100], dcut=100.0))
-
-# ╔═╡ f2c68ebb-fc5f-4dcf-a3b0-d327b7511dbd
-begin
-	zxdat =dftparacn["Filter0"]
-	h1dtnAcn  = lfi.LaserLab.h1d(PhotonDFAcn.dtime *ttrnsacn, zxdat.nbins, zxdat.dcut, zxdat.dtmax)
-	h1tsAcn  = lfi.LaserLab.h1d(PhotonDFAcn.timeTag * tnsacn*1e-9, zxdat.nbins, 0.0, zdat.tmax)
-	pacndt =lfi.LaserLab.plot_h1dx(h1dtnAcn; xs = "dt (ns)", ys = "a.u", 
-                           xlim=true, xl = (0.0, zxdat.dtmax),
-						   ylim=true, yl=(1,zxdat.dymax), ylog=false,
-						   markersize=2, fwl=true)
-	pacntt= lfi.LaserLab.plot_h1dx(h1tsAcn; xs = "t (s)", ys = "a.u", 
-                           xlim=true, xl = (0.0, zxdat.tmax),
-						   ylim=true, yl=(1,zxdat.ymax), markersize=2, fwl=true)
-	plot(pacndt, pacntt)
-end
-
-# ╔═╡ 7f195bc8-9ed0-4f80-8310-06a11a6c0e0e
-begin
-avgbkg = mean(h1tsAcn.weights)
-md"""
-- Average response for ACN = $(round(avgbkg)) pe
-"""
-end
 
 # ╔═╡ c792b017-9c33-4d03-853a-9672f8eaf481
 begin
@@ -295,6 +275,22 @@ begin
 	plot(pdtf, pdtba)
 end
 
+# ╔═╡ a60b9a00-f386-4e28-bbc8-e68c01c82137
+begin
+	h1dtns0  = lfi.LaserLab.h1d(PhotonDF.dtime *ttrns, fdat.nbins, 50.0, fdat.dtmax)
+	h1dtnsba0  = lfi.LaserLab.h1d(PhotonDFBa.dtime *ttrnsba, badat.nbins, 50.0, 	
+			                      badat.dtmax)
+	pdtfx1 =lfi.LaserLab.plot_h1dx(h1dtns0; xs = "dt (ns)", ys = "a.u", 
+                           xlim=true, xl = (0.0, fdat.dtmax), label="C1",
+						   ylim=true, yl=(1e+1,2e+6), ylog=true, legend=true,
+						   markersize=1, fwl=false)
+	ppdtbax1 =lfi.LaserLab.plot_h1dx(h1dtnsba0; xs = "dt (ns)", ys = "a.u", 
+                           xlim=true, xl = (1.0, badat.dtmax), label="C1+Ba",
+						   ylim=true, yl=(1e+1,2e+6), ylog=true, legend=true,
+						   markersize=1, fwl=false)
+	plot(pdtfx1, ppdtbax1, size=(600,400))
+end
+
 # ╔═╡ b2d6bb5e-96f4-4fae-8717-7026c652b839
 begin
 	pttf = histogram(PhotonDF.timeTag * tns*1e-9, label="ANN155")
@@ -337,15 +333,27 @@ begin
 	"""
 end
 
+# ╔═╡ 3111871e-03cd-4519-a408-a009a0e1a776
+length(tdata)
+
 # ╔═╡ c15de41a-15c5-4034-a0d4-77888b7784b5
 begin
 	vdataf = vdataf0 .- tsgn 
 	vdataba = vdataba0 .- tsgn # notice I substract the tail of the free!
-	p3dtfx = scatter(tdata, vdataf, markersize=2, label="ANN155")
-	p3dtfbax = scatter(tdata, vdataba, markersize=2, label="ANN155+Ba")
-	p3dtfba = scatter(tdata, vdataba, markersize=2, label="ANN155+Ba")
-	p3dtf = scatter!(tdata, vdataf, markersize=2, label="ANN155")
+	p3dtfx = scatter(tdata, vdataf, markersize=1, xlabel="t (ns)", ylabel="a.u.",
+		yaxis = (:identity, (1.0, 10000)), label="C1")
+	p3dtfbax = scatter(tdata, vdataba, markersize=1, xlabel="t (ns)", ylabel="a.u.",
+		yaxis = (:identity, (1.0, 3e+4)), label="C1+Ba")
+	p3dtfba = scatter(tdata, vdataba, markersize=1, yaxis = (:identity, (1.0, 10^5)), label="ANN155+Ba")
+	p3dtf = scatter!(tdata, vdataf, markersize=1, yaxis = (:identity, (1.0, 10^5)),
+		xlabel="t (ns)", ylabel="a.u.", label="ANN155")
 end
+
+# ╔═╡ f71f9286-0759-4315-8534-5bf2ce66ded6
+plot(p3dtfx)
+
+# ╔═╡ 76a7d6fb-e5f6-4ad8-a17b-bfc548d9fdc1
+plot(p3dtfbax)
 
 # ╔═╡ 2cddd392-870c-4c8b-8f0c-a7d0c44502cb
 begin
@@ -389,13 +397,16 @@ begin
 	pztf = lfi.LaserLab.plot_h1dx(h1tsf; xs = "t (s)", ys = "a.u", 
                            xlim=true, xl = (0.0, fdat.tmax), label="ANN155",
 	                       legend=true, 
-						   ylim=false, yl=(1,fdat.ymax), markersize=2, fwl=true)
+						   ylim=true, yl=(1,fdat.ymax), markersize=2, fwl=true)
 	pztba = lfi.LaserLab.plot_h1dx(h1tsba; xs = "t (s)", ys = "a.u", 
                            xlim=true, xl = (0.0, badat.tmax), label="ANN155+Ba",
 	                       legend=true, 
-						   ylim=false, yl=(1,badat.ymax), markersize=2, fwl=true)
+						   ylim=true, yl=(1,badat.ymax), markersize=2, fwl=true)
 	plot(pztf, pztba)
 end
+
+# ╔═╡ f14d4695-e7d4-4b4a-9393-9bd09aefe6e4
+length(zefit.ypred)
 
 # ╔═╡ 363898af-1ee7-4fa9-94db-393a777b0255
 #pdf = filter(:dtime  => x -> x * ttrns >= dtcut,  PhotonDF)
@@ -412,7 +423,8 @@ end
 
 # ╔═╡ 1b038953-ca91-4511-aaea-a0d732be35bd
 function fsgntn(zefit, xefit)
-	expf(t) = zefit.a[1] * exp(-t/zefit.b[1]) + zefit.a[2] * exp(-t/zefit.b[2]) + zefit.c
+	expf(t) = zefit.a[1] * exp(-t/zefit.b[1]) 
+	#+ zefit.a[2] * exp(-t/zefit.b[2]) + zefit.c
 	expb(t) = xefit.a[1] * exp(-t/xefit.b[1]) + xefit.a[2] * exp(-t/xefit.b[2]) + xefit.c
 	expf, expb
 			
@@ -421,11 +433,54 @@ end
 # ╔═╡ 5c2c75d9-123e-46dc-a70b-126f7e881589
 begin
 	expf, expb = fsgntn(zefit, xefit)
-	xxt=1:10:5000
-	y2b = [qint(expb, ti, ti+10) for ti in xxt]
-	y2f = [qint(expf, ti, ti+10) for ti in xxt]
-	rsn = y2b ./ sqrt.(y2f)
-	plot(xxt,rsn, lw=2, label="S/N")
+	t0 = 10.0
+	tl = 5000.0
+	ts = 1000.0
+	xxt=t0:ts:tl
+	y2b = [qint(expb, ti, ti+ts) for ti in xxt]
+	y2f = [qint(expf, ti, ti+ts) for ti in xxt]
+	xef = [qint(expb, ti, tl) / qint(expb, t0, tl) for ti in xxt]
+	rsn = y2b ./ sqrt.(abs.(y2f))
+	py1 = plot(xxt, y2b, lw=2, yaxis = (:log,(1e+3, 5e+6)), label="C1+Ba")
+	py2 = plot(xxt, y2f, lw=2, yaxis = (:log,(1, 5e+6)), label="C1")
+	py3 = plot(xxt,rsn, lw=2, yaxis = (:log,(1e+3, 1e+6)), label="S/N")
+	py4 = plot(xxt,xef, lw=2, yaxis = (:log,(1e-3, 1.0)), label="eff")
+	plot( py3, py4)
+end
+
+# ╔═╡ 86a3c22e-5675-4127-a61a-532f6bd52367
+begin
+	zxxt=0.0:10.0:5000.0
+	zy2b = [qint(expb, t0, tl) for t0 in zxxt]
+	zy2f = [qint(expf, t0, tl) for t0 in zxxt]
+	zxef = [qint(expb, t0, tl) / qint(expb, 0.0, 5000.0) for t0 in zxxt]
+	zrsn = zy2b ./ sqrt.(abs.(zy2f))
+	zpy1 = plot(zxxt, zy2b, lw=2, yaxis = (:log,(1e+3, 5e+7)), label="C1+Ba")
+	zpy2 = plot(zxxt, zy2f, lw=2, yaxis = (:log,(1, 5e+6)), label="C1")
+	zpy3 = plot(zxxt,zrsn, lw=2, yaxis = (:log,(1e+3, 1e+6)), label="S/N")
+	zpy4 = plot(zxxt,zxef, lw=2, yaxis = (:log,(1e-3, 1.0)), label="eff")
+	plot( zpy1, zpy2, zpy3, zpy4)
+	#plot(zpy1, zpy2, zpy4)
+end
+
+# ╔═╡ bf6c9f2c-b014-4fef-9e0c-1fcbc4983b4f
+begin
+	yy2b = [qint(expb, ti, ti+10) for ti in xxt]
+	yy2f = [qint(expf, ti, ti+10) for ti in xxt]
+	pyy1 = plot(xxt, expb.(xxt), lw=2, label="C1+Ba")
+	pyy2 = plot(xxt, expf.(xxt), lw=2, label="C1")
+	rrsn = [expb(xx) /sqrt(expf(xx)) for xx in xxt]
+	pyy3 = plot(xxt,rrsn, lw=2, label="S/N")
+	plot(pyy1, pyy2, pyy3)
+end
+
+# ╔═╡ 7a5fbaab-caca-4429-ad74-b50f9620b4ae
+begin
+	pex1 = plot(tdata, xefit.ypred, lw=2, label="C1+Ba")
+	pex11 = plot(pex1,tdata, expb.(tdata), lw=2, label="C1+Ba")
+	pex2 = plot(tdata, zefit.ypred, lw=2, label="C1")
+	pex22 = plot(pex2,tdata, expf.(tdata), lw=2, label="C1+Ba")
+	plot(pex11, pex22)
 end
 
 # ╔═╡ 702f4805-8e1f-4fb8-bada-e95777055cdf
@@ -483,12 +538,19 @@ csgnba2, stdsgnba2, ysgnba2 = tfit_sgn(tdata, vdataba; cbkg = [0.0,0.0], i0=bada
 
 # ╔═╡ 200deb4a-c9da-4460-8f8f-99ed4ddc9820
 begin
-	zzpf = plot(p3dtfx, tdata, ysgnf, yaxis=:log, ylim=(1, 5*10^6), label="exp1")
-	zzpf2 = plot(zzpf, tdata, ysgnf2, yaxis=:log, ylim=(1, 5*10^6), label="exp2")
-	zzpf3 = plot(zzpf2, tdata, zefit.ypred, yaxis=:log, ylim=(1, 5*10^6), label="exp1+exp2")
-	zzpba = plot(p3dtfbax, tdata, ysgnba, yaxis=:log, ylim=(1, 5*10^6), label="exp1")
-	zzpba2 = plot(zzpba, tdata, ysgnba2, yaxis=:log, ylim=(1, 5*10^6), label="exp2")
-	zzpba3 = plot(zzpba2, tdata, xefit.ypred, yaxis=:log, ylim=(1, 5*10^6),label="exp1+exp2")
+	zzpf = plot(p3dtfx, tdata, ysgnf, ylim=(1, 1*10^3), label="exp1")
+	zzpf2 = plot(zzpf, tdata, ysgnf2, ylim=(1, 1*10^3), label="exp2")
+	sexp1 = round(zefit.b[1], digits=2)
+	sexpb1 = round(xefit.b[1], digits=2)
+	sexpb2 = round(xefit.b[2], digits=2)
+	lbl1 = L"\lambda = %$sexp1 \, \mu s"
+	lbl2 = L"\lambda1 = %$sexpb1 \, \mu s, \lambda2 = %$sexpb2 \, \mu s"
+	zzpf3 = plot(p3dtfx, tdata, zefit.ypred,  ylim=(1, 1*10^4), 
+		     label=lbl1)
+	
+	zzpba = plot(p3dtfbax, tdata, ysgnba, yaxis=:identity, ylim=(1, 1*10^5), label="exp1")
+	zzpba2 = plot(zzpba, tdata, ysgnba2, yaxis=:identity, ylim=(1, 1*10^5), label="exp2")
+	zzpba3 = plot(p3dtfbax, tdata, xefit.ypred, yaxis=:identity, ylim=(1, 3*10^4),label=lbl2)
 	plot(zzpf3, zzpba3)
 end
 
@@ -559,8 +621,6 @@ end
 # ╠═8e7c68c7-ff2e-4895-aaf7-189f1d9eb39d
 # ╠═8438aa92-3c20-417f-8733-757f7e07d37f
 # ╠═81549a07-5eda-466d-bafb-24f530041d8c
-# ╠═f2c68ebb-fc5f-4dcf-a3b0-d327b7511dbd
-# ╠═7f195bc8-9ed0-4f80-8310-06a11a6c0e0e
 # ╠═391fe36a-79b2-49f4-a3f1-c3f4ed83dea6
 # ╠═ca0b6daa-ff0c-499a-a64f-fe6dd5f93d74
 # ╠═ab612ed4-56f1-41b1-afc1-581f386fd0a7
@@ -584,11 +644,15 @@ end
 # ╠═a888a973-bb71-4577-9024-b5b788891482
 # ╠═cd2fb65b-7e9c-4a3f-bc26-51dc87b1470f
 # ╠═0caf7df2-a7e3-4369-a77c-e923d6bd0772
+# ╠═a60b9a00-f386-4e28-bbc8-e68c01c82137
 # ╠═b2d6bb5e-96f4-4fae-8717-7026c652b839
 # ╠═1cedaad8-c2ae-4fba-8326-967d9e37ea9b
 # ╠═5f143f8b-b72f-4c21-8bfc-17cf061653c9
 # ╠═bcd73cbc-96c4-4cbf-9bc6-9c7bbc56a018
+# ╠═3111871e-03cd-4519-a408-a009a0e1a776
 # ╠═c15de41a-15c5-4034-a0d4-77888b7784b5
+# ╠═f71f9286-0759-4315-8534-5bf2ce66ded6
+# ╠═76a7d6fb-e5f6-4ad8-a17b-bfc548d9fdc1
 # ╠═2cddd392-870c-4c8b-8f0c-a7d0c44502cb
 # ╠═c0448a2e-c467-4cd6-aa44-82b488d5cf06
 # ╠═16580758-0bcd-410e-b26f-db655868ca4a
@@ -599,7 +663,11 @@ end
 # ╠═200deb4a-c9da-4460-8f8f-99ed4ddc9820
 # ╠═0096d481-0f1c-4e61-95c1-3d90184de56a
 # ╠═1f524d20-d336-4ae5-be00-781c057c1f9c
+# ╠═f14d4695-e7d4-4b4a-9393-9bd09aefe6e4
 # ╠═5c2c75d9-123e-46dc-a70b-126f7e881589
+# ╠═86a3c22e-5675-4127-a61a-532f6bd52367
+# ╠═bf6c9f2c-b014-4fef-9e0c-1fcbc4983b4f
+# ╠═7a5fbaab-caca-4429-ad74-b50f9620b4ae
 # ╠═363898af-1ee7-4fa9-94db-393a777b0255
 # ╠═adef1149-cbf5-4403-88b0-e51196030cec
 # ╠═fdf023c2-0186-48f0-acec-f2a14f218be6
