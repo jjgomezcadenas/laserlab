@@ -88,16 +88,6 @@ begin
 end
 
 
-# ╔═╡ 14192a57-c137-4a61-9074-98d6a0211ef9
-dftpar=Dict(
-	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^4, dymax=6*10^4, i0=
-)
-
-# ╔═╡ 79876fb7-7177-4277-acc6-71a8a5195868
-dftparba=Dict(
-	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=5*10^4, dymax=2*10^5, i0=
-)
-
 # ╔═╡ 8a57aa29-a9d9-47e5-b13b-34a62533e54d
 dftparacn=Dict(
 	"Filter0"=>(nbins=100, dtmax=5000.0, tmax=120.0, ymax=3*10^3, dymax=3*10^3, i0=[1,20, 1], l0=[20,100,100], dcut=100.0))
@@ -242,14 +232,14 @@ begin
 	sexp2 = round(zefit.b[2], digits=1)
 	sexpb1 = round(xefit.b[1], digits=1)
 	sexpb2 = round(xefit.b[2], digits=1)
-	lnd1 = L"\lambda1 = %$sexp1 \, \mu s, \lambda2 = %$sexp2 \, \mu s"
-	lnd2 = L"\lambda1 = %$sexpb1 \, \mu s, \lambda2 = %$sexpb2 \, \mu s"
+	lnd1 = L"\tau_1 = %$sexp1 \, \mu s, \tau_2 = %$sexp2 \, \mu s"
+	lnd2 = L"\tau_1 = %$sexpb1 \, \mu s, \tau_2 = %$sexpb2 \, \mu s"
 	iexp1 = round(zefit.a[1]/(zefit.a[1]+zefit.a[2]), digits=2) 
 	iexp2 = round(zefit.a[2]/(zefit.a[1]+zefit.a[2]), digits=2)
 	iexpb1 = round(xefit.a[1]/(xefit.a[1]+xefit.a[2]), digits=2) 
 	iexpb2 = round(xefit.a[2]/(xefit.a[1]+xefit.a[2]), digits=2)
-	in1 = L"I(\lambda_1) = %$iexp1, I(\lambda_1) = %$iexp2"
-	in2 = L"I(\lambda_2) = %$iexpb1, I(\lambda_2) = %$iexpb2"
+	in1 = L"I(\tau_1) = %$iexp1, I(\tau_1) = %$iexp2"
+	in2 = L"I(\tau_2) = %$iexpb1, I(\tau_2) = %$iexpb2"
 	lbl1 = string(lnd1,"\n", in1) 
 	lbl2 = string(lnd2,"\n", in2)
 	
@@ -259,6 +249,9 @@ begin
 	zzpba3 = plot(p3dtfbax, tdata, xefit.ypred, yaxis=:identity, ylim=(1, 2*10^5),label=lbl2)
 	plot(zzpf3, zzpba3)
 end
+
+# ╔═╡ 98102ffc-f588-438d-b217-d14e18750a38
+sqrt(30)
 
 # ╔═╡ 0096d481-0f1c-4e61-95c1-3d90184de56a
 md"""
@@ -294,10 +287,43 @@ end
 # ╔═╡ f14d4695-e7d4-4b4a-9393-9bd09aefe6e4
 length(zefit.ypred)
 
+# ╔═╡ 4d3ffa9f-1885-440c-9008-58fb001c5a36
+
+
 # ╔═╡ 363898af-1ee7-4fa9-94db-393a777b0255
 begin
 	psn1 = plot(tdata, xefit.ypred ./zefit.ypred, lw=2, label="C1+Ba")
 	plot(psn1)
+end
+
+# ╔═╡ 22063d72-44e2-44bc-bca9-8b056b68d0b3
+fexp1(x) = exp(-x/387)
+
+# ╔═╡ b7147fa2-3967-4a62-b11a-b4469c619877
+fexp1(300)
+
+# ╔═╡ 31de886e-edb3-4461-8734-ddfdb56f42c6
+1/exp(1)
+
+# ╔═╡ 8cc1c4e8-6179-4826-96c8-ab9f241c0f86
+fexp2(x) = (exp(-x/486) + 0.3 * exp(-x/75))/1.3
+
+# ╔═╡ c8290e55-08ca-4009-813b-ca15c31fb805
+fexp3(x) = (1436* exp(-x/203) + 883 * exp(-x/572))/(1436 + 883)
+
+# ╔═╡ 86efe2e5-088e-4a07-a951-92054bf5912c
+let
+	xx =0:10:1000
+	pf1 = plot(0:10:1000, fexp1.(xx), label="exp1", legend=true)
+	pf2 = plot(pf1,0:10:1000, fexp2.(xx), label="exp1 + exp2", legend=true)
+	pf3 = plot(pf2,0:10:1000, fexp3.(xx), label="IFIC", legend=true)
+end
+
+# ╔═╡ 0fc4aea3-5aac-41e0-977e-19df4e83d572
+let
+	xx =0:10:500
+	rexp(x) = fexp3(x)/ fexp1(x)
+	pf3 = plot(xx, rexp.(xx), label="ratio", legend=true)
 end
 
 # ╔═╡ adef1149-cbf5-4403-88b0-e51196030cec
@@ -312,8 +338,7 @@ end
 
 # ╔═╡ 1b038953-ca91-4511-aaea-a0d732be35bd
 function fsgntn(zefit, xefit)
-	expf(t) = zefit.a[1] * exp(-t/zefit.b[1]) 
-	#+ zefit.a[2] * exp(-t/zefit.b[2]) + zefit.c
+	expf(t) = zefit.a[1] * exp(-t/zefit.b[1]) + zefit.a[2] * exp(-t/zefit.b[2]) + zefit.c
 	expb(t) = xefit.a[1] * exp(-t/xefit.b[1]) + xefit.a[2] * exp(-t/xefit.b[2]) + xefit.c
 	expf, expb
 			
@@ -337,47 +362,6 @@ begin
 	plot( py3, py4)
 end
 
-# ╔═╡ 86a3c22e-5675-4127-a61a-532f6bd52367
-function plotsnsqrt()
-	zxxt=0.0:10.0:5000.0
-	zy2b = [qint(expb, t0, tl) for t0 in zxxt]
-	zy2f = [qint(expf, t0, tl) for t0 in zxxt]
-	zxef = [qint(expb, t0, tl) / qint(expb, 0.0, 5000.0) for t0 in zxxt]
-	zrsn = zy2b ./ sqrt.(abs.(zy2f))
-	zpy1 = plot(zxxt, zy2b, lw=2, xlabel="t (ns)", ylabel = L"\int I(t) dt",
-	yaxis = (:log,(1e+3, 5e+8)), label="C1+Ba")
-	zpy2 = plot(zxxt, zy2f, lw=2, xlabel="t (ns)", ylabel = L"\int I(t) dt",
-		yaxis = (:log,(1, 5e+7)), label="C1")
-	zpy3 = plot(zxxt,zrsn, lw=2, yaxis = (:log,(1e+4, 1e+9)), label="S/N")
-	zpy4 = plot(zxxt,zxef, lw=2, yaxis = (:log,(1e-3, 1.0)), label="eff")
-	plot( zpy1, zpy2, zpy3, zpy4)
-	#plot(zpy1, zpy2, zpy4)
-end
-
-# ╔═╡ 7650d8d0-36ca-4141-b9b1-67aecd6fbe86
-plotsnsqrt()
-
-# ╔═╡ cdf91103-6022-4991-8c00-e4bb4f2287d9
-begin
-	emax = 3000.0
-	zxxt=0.0:10.0:emax
-	zy2b = [qint(expb, t0, tl) for t0 in zxxt]
-	zy2f = [qint(expf, t0, tl) for t0 in zxxt]
-	zxef = [100.0*qint(expb, t0, tl) / qint(expb, 0.0, emax) for t0 in zxxt]
-	zrsn = zy2b ./ (abs.(zy2f))
-	zpy1 = plot(zxxt, zy2b, lw=2, xlabel="t (ns)", ylabel = L"\int I(t) dt", 
-		        yaxis = (:log,(1e+7, 1e+9)), label="C1+Ba")
-	zpy2 = plot(zxxt, zy2f, lw=2, xlabel="t (ns)", ylabel = L"\int I(t) dt",
-		        yaxis = (:log,(1, 1e+8)), label="C1")
-	zpy3 = plot(zxxt,zrsn, lw=2, xlabel="t (ns)", 
-		   ylabel = L"\int I_{Ba2^+}(t) dt/\int I_{free}(t) dt",
-		   yaxis = (:log,(10, 1e+9)), label="S/N", legend=:left)
-	zpy4 = plot(zxxt,zxef, lw=2, xlabel="t (ns)", ylabel="eff(%)",
-		   yaxis = (:log,(1, 200.0)), label="eff")
-	plot( zpy1, zpy2, zpy3, zpy4)
-	#plot(zpy1, zpy2, zpy4)
-end
-
 # ╔═╡ 7a5fbaab-caca-4429-ad74-b50f9620b4ae
 begin
 	pex1 = plot(tdata, xefit.ypred, lw=2, label="C1+Ba")
@@ -386,6 +370,65 @@ begin
 	pex22 = plot(pex2,tdata, expf.(tdata), lw=2, label="C1+Ba")
 	plot(pex11, pex22)
 end
+
+# ╔═╡ 86a3c22e-5675-4127-a61a-532f6bd52367
+function ston(zefit, xefit; tl=5000.0)
+	zxxt=0.0:10.0:tl-10
+	expf, expb = fsgntn(zefit, xefit)
+	zy2b = [qint(expb, t0, tl) for t0 in zxxt]
+	zy2f = [qint(expf, t0, tl) for t0 in zxxt]
+	zxef = [qint(expb, t0, tl) / qint(expb, 0.0, tl) for t0 in zxxt]
+	zrsn = zy2b ./ sqrt.(abs.(zy2f))
+
+	print("zy2b->", zy2b[end-10:end])
+	print("\n zy2f->",zy2f[end-10:end])
+	print("\n zxeff->",zxef[end-10:end])
+	print("\n zrsn->",zrsn[end-10:end])
+	
+	zpy1 = plot(zxxt, zy2b, lw=2, xlabel="t (ns)", ylabel = L"\int I(t) dt",
+	yaxis = (:log,(1e+1, 5e+8)), label="C1+Ba")
+	zpy2 = plot(zxxt, zy2f, lw=2, xlabel="t (ns)", ylabel = L"\int I(t) dt",
+		yaxis = (:log,(1, 5e+7)), label="C1")
+	zpy3 = plot(zxxt,zrsn, lw=2, yaxis = (:log,(1e+4, 1e+6)), label="S/N")
+	zpy4 = plot(zxxt,zxef, lw=2, yaxis = (:log,(1e-2, 1.0)), label="eff")
+	plot( zpy1, zpy2, zpy3, zpy4)
+end
+
+# ╔═╡ 7650d8d0-36ca-4141-b9b1-67aecd6fbe86
+zzy2b = ston(zefit, xefit; tl=1000.0)
+
+# ╔═╡ cdf91103-6022-4991-8c00-e4bb4f2287d9
+function ston2(xefit, zefit; tl=10000, tp=5000)
+	expf, expb = fsgntn(zefit, xefit)
+	zxxt=0.0:10.0:tp
+	zy2b = [qint(expb, t0, tl) for t0 in zxxt]
+	zy2f = [qint(expf, t0, tl) for t0 in zxxt]
+	zxef = [100.0*qint(expb, t0, tl) / qint(expb, 0.0, tl) for t0 in zxxt]
+	zrsn = zy2b ./ sqrt.(abs.(zy2f))
+
+	#print("zy2b->", zy2b[1:30])
+	#print("\n zy2f->",zy2f[1:30])
+	print("\n zxeff->",zxef[50])
+	print("\n zrsn->",zrsn[50])
+	
+	zpy1 = plot(zxxt, zy2b, lw=2, xlabel="t (ns)", ylabel = L"\int I(t) dt", 
+		        yaxis = (:log,(1e+4, 1e+9)), label="C1+Ba")
+	
+	zpy2 = plot(zxxt, zy2f, lw=2, xlabel="t (ns)", ylabel = L"\int I(t) dt",
+		        yaxis = (:log,(1e+4, 1e+8)), label="C1")
+	
+	zpy3 = plot(zxxt,zrsn, lw=2, xlabel="t (ns)", 
+		   ylabel = L"\int I_{Ba2^+}(t) dt/\sqrt{\int I_{free}(t) d}t",
+		   yaxis = (:log,(1e+4, 1e+6)), label="S/N", legend=:topright)
+	
+	zpy4 = plot(zxxt,zxef, lw=2, xlabel="t (ns)", ylabel="eff(%)",
+		   yaxis = (:log,(1, 200.0)), label="eff")
+	
+	plot( zpy1, zpy2, zpy3, zpy4)
+end
+
+# ╔═╡ 3c747225-bf2d-490b-ae3a-2d38435a574f
+ston2(xefit, zefit; tl=10000, tp=5000)
 
 # ╔═╡ 702f4805-8e1f-4fb8-bada-e95777055cdf
 function getnorm(rpath,file, flts)
@@ -471,8 +514,6 @@ end
 # ╠═8e7c68c7-ff2e-4895-aaf7-189f1d9eb39d
 # ╠═8438aa92-3c20-417f-8733-757f7e07d37f
 # ╠═81549a07-5eda-466d-bafb-24f530041d8c
-# ╠═14192a57-c137-4a61-9074-98d6a0211ef9
-# ╠═79876fb7-7177-4277-acc6-71a8a5195868
 # ╠═8a57aa29-a9d9-47e5-b13b-34a62533e54d
 # ╠═ffd49f31-6a3d-4800-b257-0f1841c50706
 # ╠═843c6950-d629-495b-9d9e-06d920d80229
@@ -492,6 +533,7 @@ end
 # ╠═84a56ba2-dba2-49e6-918d-715573db8328
 # ╠═abeeb9dd-70cc-4d6e-88e6-4f71623b4d90
 # ╠═200deb4a-c9da-4460-8f8f-99ed4ddc9820
+# ╠═98102ffc-f588-438d-b217-d14e18750a38
 # ╠═0096d481-0f1c-4e61-95c1-3d90184de56a
 # ╠═1f524d20-d336-4ae5-be00-781c057c1f9c
 # ╠═f14d4695-e7d4-4b4a-9393-9bd09aefe6e4
@@ -499,8 +541,17 @@ end
 # ╠═86a3c22e-5675-4127-a61a-532f6bd52367
 # ╠═7650d8d0-36ca-4141-b9b1-67aecd6fbe86
 # ╠═cdf91103-6022-4991-8c00-e4bb4f2287d9
+# ╠═3c747225-bf2d-490b-ae3a-2d38435a574f
+# ╠═4d3ffa9f-1885-440c-9008-58fb001c5a36
 # ╠═7a5fbaab-caca-4429-ad74-b50f9620b4ae
 # ╠═363898af-1ee7-4fa9-94db-393a777b0255
+# ╠═22063d72-44e2-44bc-bca9-8b056b68d0b3
+# ╠═b7147fa2-3967-4a62-b11a-b4469c619877
+# ╠═31de886e-edb3-4461-8734-ddfdb56f42c6
+# ╠═8cc1c4e8-6179-4826-96c8-ab9f241c0f86
+# ╠═c8290e55-08ca-4009-813b-ca15c31fb805
+# ╠═86efe2e5-088e-4a07-a951-92054bf5912c
+# ╠═0fc4aea3-5aac-41e0-977e-19df4e83d572
 # ╠═adef1149-cbf5-4403-88b0-e51196030cec
 # ╠═fdf023c2-0186-48f0-acec-f2a14f218be6
 # ╠═1b038953-ca91-4511-aaea-a0d732be35bd
